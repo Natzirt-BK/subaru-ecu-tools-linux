@@ -41,6 +41,28 @@ while (($#)); do
     shift
 done
 
+log_stamp=$(date +%Y%m%d-%H%M%S)
+state_dir="${XDG_STATE_HOME:-$HOME/.local/state}/subaru-ecu-tools-linux"
+if [[ "$mode" == uninstall ]]; then
+    log_file="/tmp/subaru-ecu-tools-uninstall-$log_stamp.log"
+else
+    mkdir -p "$state_dir"
+    log_file="$state_dir/setup-$log_stamp.log"
+    ln -sfn "$(basename -- "$log_file")" "$state_dir/latest.log"
+fi
+exec > >(tee -a "$log_file") 2>&1
+log_result() {
+    local status=$?
+    if ((status)); then
+        echo
+        echo "Subaru ECU Tools stopped with status $status."
+        echo "Share this diagnostic log when requesting help: $log_file"
+    else
+        echo "Diagnostic log: $log_file"
+    fi
+}
+trap log_result EXIT
+
 bin_dir="${XDG_BIN_HOME:-$HOME/.local/bin}"
 data_root="${XDG_DATA_HOME:-$HOME/.local/share}"
 data_dir="$data_root/subaru-ecu-tools-linux"
@@ -57,6 +79,7 @@ if [[ "$mode" == uninstall ]]; then
         "$data_dir" \
         "$ecuflash_prefix" \
         "$cache_root" \
+        "$state_dir" \
         "$applications_dir/ecuflash.desktop" \
         "$applications_dir/romraider-editor.desktop" \
         "$applications_dir/romraider-logger.desktop" \
@@ -82,7 +105,7 @@ if [[ "$mode" == uninstall ]]; then
         "$applications_dir/romraider-editor.desktop" \
         "$applications_dir/romraider-logger.desktop" \
         "$applications_dir/subaru-ecu-tools-setup.desktop"
-    rm -rf -- "$data_dir" "$ecuflash_prefix" "$cache_root"
+    rm -rf -- "$data_dir" "$ecuflash_prefix" "$cache_root" "$state_dir"
     if [[ -e /etc/udev/rules.d/99-openport2.rules ]]; then
         sudo rm -f -- /etc/udev/rules.d/99-openport2.rules
         sudo udevadm control --reload-rules
@@ -94,6 +117,7 @@ if [[ "$mode" == uninstall ]]; then
         rm -rf -- "$default_source_dir"
     fi
     echo "Subaru ECU Tools removal completed."
+    echo "The final removal log is outside the installed paths: $log_file"
     exit 0
 fi
 

@@ -46,6 +46,16 @@ prefix and cache, USB rule, and default source checkout. It preserves the
 separately obtained RomRaider package, ROMs, definitions, logs, and shared
 system packages.
 
+## Diagnostic logs
+
+Every command-line or graphical setup run records its terminal output in:
+
+    $HOME/.local/state/subaru-ecu-tools-linux/
+
+`latest.log` points to the newest run. Setup prints the exact file to share if
+an error occurs. The uninstaller removes the saved setup logs and writes its own
+final log to `/tmp/subaru-ecu-tools-uninstall-<timestamp>.log`.
+
 The optional EcuFlash step downloads checksum-pinned version 1.44.4870 directly
 from Tactrix. After the vendor installer closes, setup starts EcuFlash for 12
 seconds and fails if it crashes or exits early. Set `ECUFLASH_WINE` to test a

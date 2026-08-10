@@ -97,6 +97,11 @@ bash ~/.local/src/subaru-ecu-tools-linux/linux/install-cachyos.sh --uninstall
 The uninstaller preserves separately obtained RomRaider files, ROMs,
 definitions, logs, and shared system packages.
 
+Every check and installation writes a timestamped diagnostic log under
+`$HOME/.local/state/subaru-ecu-tools-linux`; `latest.log` always points to the
+newest run. When setup fails, share that log with the error report. Uninstall
+removes the saved logs and writes its final cleanup log under `/tmp`.
+
 ## A serious safety note
 
 The cable is detected and communicates successfully on my computer, but that
