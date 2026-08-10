@@ -34,7 +34,7 @@ if [ "$ROMRAIDER_MODE" = logger ] && ! id -nG | tr ' ' '\n' | grep -qx uucp; the
         }
         exit 0
     fi
-    report_error "Your account is not in the uucp device-access group. Run Subaru ECU Tools Setup with the USB-permissions option, then log out and back in."
+    report_error "Your account is not in the uucp device-access group. Run Subaru & Evo ECU Tools Setup with the USB-permissions option, then log out and back in."
     exit 1
 fi
 
@@ -45,6 +45,19 @@ fi
 if [ ! -x "$ROMRAIDER_JAVA" ]; then
     report_error "The bundled 32-bit Java runtime was not found: $ROMRAIDER_JAVA. Use the complete DimeMod Linux package or set ROMRAIDER_JAVA."
     exit 1
+fi
+required_bundle="$ROMRAIDER_HOME/i18n/com/romraider/logger/ecu/ui/tab/injector/InjectorTabImpl.properties"
+if [ ! -f "$required_bundle" ]; then
+    report_error "The RomRaider DimeMod language resources are incomplete: $required_bundle. Re-run Subaru & Evo ECU Tools Setup and select RomRaider DimeMod."
+    exit 1
+fi
+
+definition_configurator="${XDG_BIN_HOME:-$HOME/.local/bin}/configure-romraider-definitions"
+if [ -x "$definition_configurator" ]; then
+    "$definition_configurator" || {
+        report_error "Installed RomRaider definitions could not be configured. Run Subaru & Evo ECU Tools Setup again."
+        exit 1
+    }
 fi
 
 case "$ROMRAIDER_MODE" in
@@ -72,6 +85,11 @@ set +e
     >> "$romraider_log" 2>&1
 java_status=$?
 set -e
+# A new RomRaider profile is written on first exit. Configure definitions then
+# as well so every later launch is ready without manual Definition Manager work.
+if [ -x "$definition_configurator" ]; then
+    "$definition_configurator" || true
+fi
 if [ "$java_status" -ne 0 ]; then
     report_error "RomRaider $ROMRAIDER_MODE exited with status $java_status. Diagnostic log: $romraider_log"
 fi
