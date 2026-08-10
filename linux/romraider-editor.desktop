@@ -1,7 +1,7 @@
 [Desktop Entry]
 Type=Application
 Name=RomRaider Editor
-Exec=env ROMRAIDER_MODE=editor launch-romraider
+Exec=env ROMRAIDER_MODE=editor @BINDIR@/launch-romraider
 Icon=applications-engineering
 Terminal=false
 Categories=Utility;Automotive;

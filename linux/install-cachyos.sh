@@ -1,0 +1,137 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo_root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
+mode=install
+install_deps=false
+install_udev=false
+
+usage() {
+    cat <<'EOF'
+Usage: linux/install-cachyos.sh [options]
+
+  --check          Check the system without building or installing anything
+  --install-deps   Install missing CachyOS/Arch packages with sudo pacman
+  --install-udev   Install the OpenPort 2.0 udev rule with sudo
+  -h, --help       Show this help
+
+The default builds the bridge and installs user files under ~/.local.
+It never installs EcuFlash, RomRaider, ROMs, definitions, or vehicle firmware.
+EOF
+}
+
+while (($#)); do
+    case "$1" in
+        --check) mode=check ;;
+        --install-deps) install_deps=true ;;
+        --install-udev) install_udev=true ;;
+        -h|--help) usage; exit 0 ;;
+        *) echo "Unknown option: $1" >&2; usage >&2; exit 2 ;;
+    esac
+    shift
+done
+
+if [[ ! -r /etc/os-release ]]; then
+    echo "Cannot identify this Linux distribution." >&2
+    exit 1
+fi
+# shellcheck disable=SC1091
+source /etc/os-release
+os_family="${ID:-} ${ID_LIKE:-}"
+if [[ "$os_family" != *cachyos* && "$os_family" != *arch* ]]; then
+    echo "Warning: designed for CachyOS/Arch; detected ${PRETTY_NAME:-unknown}." >&2
+fi
+
+packages=(base-devel libusb wine llvm-mingw)
+missing=()
+for package in "${packages[@]}"; do
+    pacman -Q "$package" &>/dev/null || missing+=("$package")
+done
+
+if ((${#missing[@]})); then
+    echo "Missing packages: ${missing[*]}"
+    if $install_deps; then
+        sudo pacman -S --needed "${missing[@]}"
+    else
+        echo "Re-run with --install-deps, or install them with:"
+        echo "  sudo pacman -S --needed ${missing[*]}"
+    fi
+fi
+
+checks_failed=0
+check_path() {
+    local description=$1 path=$2
+    if [[ -e "$path" ]]; then
+        printf 'OK: %s\n' "$description"
+    else
+        printf 'MISSING: %s (%s)\n' "$description" "$path"
+        checks_failed=1
+    fi
+}
+
+check_path "LLVM-MinGW compiler" /opt/llvm-mingw/bin/x86_64-w64-mingw32-gcc
+check_path "LLVM-MinGW DDK headers" /opt/llvm-mingw/x86_64-w64-mingw32/include/ddk
+check_path "Wine headers" /usr/include/wine/windows
+check_path "libusb headers" /usr/include/libusb-1.0/libusb.h
+command -v winebuild >/dev/null || { echo "MISSING: winebuild"; checks_failed=1; }
+command -v cc >/dev/null || { echo "MISSING: C compiler"; checks_failed=1; }
+
+if [[ "$mode" == check ]]; then
+    command -v lsusb >/dev/null && \
+        lsusb -d 0403:cc4d >/dev/null 2>&1 && \
+        echo "OK: Tactrix OpenPort 2.0 detected" || \
+        echo "INFO: OpenPort 2.0 is not currently detected (safe to connect later)."
+    exit "$checks_failed"
+fi
+
+if ((${#missing[@]})) && ! $install_deps; then
+    echo "Dependencies are incomplete; no files were installed." >&2
+    exit 1
+fi
+if ((checks_failed)); then
+    echo "Build prerequisites are incomplete; no files were installed." >&2
+    exit 1
+fi
+
+LLVM_MINGW_ROOT=/opt/llvm-mingw WINEBUILD=$(command -v winebuild) \
+    "$repo_root/wine-bridge/build-openport-driver.sh"
+
+bin_dir="${XDG_BIN_HOME:-$HOME/.local/bin}"
+data_root="${XDG_DATA_HOME:-$HOME/.local/share}"
+data_dir="$data_root/subaru-ecu-tools-linux"
+applications_dir="$data_root/applications"
+
+install -d "$bin_dir" "$data_dir/winedll/x86_64-windows" \
+    "$data_dir/winedll/x86_64-unix" "$applications_dir"
+install -m 0755 "$repo_root/linux/launch-ecuflash" "$bin_dir/launch-ecuflash"
+install -m 0755 "$repo_root/linux/launch-romraider" "$bin_dir/launch-romraider"
+install -m 0644 "$repo_root/build-wine-bridge/winedll/x86_64-windows/openport.sys" \
+    "$data_dir/winedll/x86_64-windows/openport.sys"
+install -m 0755 "$repo_root/build-wine-bridge/winedll/x86_64-unix/openport.so" \
+    "$data_dir/winedll/x86_64-unix/openport.so"
+
+for desktop in ecuflash romraider-editor romraider-logger; do
+    sed "s|@BINDIR@|$bin_dir|g" "$repo_root/linux/$desktop.desktop" \
+        > "$applications_dir/$desktop.desktop"
+done
+
+if $install_udev; then
+    sudo install -m 0644 "$repo_root/linux/99-openport2.rules" \
+        /etc/udev/rules.d/99-openport2.rules
+    sudo udevadm control --reload-rules
+    sudo udevadm trigger --subsystem-match=usb
+fi
+
+echo
+echo "Installed user tools successfully."
+echo "  Launchers: $bin_dir"
+echo "  Wine bridge: $data_dir/winedll"
+echo "  Desktop entries: $applications_dir"
+if ! $install_udev; then
+    echo "OpenPort permissions were not changed. Re-run with --install-udev if needed."
+fi
+if [[ ":$PATH:" != *":$bin_dir:"* ]]; then
+    echo "Add $bin_dir to PATH before launching from a terminal."
+fi
+echo "Set ECUFLASH_WINEPREFIX/ECUFLASH_WINE and ROMRAIDER_HOME when defaults differ."
+echo "Start with cable discovery and a supervised read-only ECU test."

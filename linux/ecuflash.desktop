@@ -2,7 +2,7 @@
 Type=Application
 Name=EcuFlash (Wine)
 Comment=Launch EcuFlash with the OpenPort 2.0 Wine bridge
-Exec=launch-ecuflash
+Exec=@BINDIR@/launch-ecuflash
 Icon=applications-engineering
 Terminal=false
 Categories=Utility;Automotive;

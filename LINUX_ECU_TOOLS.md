@@ -13,6 +13,22 @@ read-only test. Keep a known-good recovery path and never interrupt a flash.
 No EcuFlash, RomRaider, Tactrix firmware, ECU definitions, or ROM images are
 distributed here. Obtain those from their respective projects and vendors.
 
+## CachyOS quick start
+
+First inspect the machine without changing it:
+
+    ./linux/install-cachyos.sh --check
+
+Then build and install the user-level tools. The optional flags install missing
+repository packages and the OpenPort permission rule:
+
+    ./linux/install-cachyos.sh --install-deps --install-udev
+
+The installer never downloads or installs EcuFlash, RomRaider, ECU definitions,
+ROM images, or firmware. Install those separately from their official sources.
+Run the installer from a normal user account; it invokes `sudo` only for the
+explicit dependency and udev options.
+
 ## OpenPort permissions
 
 Copy `linux/99-openport2.rules` to `/etc/udev/rules.d/`, add your user to the
