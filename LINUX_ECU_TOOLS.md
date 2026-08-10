@@ -10,8 +10,10 @@ The bridge has been validated for cable discovery and communication. That is
 not proof that writing an ECU is safe. Begin with a supervised, vehicle-connected
 read-only test. Keep a known-good recovery path and never interrupt a flash.
 
-No EcuFlash, RomRaider, Tactrix firmware, ECU definitions, or ROM images are
-distributed here. Obtain those from their respective projects and vendors.
+No EcuFlash binary, RomRaider, Tactrix firmware, ECU definitions, or ROM images
+are committed here. The installer can fetch the complete EcuFlash distribution
+directly from Tactrix; obtain everything else from its respective project or
+vendor.
 
 ## CachyOS quick start
 
@@ -22,12 +24,13 @@ First inspect the machine without changing it:
 Then build and install the user-level tools. The optional flags install missing
 repository packages and the OpenPort permission rule:
 
-    ./linux/install-cachyos.sh --install-deps --install-udev
+    ./linux/install-cachyos.sh --install-deps --install-udev --install-ecuflash
 
-The installer never downloads or installs EcuFlash, RomRaider, ECU definitions,
-ROM images, or firmware. Install those separately from their official sources.
-Run the installer from a normal user account; it invokes `sudo` only for the
-explicit dependency and udev options.
+The optional EcuFlash step downloads version 1.44.4870 from Tactrix, verifies a
+pinned SHA-256 checksum, and opens the official installer through Wine. It does
+not silently accept the Tactrix license. The script never downloads RomRaider,
+ECU definitions, ROM images, or firmware. Run it from a normal user account; it
+invokes `sudo` only for the explicit dependency and udev options.
 
 ## OpenPort permissions
 

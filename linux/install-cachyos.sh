@@ -5,6 +5,7 @@ repo_root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
 mode=install
 install_deps=false
 install_udev=false
+install_ecuflash=false
 
 usage() {
     cat <<'EOF'
@@ -13,10 +14,11 @@ Usage: linux/install-cachyos.sh [options]
   --check          Check the system without building or installing anything
   --install-deps   Install missing CachyOS/Arch packages with sudo pacman
   --install-udev   Install the OpenPort 2.0 udev rule with sudo
+  --install-ecuflash  Download and open Tactrix's official EcuFlash installer
   -h, --help       Show this help
 
 The default builds the bridge and installs user files under ~/.local.
-It never installs EcuFlash, RomRaider, ROMs, definitions, or vehicle firmware.
+It never installs RomRaider, ROMs, definitions, or vehicle firmware.
 EOF
 }
 
@@ -25,6 +27,7 @@ while (($#)); do
         --check) mode=check ;;
         --install-deps) install_deps=true ;;
         --install-udev) install_udev=true ;;
+        --install-ecuflash) install_ecuflash=true ;;
         -h|--help) usage; exit 0 ;;
         *) echo "Unknown option: $1" >&2; usage >&2; exit 2 ;;
     esac
@@ -42,7 +45,7 @@ if [[ "$os_family" != *cachyos* && "$os_family" != *arch* ]]; then
     echo "Warning: designed for CachyOS/Arch; detected ${PRETTY_NAME:-unknown}." >&2
 fi
 
-packages=(base-devel libusb wine llvm-mingw)
+packages=(base-devel curl libusb wine llvm-mingw)
 missing=()
 for package in "${packages[@]}"; do
     pacman -Q "$package" &>/dev/null || missing+=("$package")
@@ -120,6 +123,26 @@ if $install_udev; then
         /etc/udev/rules.d/99-openport2.rules
     sudo udevadm control --reload-rules
     sudo udevadm trigger --subsystem-match=usb
+fi
+
+if $install_ecuflash; then
+    ecuflash_url=https://www.tactrix.com/downloads/ecuflash_1444870_win.exe
+    ecuflash_sha256=e9242d8882530fc320164f13e4107ceff9c862f5bd2e66debdbebe4895fffa0b
+    cache_root="${XDG_CACHE_HOME:-$HOME/.cache}/subaru-ecu-tools-linux"
+    ecuflash_installer="$cache_root/ecuflash_1444870_win.exe"
+    mkdir -p "$cache_root"
+
+    if [[ ! -f "$ecuflash_installer" ]] || \
+       ! printf '%s  %s\n' "$ecuflash_sha256" "$ecuflash_installer" | sha256sum -c - >/dev/null 2>&1; then
+        echo "Downloading the complete, unmodified EcuFlash 1.44.4870 installer from Tactrix..."
+        curl --fail --location --output "$ecuflash_installer" "$ecuflash_url"
+    fi
+    printf '%s  %s\n' "$ecuflash_sha256" "$ecuflash_installer" | sha256sum -c -
+
+    ecuflash_prefix="${ECUFLASH_WINEPREFIX:-$HOME/.local/share/ecuflash-proton}"
+    ecuflash_wine="${ECUFLASH_WINE:-wine}"
+    echo "Opening Tactrix's installer. Review and accept its license in the installer."
+    WINEPREFIX="$ecuflash_prefix" "$ecuflash_wine" "$ecuflash_installer"
 fi
 
 echo

@@ -17,9 +17,10 @@ getting EvoScan running, but that part is not ready yet.
 - A udev rule for OpenPort cable access
 - Notes about the USB and Wine issues that had to be solved
 
-This repository does **not** include EcuFlash, RomRaider, the DimeMod package,
+This repository does **not** commit EcuFlash, RomRaider, the DimeMod package,
 ECU definitions, ROM files, logs, or Tactrix firmware. You need to get those
-from their original sources.
+from their original sources. The installer can download EcuFlash directly from
+Tactrix for you.
 
 ## CachyOS quick start
 
@@ -36,16 +37,19 @@ If the check looks good, build the bridge and install the user-level launchers:
 ```
 
 If dependencies or the OpenPort udev rule are missing, the installer can handle
-those too. These options use `sudo` because they change system packages or USB
-permissions:
+those too. It can also download the complete official EcuFlash installer from
+Tactrix and open it through Wine. The dependency and udev options use `sudo`
+because they change system packages or USB permissions:
 
 ```bash
-./linux/install-cachyos.sh --install-deps --install-udev
+./linux/install-cachyos.sh --install-deps --install-udev --install-ecuflash
 ```
 
-The installer does not install the tuning applications themselves. The default
-locations can be changed with `ECUFLASH_WINEPREFIX`, `ECUFLASH_WINE`, and
-`ROMRAIDER_HOME`.
+The EcuFlash download is the unmodified Tactrix 1.44.4870 distribution and is
+verified against a pinned SHA-256 checksum before it runs. Its own installer
+shows the Tactrix license. DimeMod RomRaider must still be obtained separately.
+Default locations can be changed with `ECUFLASH_WINEPREFIX`, `ECUFLASH_WINE`,
+and `ROMRAIDER_HOME`.
 
 More detailed setup and troubleshooting notes are in
 [LINUX_ECU_TOOLS.md](LINUX_ECU_TOOLS.md).
