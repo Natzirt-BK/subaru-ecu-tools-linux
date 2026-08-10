@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Subaru ECU Tools Setup
+Comment=Set up EcuFlash and RomRaider support on CachyOS
+Exec=@SETUP@
+Icon=applications-engineering
+Terminal=false
+Categories=Utility;Automotive;
+StartupNotify=true

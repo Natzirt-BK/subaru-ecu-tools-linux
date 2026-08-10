@@ -113,10 +113,14 @@ install -m 0644 "$repo_root/build-wine-bridge/winedll/x86_64-windows/openport.sy
 install -m 0755 "$repo_root/build-wine-bridge/winedll/x86_64-unix/openport.so" \
     "$data_dir/winedll/x86_64-unix/openport.so"
 
-for desktop in ecuflash romraider-editor romraider-logger; do
-    sed "s|@BINDIR@|$bin_dir|g" "$repo_root/linux/$desktop.desktop" \
+for desktop in ecuflash romraider-editor romraider-logger subaru-ecu-tools-setup; do
+    sed -e "s|@BINDIR@|$bin_dir|g" \
+        -e "s|@SETUP@|$repo_root/linux/setup-cachyos-gui.sh|g" \
+        "$repo_root/linux/$desktop.desktop" \
         > "$applications_dir/$desktop.desktop"
 done
+command -v update-desktop-database >/dev/null && \
+    update-desktop-database "$applications_dir" >/dev/null 2>&1 || true
 
 if $install_udev; then
     sudo install -m 0644 "$repo_root/linux/99-openport2.rules" \

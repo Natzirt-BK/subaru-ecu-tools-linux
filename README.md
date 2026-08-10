@@ -24,17 +24,44 @@ Tactrix for you.
 
 ## CachyOS quick start
 
-Clone the repository and run the read-only system check first:
+For a native setup, download the small bootstrap, inspect it, and run the
+read-only check:
 
 ```bash
-./linux/install-cachyos.sh --check
+curl -fL https://raw.githubusercontent.com/Natzirt-BK/subaru-ecu-tools-linux/master/bootstrap-cachyos.sh -o /tmp/bootstrap-cachyos.sh
+less /tmp/bootstrap-cachyos.sh
+bash /tmp/bootstrap-cachyos.sh --check
 ```
 
-If the check looks good, build the bridge and install the user-level launchers:
+If the check looks good, this installs the dependencies, udev rule, Wine bridge,
+launchers, and official EcuFlash download:
 
 ```bash
-./linux/install-cachyos.sh
+bash /tmp/bootstrap-cachyos.sh --install-deps --install-udev --install-ecuflash
 ```
+
+The shorter paste-and-run form is:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Natzirt-BK/subaru-ecu-tools-linux/master/bootstrap-cachyos.sh | bash -s -- --install-deps --install-udev --install-ecuflash
+```
+
+The first method is recommended because it lets you read the script before it
+runs. The bootstrap keeps its checkout in
+`$HOME/.local/src/subaru-ecu-tools-linux` and updates it safely when run again.
+
+### Graphical setup
+
+CachyOS KDE users can open a KDialog setup wizard from Konsole:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Natzirt-BK/subaru-ecu-tools-linux/master/bootstrap-cachyos.sh | bash -s -- --gui
+```
+
+The wizard asks which pieces to install, then opens Konsole so progress and any
+`sudo` prompt stay visible. It never communicates with an ECU. After the first
+installation, **Subaru ECU Tools Setup** is also available in the application
+menu.
 
 If dependencies or the OpenPort udev rule are missing, the installer can handle
 those too. It can also download the complete official EcuFlash installer from

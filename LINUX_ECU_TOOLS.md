@@ -17,14 +17,21 @@ vendor.
 
 ## CachyOS quick start
 
-First inspect the machine without changing it:
+Download and inspect the native bootstrap before running it:
 
-    ./linux/install-cachyos.sh --check
+    curl -fL https://raw.githubusercontent.com/Natzirt-BK/subaru-ecu-tools-linux/master/bootstrap-cachyos.sh -o /tmp/bootstrap-cachyos.sh
+    less /tmp/bootstrap-cachyos.sh
+    bash /tmp/bootstrap-cachyos.sh --check
 
 Then build and install the user-level tools. The optional flags install missing
-repository packages and the OpenPort permission rule:
+repository packages and the OpenPort permission rule, and download the official
+EcuFlash installer:
 
-    ./linux/install-cachyos.sh --install-deps --install-udev --install-ecuflash
+    bash /tmp/bootstrap-cachyos.sh --install-deps --install-udev --install-ecuflash
+
+For a graphical KDialog wizard on CachyOS KDE:
+
+    bash /tmp/bootstrap-cachyos.sh --gui
 
 The optional EcuFlash step downloads version 1.44.4870 from Tactrix, verifies a
 pinned SHA-256 checksum, and opens the official installer through Wine. It does
