@@ -26,7 +26,20 @@ fi
 mkdir -p "$(dirname -- "$source_dir")"
 if [[ -d "$source_dir/.git" ]]; then
     echo "Updating existing checkout in $source_dir"
-    git -C "$source_dir" pull --ff-only
+    git -C "$source_dir" fetch --prune origin master
+    if git -C "$source_dir" merge-base --is-ancestor HEAD origin/master && \
+       git -C "$source_dir" merge --ff-only origin/master; then
+        :
+    else
+        backup_dir="${source_dir}.backup-$(date +%Y%m%d-%H%M%S)"
+        if [[ -e "$backup_dir" ]]; then
+            backup_dir="$backup_dir-$$"
+        fi
+        echo "The existing checkout has local or older rewritten history."
+        echo "Preserving it at: $backup_dir"
+        mv -- "$source_dir" "$backup_dir"
+        git clone --depth 1 "$repo_url" "$source_dir"
+    fi
 elif [[ -e "$source_dir" ]]; then
     echo "Cannot install: $source_dir exists but is not a Git checkout." >&2
     exit 1
