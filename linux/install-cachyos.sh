@@ -81,7 +81,7 @@ github_repo=Natzirt-BK/subaru-ecu-tools-linux
 offer_error_report() {
     local answer report_file issue_url
 
-    [[ -r /dev/tty ]] || return 0
+    [[ -e /dev/tty ]] || return 0
     read -r -p "Upload this error log in a public GitHub issue so the maintainer can investigate? [y/N] " answer </dev/tty || return 0
     [[ "$answer" == [yY] || "$answer" == [yY][eE][sS] ]] || return 0
 
@@ -98,7 +98,7 @@ offer_error_report() {
 
     report_file=$(mktemp /tmp/subaru-ecu-tools-report.XXXXXX)
     {
-        echo "The installer offered to submit this report after a failed run."
+        echo "Setup submitted this report after a detected or user-reported problem."
         echo
         echo "Installer log (last 50,000 bytes):"
         echo '```text'
@@ -107,13 +107,34 @@ offer_error_report() {
         echo '```'
     } >"$report_file"
     if issue_url=$(gh issue create --repo "$github_repo" \
-        --title "Automated installer error report ($log_stamp)" \
+        --title "Setup diagnostic report ($log_stamp)" \
         --body-file "$report_file"); then
         echo "Error report uploaded: $issue_url"
     else
         echo "GitHub upload failed. Your log remains at: $log_file" >&2
     fi
     rm -f -- "$report_file"
+}
+confirm_success() {
+    local answer question
+
+    [[ -e /dev/tty && "${SUBARU_SETUP_NO_PAUSE:-0}" != 1 ]] || return 0
+    case "$mode" in
+        check) question="Did the system check complete as expected?" ;;
+        uninstall) question="Did removal complete as expected?" ;;
+        *) question="Did installation complete and do the installed shortcuts open correctly?" ;;
+    esac
+    read -r -p "$question [Y/n] " answer </dev/tty || return 0
+    if [[ "$answer" == [nN] || "$answer" == [nN][oO] ]]; then
+        warn "The run exited successfully, but the user reported a problem."
+        offer_error_report
+    else
+        ok "Confirmed complete. No error report is needed."
+    fi
+}
+wait_before_close() {
+    [[ -e /dev/tty && "${SUBARU_SETUP_NO_PAUSE:-0}" != 1 ]] || return 0
+    read -r -p "Press Enter to close this setup terminal..." _ </dev/tty || true
 }
 log_result() {
     local status=$?
@@ -125,7 +146,9 @@ log_result() {
         offer_error_report
     else
         echo "Diagnostic log: $log_file"
+        confirm_success
     fi
+    wait_before_close
     exit "$status"
 }
 trap log_result EXIT

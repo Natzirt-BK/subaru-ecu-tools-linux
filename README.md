@@ -118,6 +118,10 @@ a prior `gh auth login`; setup never asks for or stores a GitHub token. The user
 must confirm each upload, and declining keeps the log local.
 The `--install-deps` and “install everything” paths install `github-cli`, but
 GitHub authentication remains an explicit user action.
+Before the graphical setup terminal closes, it always confirms the outcome. A
+successful run asks whether setup and its shortcuts worked; answering no offers
+the same GitHub report upload as a script-detected failure. The terminal closes
+only after the user presses Enter.
 
 ## A serious safety note
 

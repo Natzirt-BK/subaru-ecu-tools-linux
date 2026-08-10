@@ -30,19 +30,19 @@ choice=$(kdialog --title "Subaru ECU Tools" --menu \
     uninstall "Remove Subaru ECU Tools") || exit 0
 
 if [[ "$choice" == check ]]; then
-    exec konsole --hold -e "$installer" --check
+    exec konsole -e "$installer" --check
 fi
 if [[ "$choice" == uninstall ]]; then
     if kdialog --title "Remove Subaru ECU Tools" --warningyesno \
         "Remove launchers, desktop entries, the Wine bridge, EcuFlash prefix, cache, USB rule, and default source checkout?\n\nRomRaider DimeMod, ROMs, definitions, logs, and shared packages will be preserved."; then
-        exec konsole --hold -e "$installer" --uninstall --yes
+        exec konsole -e "$installer" --uninstall --yes
     fi
     exit 0
 fi
 if [[ "$choice" == all ]]; then
     if kdialog --title "Confirm complete installation" --yesno \
         "Install all dependencies, USB permissions, launchers, Wine bridge, and EcuFlash?\n\nThis prepares the computer only and never reads or writes an ECU."; then
-        exec konsole --hold -e "$installer" --yes-all
+        exec konsole -e "$installer" --yes-all
     fi
     exit 0
 fi
@@ -70,4 +70,4 @@ This only prepares the computer. It will not read or write an ECU."; then
     exit 0
 fi
 
-exec konsole --hold -e "$installer" "${args[@]}"
+exec konsole -e "$installer" "${args[@]}"
