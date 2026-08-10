@@ -1,0 +1,32 @@
+#!/bin/sh
+set -eu
+
+: "${ROMRAIDER_HOME:=$HOME/.local/share/romraider}"
+: "${ROMRAIDER_JAVA:=$ROMRAIDER_HOME/jre32/bin/java}"
+: "${ROMRAIDER_MODE:=editor}"
+
+if [ ! -x "$ROMRAIDER_JAVA" ]; then
+    ROMRAIDER_JAVA=$(command -v java || true)
+fi
+if [ -z "$ROMRAIDER_JAVA" ]; then
+    echo "RomRaider requires Java; set ROMRAIDER_JAVA to its executable." >&2
+    exit 1
+fi
+
+case "$ROMRAIDER_MODE" in
+    editor) ;;
+    logger) set -- -logger "$@" ;;
+    *) echo "ROMRAIDER_MODE must be 'editor' or 'logger'." >&2; exit 2 ;;
+esac
+
+mkdir -p "$HOME/.RomRaider"
+cd "$ROMRAIDER_HOME"
+exec "$ROMRAIDER_JAVA" \
+    -Djava.library.path=lib/linux/32 \
+    -Dawt.useSystemAAFontSettings=lcd \
+    -Dswing.aatext=true \
+    -Dsun.java2d.d3d=false \
+    -Xms64M -Xmx512M \
+    -XX:-UseParallelGC \
+    -XX:CompileThreshold=10000 \
+    -jar RomRaider.jar "$@"

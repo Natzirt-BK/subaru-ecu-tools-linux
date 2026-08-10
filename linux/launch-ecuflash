@@ -1,0 +1,16 @@
+#!/bin/sh
+set -eu
+
+# Override these in the environment when your installation differs.
+: "${ECUFLASH_WINEPREFIX:=$HOME/.local/share/ecuflash-proton}"
+: "${ECUFLASH_WINE:=wine}"
+: "${ECUFLASH_DIR:=$ECUFLASH_WINEPREFIX/drive_c/Program Files (x86)/OpenECU/EcuFlash}"
+
+project_root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+: "${ECUFLASH_WINEDLLPATH:=$project_root/build-wine-bridge/winedll}"
+
+export WINEPREFIX="$ECUFLASH_WINEPREFIX"
+export WINEDLLPATH="$ECUFLASH_WINEDLLPATH${WINEDLLPATH:+:$WINEDLLPATH}"
+
+cd "$ECUFLASH_DIR"
+exec "$ECUFLASH_WINE" ecuflash.exe "$@"

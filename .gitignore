@@ -13,3 +13,8 @@ x64/
 *.log
 *.o
 *.so
+*.dll
+*.exe
+*.sys
+build-win32/
+build-wine-bridge/

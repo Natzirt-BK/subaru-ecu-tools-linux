@@ -1,0 +1,2 @@
+# Tactrix OpenPort 2.0. Prefer a dedicated group over world-writable mode.
+SUBSYSTEM=="usb", ATTR{idVendor}=="0403", ATTR{idProduct}=="cc4d", GROUP="dialout", MODE="0660"

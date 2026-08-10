@@ -1,5 +1,8 @@
 # j2534
 
+> Linux/Wine users: see [LINUX_ECU_TOOLS.md](LINUX_ECU_TOOLS.md) for the
+> experimental EcuFlash OpenPort 2.0 bridge and portable RomRaider launchers.
+
 j2534 is a library written specifically for the [Tactrix Openport 2.0](https://www.tactrix.com/index.php?option=com_virtuemart&page=shop.product_details&flypage=flypage.tpl&product_id=17&Itemid=53&redirected=1&Itemid=53 "Tactrix Openport 2.0") cable.
 
 This library implements most of the SAE J2534-1 API functions as used by the [RomRaider - Open Source ECU Tuning](https://www.romraider.com/ "RomRaider - Open Source ECU Tuning") project.
