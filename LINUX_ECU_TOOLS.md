@@ -56,6 +56,12 @@ Every command-line or graphical setup run records its terminal output in:
 an error occurs. The uninstaller removes the saved setup logs and writes its own
 final log to `/tmp/subaru-ecu-tools-uninstall-<timestamp>.log`.
 
+On failure, the terminal asks whether to submit the log as a public GitHub
+issue. If the user answers yes and the GitHub CLI is already authenticated
+(`gh auth login`), the installer creates an issue in the project repository
+containing the last 50 KB of output. It never requests or saves a GitHub token,
+and it does not upload anything unless the user confirms.
+
 The optional EcuFlash step downloads checksum-pinned version 1.44.4870 directly
 from Tactrix. After the vendor installer closes, setup starts EcuFlash for 12
 seconds and fails if it crashes or exits early. Set `ECUFLASH_WINE` to test a

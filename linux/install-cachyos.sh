@@ -51,15 +51,56 @@ else
     ln -sfn "$(basename -- "$log_file")" "$state_dir/latest.log"
 fi
 exec > >(tee -a "$log_file") 2>&1
+github_repo=Natzirt-BK/subaru-ecu-tools-linux
+offer_error_report() {
+    local answer report_file issue_url
+
+    [[ -r /dev/tty ]] || return 0
+    read -r -p "Upload this error log in a public GitHub issue so the maintainer can investigate? [y/N] " answer </dev/tty || return 0
+    [[ "$answer" == [yY] || "$answer" == [yY][eE][sS] ]] || return 0
+
+    if ! command -v gh >/dev/null 2>&1; then
+        echo "Automatic upload requires GitHub CLI. Install 'github-cli', run 'gh auth login', then retry."
+        echo "No log was uploaded. Your log remains at: $log_file"
+        return 0
+    fi
+    if ! gh auth status --hostname github.com >/dev/null 2>&1; then
+        echo "GitHub CLI is not signed in. Run 'gh auth login', then retry."
+        echo "No log was uploaded. Your log remains at: $log_file"
+        return 0
+    fi
+
+    report_file=$(mktemp /tmp/subaru-ecu-tools-report.XXXXXX)
+    {
+        echo "The installer offered to submit this report after a failed run."
+        echo
+        echo "Installer log (last 50,000 bytes):"
+        echo '```text'
+        tail -c 50000 "$log_file"
+        echo
+        echo '```'
+    } >"$report_file"
+    if issue_url=$(gh issue create --repo "$github_repo" \
+        --title "Automated installer error report ($log_stamp)" \
+        --body-file "$report_file"); then
+        echo "Error report uploaded: $issue_url"
+    else
+        echo "GitHub upload failed. Your log remains at: $log_file" >&2
+    fi
+    rm -f -- "$report_file"
+}
 log_result() {
     local status=$?
+    trap - EXIT
     if ((status)); then
         echo
         echo "Subaru ECU Tools stopped with status $status."
         echo "Share this diagnostic log when requesting help: $log_file"
+        offer_error_report
     else
         echo "Diagnostic log: $log_file"
     fi
+    exit "$status"
 }
 trap log_result EXIT
 

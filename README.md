@@ -102,6 +102,11 @@ Every check and installation writes a timestamped diagnostic log under
 newest run. When setup fails, share that log with the error report. Uninstall
 removes the saved logs and writes its final cleanup log under `/tmp`.
 
+After a failed run, setup asks whether to upload the log to this repository as
+a public GitHub issue. Automatic upload requires the `github-cli` package and
+a prior `gh auth login`; setup never asks for or stores a GitHub token. The user
+must confirm each upload, and declining keeps the log local.
+
 ## A serious safety note
 
 The cable is detected and communicates successfully on my computer, but that
