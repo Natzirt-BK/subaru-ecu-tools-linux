@@ -80,6 +80,9 @@ shows the Tactrix license. Setup also downloads a checksum-pinned Wine 11.1
 runtime tested specifically with EcuFlash; it does not replace system Wine.
 `ECUFLASH_WINE` can select a different runner explicitly.
 The exact runtime build recipe is in `linux/build-ecuflash-wine-runtime.sh`.
+After installation, launch **EcuFlash (Wine)** from the application menu. Setup
+removes the vendor-generated generic **EcuFlash** shortcut because it invokes
+system Wine instead of the tested private runtime.
 
 DimeMod RomRaider must still be obtained separately. Extract its complete Linux
 package, including `jre32`, to `$HOME/.local/share/romraider-dm20`. The installed
@@ -104,11 +107,15 @@ Every check and installation writes a timestamped diagnostic log under
 `$HOME/.local/state/subaru-ecu-tools-linux`; `latest.log` always points to the
 newest run. When setup fails, share that log with the error report. Uninstall
 removes the saved logs and writes its final cleanup log under `/tmp`.
+Interactive terminals use colored progress and status messages while saved
+logs remain plain text. Set `NO_COLOR=1` to disable terminal colors.
 
 After a failed run, setup asks whether to upload the log to this repository as
 a public GitHub issue. Automatic upload requires the `github-cli` package and
 a prior `gh auth login`; setup never asks for or stores a GitHub token. The user
 must confirm each upload, and declining keeps the log local.
+The `--install-deps` and “install everything” paths install `github-cli`, but
+GitHub authentication remains an explicit user action.
 
 ## A serious safety note
 

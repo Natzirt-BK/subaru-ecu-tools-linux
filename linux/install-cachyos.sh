@@ -8,6 +8,27 @@ install_udev=false
 install_ecuflash=false
 assume_yes=false
 
+if [[ -t 1 && -z "${NO_COLOR:-}" && "${TERM:-}" != dumb ]]; then
+    color_reset=$'\033[0m'
+    color_bold=$'\033[1m'
+    color_red=$'\033[31m'
+    color_green=$'\033[32m'
+    color_yellow=$'\033[33m'
+    color_blue=$'\033[34m'
+    color_cyan=$'\033[36m'
+    use_color=true
+else
+    color_reset= color_bold= color_red= color_green=
+    color_yellow= color_blue= color_cyan=
+    use_color=false
+fi
+
+section() { printf '\n%b==> %s%b\n' "$color_bold$color_cyan" "$*" "$color_reset"; }
+step() { printf '%b  -> %s%b\n' "$color_blue" "$*" "$color_reset"; }
+ok() { printf '%b  OK %b%s\n' "$color_green" "$color_reset" "$*"; }
+warn() { printf '%b  WARNING %b%s\n' "$color_yellow" "$color_reset" "$*" >&2; }
+fail() { printf '%b  ERROR %b%s\n' "$color_red" "$color_reset" "$*" >&2; }
+
 usage() {
     cat <<'EOF'
 Usage: linux/install-cachyos.sh [options]
@@ -50,7 +71,12 @@ else
     log_file="$state_dir/setup-$log_stamp.log"
     ln -sfn "$(basename -- "$log_file")" "$state_dir/latest.log"
 fi
-exec > >(tee -a "$log_file") 2>&1
+if $use_color; then
+    : >"$log_file"
+    exec > >(tee >(sed -u $'s/\033\[[0-9;]*m//g' >>"$log_file")) 2>&1
+else
+    exec > >(tee -a "$log_file") 2>&1
+fi
 github_repo=Natzirt-BK/subaru-ecu-tools-linux
 offer_error_report() {
     local answer report_file issue_url
@@ -94,7 +120,7 @@ log_result() {
     trap - EXIT
     if ((status)); then
         echo
-        echo "Subaru ECU Tools stopped with status $status."
+        fail "Subaru ECU Tools stopped with status $status."
         echo "Share this diagnostic log when requesting help: $log_file"
         offer_error_report
     else
@@ -108,12 +134,14 @@ bin_dir="${XDG_BIN_HOME:-$HOME/.local/bin}"
 data_root="${XDG_DATA_HOME:-$HOME/.local/share}"
 data_dir="$data_root/subaru-ecu-tools-linux"
 applications_dir="$data_root/applications"
+wine_ecuflash_menu_dir="$applications_dir/wine/Programs/EcuFlash"
 cache_root="${XDG_CACHE_HOME:-$HOME/.cache}/subaru-ecu-tools-linux"
 ecuflash_prefix="${ECUFLASH_WINEPREFIX:-$data_root/ecuflash-proton}"
 default_source_dir="$HOME/.local/src/subaru-ecu-tools-linux"
 
 if [[ "$mode" == uninstall ]]; then
-    echo "Subaru ECU Tools will remove:"
+    section "Remove Subaru ECU Tools"
+    warn "The following project-managed files will be removed:"
     printf '  %s\n' \
         "$bin_dir/launch-ecuflash" \
         "$bin_dir/launch-romraider" \
@@ -121,6 +149,7 @@ if [[ "$mode" == uninstall ]]; then
         "$ecuflash_prefix" \
         "$cache_root" \
         "$state_dir" \
+        "$wine_ecuflash_menu_dir" \
         "$applications_dir/ecuflash.desktop" \
         "$applications_dir/romraider-editor.desktop" \
         "$applications_dir/romraider-logger.desktop" \
@@ -146,7 +175,8 @@ if [[ "$mode" == uninstall ]]; then
         "$applications_dir/romraider-editor.desktop" \
         "$applications_dir/romraider-logger.desktop" \
         "$applications_dir/subaru-ecu-tools-setup.desktop"
-    rm -rf -- "$data_dir" "$ecuflash_prefix" "$cache_root" "$state_dir"
+    rm -rf -- "$data_dir" "$ecuflash_prefix" "$cache_root" "$state_dir" \
+        "$wine_ecuflash_menu_dir"
     if [[ -e /etc/udev/rules.d/99-openport2.rules ]]; then
         sudo rm -f -- /etc/udev/rules.d/99-openport2.rules
         sudo udevadm control --reload-rules
@@ -157,7 +187,7 @@ if [[ "$mode" == uninstall ]]; then
     if [[ "$repo_root" == "$default_source_dir" ]]; then
         rm -rf -- "$default_source_dir"
     fi
-    echo "Subaru ECU Tools removal completed."
+    ok "Subaru ECU Tools removal completed."
     echo "The final removal log is outside the installed paths: $log_file"
     exit 0
 fi
@@ -170,18 +200,20 @@ fi
 source /etc/os-release
 os_family="${ID:-} ${ID_LIKE:-}"
 if [[ "$os_family" != *cachyos* && "$os_family" != *arch* ]]; then
-    echo "Warning: designed for CachyOS/Arch; detected ${PRETTY_NAME:-unknown}." >&2
+    warn "Designed for CachyOS/Arch; detected ${PRETTY_NAME:-unknown}."
 fi
 
-packages=(base-devel curl libusb wine llvm-mingw zstd)
+section "Checking dependencies"
+packages=(base-devel curl github-cli libusb wine llvm-mingw zstd)
 missing=()
 for package in "${packages[@]}"; do
     pacman -Q "$package" &>/dev/null || missing+=("$package")
 done
 
 if ((${#missing[@]})); then
-    echo "Missing packages: ${missing[*]}"
+    warn "Missing packages: ${missing[*]}"
     if $install_deps; then
+        step "Installing missing CachyOS packages"
         sudo pacman -S --needed "${missing[@]}"
     else
         echo "Re-run with --install-deps, or install them with:"
@@ -193,9 +225,9 @@ checks_failed=0
 check_path() {
     local description=$1 path=$2
     if [[ -e "$path" ]]; then
-        printf 'OK: %s\n' "$description"
+        ok "$description"
     else
-        printf 'MISSING: %s (%s)\n' "$description" "$path"
+        fail "MISSING: $description ($path)"
         checks_failed=1
     fi
 }
@@ -211,31 +243,32 @@ if [[ "$mode" == check ]]; then
     check_data_root="${XDG_DATA_HOME:-$HOME/.local/share}"
     check_ecuflash="$check_data_root/ecuflash-proton/drive_c/Program Files (x86)/OpenECU/EcuFlash/ecuflash.exe"
     check_romraider="$check_data_root/romraider-dm20"
-    [[ -f "$check_ecuflash" ]] && echo "OK: EcuFlash installed" || \
-        echo "NOT INSTALLED: EcuFlash"
+    [[ -f "$check_ecuflash" ]] && ok "EcuFlash installed" || \
+        warn "NOT INSTALLED: EcuFlash"
     if [[ -f "$check_romraider/RomRaider.jar" && -x "$check_romraider/jre32/bin/java" ]]; then
-        echo "OK: RomRaider DimeMod with bundled 32-bit Java detected"
+        ok "RomRaider DimeMod with bundled 32-bit Java detected"
     else
-        echo "NOT INSTALLED: complete RomRaider DimeMod Linux package"
+        warn "NOT INSTALLED: complete RomRaider DimeMod Linux package"
     fi
-    id -nG | tr ' ' '\n' | grep -qx uucp && echo "OK: user is in uucp group" || \
-        echo "MISSING: user is not in uucp group (required by the Logger shortcut)"
+    id -nG | tr ' ' '\n' | grep -qx uucp && ok "User is in uucp group" || \
+        warn "MISSING: user is not in uucp group (required by the Logger shortcut)"
     command -v lsusb >/dev/null && \
         lsusb -d 0403:cc4d >/dev/null 2>&1 && \
-        echo "OK: Tactrix OpenPort 2.0 detected" || \
-        echo "INFO: OpenPort 2.0 is not currently detected (safe to connect later)."
+        ok "Tactrix OpenPort 2.0 detected" || \
+        step "OpenPort 2.0 is not currently detected (safe to connect later)"
     exit "$checks_failed"
 fi
 
 if ((${#missing[@]})) && ! $install_deps; then
-    echo "Dependencies are incomplete; no files were installed." >&2
+    fail "Dependencies are incomplete; no files were installed."
     exit 1
 fi
 if ((checks_failed)); then
-    echo "Build prerequisites are incomplete; no files were installed." >&2
+    fail "Build prerequisites are incomplete; no files were installed."
     exit 1
 fi
 
+section "Building the OpenPort Wine bridge"
 LLVM_MINGW_ROOT=/opt/llvm-mingw WINEBUILD=$(command -v winebuild) \
     "$repo_root/wine-bridge/build-openport-driver.sh"
 
@@ -258,8 +291,9 @@ command -v update-desktop-database >/dev/null && \
     update-desktop-database "$applications_dir" >/dev/null 2>&1 || true
 
 if $install_udev; then
+    section "Configuring OpenPort USB permissions"
     if ! getent group uucp >/dev/null; then
-        echo "The required uucp device-access group does not exist." >&2
+        fail "The required uucp device-access group does not exist."
         exit 1
     fi
     sudo install -m 0644 "$repo_root/linux/99-openport2.rules" \
@@ -271,6 +305,7 @@ if $install_udev; then
 fi
 
 if $install_ecuflash; then
+    section "Installing the tested EcuFlash environment"
     wine_runtime_url=https://github.com/Natzirt-BK/subaru-ecu-tools-linux/releases/download/ecuflash-wine-11.1-1/ecuflash-wine-11.1-x86_64.tar.zst
     wine_runtime_sha256=e3e1d6f83f54b710e01e93ae9150c14775ec6e4905bddcf08a127a7e602b2c03
     wine_runtime_archive="$cache_root/ecuflash-wine-11.1-x86_64.tar.zst"
@@ -282,7 +317,7 @@ if $install_ecuflash; then
 
     if [[ ! -f "$wine_runtime_archive" ]] || \
        ! printf '%s  %s\n' "$wine_runtime_sha256" "$wine_runtime_archive" | sha256sum -c - >/dev/null 2>&1; then
-        echo "Downloading the tested Wine 11.1 EcuFlash runtime..."
+        step "Downloading the tested Wine 11.1 EcuFlash runtime"
         curl --fail --location --output "$wine_runtime_archive" "$wine_runtime_url"
     fi
     printf '%s  %s\n' "$wine_runtime_sha256" "$wine_runtime_archive" | sha256sum -c -
@@ -291,20 +326,27 @@ if $install_ecuflash; then
         tar --zstd -xf "$wine_runtime_archive" -C "$data_dir/runtime"
     fi
     if [[ ! -x "$wine_runtime_dir/bin/wine" ]]; then
-        echo "The verified Wine runtime did not extract correctly." >&2
+        fail "The verified Wine runtime did not extract correctly."
         exit 1
     fi
 
     if [[ ! -f "$ecuflash_installer" ]] || \
        ! printf '%s  %s\n' "$ecuflash_sha256" "$ecuflash_installer" | sha256sum -c - >/dev/null 2>&1; then
-        echo "Downloading the complete, unmodified EcuFlash 1.44.4870 installer from Tactrix..."
+        step "Downloading the complete, unmodified EcuFlash 1.44.4870 installer from Tactrix"
         curl --fail --location --output "$ecuflash_installer" "$ecuflash_url"
     fi
     printf '%s  %s\n' "$ecuflash_sha256" "$ecuflash_installer" | sha256sum -c -
 
     ecuflash_wine="${ECUFLASH_WINE:-$wine_runtime_dir/bin/wine}"
-    echo "Opening Tactrix's installer. Review and accept its license in the installer."
-    WINEPREFIX="$ecuflash_prefix" "$ecuflash_wine" "$ecuflash_installer"
+    step "Opening Tactrix's installer; review and accept its license"
+    WINEPREFIX="$ecuflash_prefix" WINEDLLOVERRIDES="winemenubuilder.exe=d" \
+        "$ecuflash_wine" "$ecuflash_installer"
+
+    # The vendor installer may create generic menu entries that invoke system
+    # Wine. They conflict with our tested EcuFlash (Wine) launcher.
+    rm -rf -- "$wine_ecuflash_menu_dir"
+    command -v update-desktop-database >/dev/null && \
+        update-desktop-database "$applications_dir" >/dev/null 2>&1 || true
 
     ecuflash_dir="$ecuflash_prefix/drive_c/Program Files (x86)/OpenECU/EcuFlash"
     if [[ ! -f "$ecuflash_dir/ecuflash.exe" ]]; then
@@ -312,7 +354,7 @@ if $install_ecuflash; then
         exit 1
     fi
 
-    echo "Testing EcuFlash startup for 12 seconds. Leave its window open..."
+    step "Testing EcuFlash startup for 12 seconds; leave its window open"
     smoke_log="$cache_root/ecuflash-startup.log"
     set +e
     (
@@ -327,15 +369,20 @@ if $install_ecuflash; then
     [[ -x "$ecuflash_wineserver" ]] && \
         WINEPREFIX="$ecuflash_prefix" "$ecuflash_wineserver" -k >/dev/null 2>&1 || true
     if [[ $smoke_status -ne 124 ]]; then
-        echo "EcuFlash failed its startup test (status $smoke_status)." >&2
+        fail "EcuFlash failed its startup test (status $smoke_status)."
         echo "Diagnostic log: $smoke_log" >&2
         exit 1
     fi
-    echo "OK: EcuFlash remained running for the complete startup test."
+    ok "EcuFlash remained running for the complete startup test."
 fi
 
-echo
-echo "Installed user tools successfully."
+section "Installation complete"
+ok "Installed user tools successfully."
+if [[ -f "$ecuflash_prefix/drive_c/Program Files (x86)/OpenECU/EcuFlash/ecuflash.exe" ]]; then
+    section "EcuFlash shortcut"
+    ok "Open 'EcuFlash (Wine)' from the application menu."
+    warn "Do not use a generic shortcut named only 'EcuFlash'; it uses the wrong Wine runner."
+fi
 echo "  Launchers: $bin_dir"
 echo "  Wine bridge: $data_dir/winedll"
 echo "  Desktop entries: $applications_dir"

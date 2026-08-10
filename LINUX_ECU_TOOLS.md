@@ -72,6 +72,10 @@ Setup does not silently accept the Tactrix license and never downloads
 RomRaider, ECU definitions, ROM images, or firmware. Run it from a normal user
 account; it invokes `sudo` only for the explicit dependency and udev options.
 
+Use the **EcuFlash (Wine)** application-menu shortcut installed by this
+project. Setup removes the vendor-generated shortcut named only **EcuFlash**,
+which launches the wrong system Wine runner.
+
 ## OpenPort permissions
 
 Copy `linux/99-openport2.rules` to `/etc/udev/rules.d/`, add your user to the
