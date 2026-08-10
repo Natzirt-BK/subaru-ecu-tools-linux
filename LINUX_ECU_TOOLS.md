@@ -40,7 +40,7 @@ details that made EcuFlash discovery work.
 
 ## RomRaider editor and logger
 
-1. Install the official RomRaider ZIP at `$HOME/.local/share/romraider`, or set
+1. Install the DimeMod RomRaider Linux ZIP at `$HOME/.local/share/romraider`, or set
    `ROMRAIDER_HOME` to another directory.
 2. Put `linux/launch-romraider` on your `PATH` and make it executable.
 3. Run `ROMRAIDER_MODE=editor launch-romraider` for the editor.
