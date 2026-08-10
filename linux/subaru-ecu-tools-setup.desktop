@@ -5,5 +5,5 @@ Comment=Set up EcuFlash and RomRaider support on CachyOS
 Exec=@SETUP@
 Icon=applications-engineering
 Terminal=false
-Categories=Utility;Automotive;
+Categories=Utility;Development;
 StartupNotify=true

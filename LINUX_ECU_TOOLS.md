@@ -33,17 +33,20 @@ For a graphical KDialog wizard on CachyOS KDE:
 
     bash /tmp/bootstrap-cachyos.sh --gui
 
-The optional EcuFlash step downloads version 1.44.4870 from Tactrix, verifies a
-pinned SHA-256 checksum, and opens the official installer through Wine. It does
-not silently accept the Tactrix license. The script never downloads RomRaider,
-ECU definitions, ROM images, or firmware. Run it from a normal user account; it
-invokes `sudo` only for the explicit dependency and udev options.
+The optional EcuFlash step downloads checksum-pinned version 1.44.4870 directly
+from Tactrix. After the vendor installer closes, setup starts EcuFlash for 12
+seconds and fails if it crashes or exits early. Set `ECUFLASH_WINE` to test a
+non-system Wine runner. Setup does not silently accept the Tactrix license and
+never downloads RomRaider, ECU definitions, ROM images, or firmware. Run it
+from a normal user account; it invokes `sudo` only for the explicit dependency
+and udev options.
 
 ## OpenPort permissions
 
 Copy `linux/99-openport2.rules` to `/etc/udev/rules.d/`, add your user to the
-`dialout` group, reload the udev rules, and reconnect the cable. Distribution
-commands vary; log out and back in after changing group membership.
+`uucp` group, reload the udev rules, and reconnect the cable. Log out and back
+in after changing group membership. The installer's `--install-udev` option
+performs these steps on CachyOS/Arch.
 
 The OpenPort 2.0 USB ID is `0403:cc4d`. Verify it with `lsusb`.
 
@@ -66,16 +69,17 @@ details that made EcuFlash discovery work.
 
 ## RomRaider editor and logger
 
-1. Install the DimeMod RomRaider Linux ZIP at `$HOME/.local/share/romraider`, or set
-   `ROMRAIDER_HOME` to another directory.
+1. Install the complete DimeMod RomRaider Linux ZIP at
+   `$HOME/.local/share/romraider-dm20`, or set `ROMRAIDER_HOME` to another
+   directory. Keep its bundled `jre32` directory.
 2. Put `linux/launch-romraider` on your `PATH` and make it executable.
 3. Run `ROMRAIDER_MODE=editor launch-romraider` for the editor.
 4. Run `ROMRAIDER_MODE=logger launch-romraider` for the logger.
 
-The launcher prefers RomRaider's bundled 32-bit JRE because its Linux native
-logger libraries are 32-bit. Set `ROMRAIDER_JAVA` to override it. Serial-port
-access commonly requires membership in `dialout` or `uucp`, depending on the
-distribution.
+The launcher requires RomRaider's bundled 32-bit JRE by default because its
+Linux logger libraries are 32-bit. Set `ROMRAIDER_JAVA` to override it only
+with a compatible 32-bit runtime. The CachyOS Logger shortcut enters the
+`uucp` group before starting RomRaider.
 
 Desktop-entry templates are provided in `linux/`. Install the launchers on your
 `PATH` before using them.

@@ -1,15 +1,25 @@
 #!/bin/sh
 set -eu
 
-: "${ROMRAIDER_HOME:=$HOME/.local/share/romraider}"
+: "${XDG_DATA_HOME:=$HOME/.local/share}"
+if [ -z "${ROMRAIDER_HOME:-}" ]; then
+    if [ -f "$XDG_DATA_HOME/romraider-dm20/RomRaider.jar" ]; then
+        ROMRAIDER_HOME="$XDG_DATA_HOME/romraider-dm20"
+    else
+        ROMRAIDER_HOME="$XDG_DATA_HOME/romraider"
+    fi
+fi
 : "${ROMRAIDER_JAVA:=$ROMRAIDER_HOME/jre32/bin/java}"
 : "${ROMRAIDER_MODE:=editor}"
 
-if [ ! -x "$ROMRAIDER_JAVA" ]; then
-    ROMRAIDER_JAVA=$(command -v java || true)
+if [ ! -f "$ROMRAIDER_HOME/RomRaider.jar" ]; then
+    echo "RomRaider DimeMod was not found in $ROMRAIDER_HOME" >&2
+    echo "Install its Linux ZIP there or set ROMRAIDER_HOME." >&2
+    exit 1
 fi
-if [ -z "$ROMRAIDER_JAVA" ]; then
-    echo "RomRaider requires Java; set ROMRAIDER_JAVA to its executable." >&2
+if [ ! -x "$ROMRAIDER_JAVA" ]; then
+    echo "The bundled 32-bit Java runtime was not found: $ROMRAIDER_JAVA" >&2
+    echo "Use the complete DimeMod Linux package or set ROMRAIDER_JAVA." >&2
     exit 1
 fi
 
@@ -29,4 +39,5 @@ exec "$ROMRAIDER_JAVA" \
     -Xms64M -Xmx512M \
     -XX:-UseParallelGC \
     -XX:CompileThreshold=10000 \
-    -jar RomRaider.jar "$@"
+    -jar RomRaider.jar "$@" \
+    >> "$HOME/.RomRaider/romraider_sout.log" 2>&1

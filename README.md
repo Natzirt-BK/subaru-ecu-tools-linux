@@ -73,10 +73,15 @@ because they change system packages or USB permissions:
 ```
 
 The EcuFlash download is the unmodified Tactrix 1.44.4870 distribution and is
-verified against a pinned SHA-256 checksum before it runs. Its own installer
-shows the Tactrix license. DimeMod RomRaider must still be obtained separately.
-Default locations can be changed with `ECUFLASH_WINEPREFIX`, `ECUFLASH_WINE`,
-and `ROMRAIDER_HOME`.
+pinned by checksum. After installation, setup opens EcuFlash for a 12-second
+startup test and reports success only if it stays running. Its own installer
+shows the Tactrix license. `ECUFLASH_WINE` can select a non-system Wine runner.
+
+DimeMod RomRaider must still be obtained separately. Extract its complete Linux
+package, including `jre32`, to `$HOME/.local/share/romraider-dm20`. The installed
+Editor and Logger shortcuts then reproduce the validated launch configuration;
+the Logger uses the `uucp` device-access group. Locations can be overridden with
+`ECUFLASH_WINEPREFIX`, `ECUFLASH_WINE`, and `ROMRAIDER_HOME`.
 
 More detailed setup and troubleshooting notes are in
 [LINUX_ECU_TOOLS.md](LINUX_ECU_TOOLS.md).

@@ -4,5 +4,5 @@ Name=RomRaider Editor
 Exec=env ROMRAIDER_MODE=editor @BINDIR@/launch-romraider
 Icon=applications-engineering
 Terminal=false
-Categories=Utility;Automotive;
+Categories=Utility;Development;
 StartupNotify=true

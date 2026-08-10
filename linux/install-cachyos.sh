@@ -80,6 +80,18 @@ command -v winebuild >/dev/null || { echo "MISSING: winebuild"; checks_failed=1;
 command -v cc >/dev/null || { echo "MISSING: C compiler"; checks_failed=1; }
 
 if [[ "$mode" == check ]]; then
+    check_data_root="${XDG_DATA_HOME:-$HOME/.local/share}"
+    check_ecuflash="$check_data_root/ecuflash-proton/drive_c/Program Files (x86)/OpenECU/EcuFlash/ecuflash.exe"
+    check_romraider="$check_data_root/romraider-dm20"
+    [[ -f "$check_ecuflash" ]] && echo "OK: EcuFlash installed" || \
+        echo "NOT INSTALLED: EcuFlash"
+    if [[ -f "$check_romraider/RomRaider.jar" && -x "$check_romraider/jre32/bin/java" ]]; then
+        echo "OK: RomRaider DimeMod with bundled 32-bit Java detected"
+    else
+        echo "NOT INSTALLED: complete RomRaider DimeMod Linux package"
+    fi
+    id -nG | tr ' ' '\n' | grep -qx uucp && echo "OK: user is in uucp group" || \
+        echo "MISSING: user is not in uucp group (required by the Logger shortcut)"
     command -v lsusb >/dev/null && \
         lsusb -d 0403:cc4d >/dev/null 2>&1 && \
         echo "OK: Tactrix OpenPort 2.0 detected" || \
@@ -123,10 +135,16 @@ command -v update-desktop-database >/dev/null && \
     update-desktop-database "$applications_dir" >/dev/null 2>&1 || true
 
 if $install_udev; then
+    if ! getent group uucp >/dev/null; then
+        echo "The required uucp device-access group does not exist." >&2
+        exit 1
+    fi
     sudo install -m 0644 "$repo_root/linux/99-openport2.rules" \
         /etc/udev/rules.d/99-openport2.rules
+    sudo usermod -aG uucp "$USER"
     sudo udevadm control --reload-rules
     sudo udevadm trigger --subsystem-match=usb
+    echo "Added $USER to uucp. Log out and back in before using the Logger."
 fi
 
 if $install_ecuflash; then
@@ -147,6 +165,33 @@ if $install_ecuflash; then
     ecuflash_wine="${ECUFLASH_WINE:-wine}"
     echo "Opening Tactrix's installer. Review and accept its license in the installer."
     WINEPREFIX="$ecuflash_prefix" "$ecuflash_wine" "$ecuflash_installer"
+
+    ecuflash_dir="$ecuflash_prefix/drive_c/Program Files (x86)/OpenECU/EcuFlash"
+    if [[ ! -f "$ecuflash_dir/ecuflash.exe" ]]; then
+        echo "EcuFlash installation was not completed; setup cannot report success." >&2
+        exit 1
+    fi
+
+    echo "Testing EcuFlash startup for 12 seconds. Leave its window open..."
+    smoke_log="$cache_root/ecuflash-startup.log"
+    set +e
+    (
+        cd "$ecuflash_dir" || exit 1
+        timeout 12s env WINEPREFIX="$ecuflash_prefix" \
+            WINEDLLPATH="$data_dir/winedll" WINEDEBUG=-all \
+            "$ecuflash_wine" ecuflash.exe
+    ) >"$smoke_log" 2>&1
+    smoke_status=$?
+    set -e
+    ecuflash_wineserver="$(dirname -- "$(command -v "$ecuflash_wine" 2>/dev/null || printf '%s' "$ecuflash_wine")")/wineserver"
+    [[ -x "$ecuflash_wineserver" ]] && \
+        WINEPREFIX="$ecuflash_prefix" "$ecuflash_wineserver" -k >/dev/null 2>&1 || true
+    if [[ $smoke_status -ne 124 ]]; then
+        echo "EcuFlash failed its startup test (status $smoke_status)." >&2
+        echo "Diagnostic log: $smoke_log" >&2
+        exit 1
+    fi
+    echo "OK: EcuFlash remained running for the complete startup test."
 fi
 
 echo
