@@ -84,10 +84,12 @@ After installation, launch **EcuFlash (Wine)** from the application menu. Setup
 removes the vendor-generated generic **EcuFlash** shortcut because it invokes
 system Wine instead of the tested private runtime.
 
-DimeMod RomRaider must still be obtained separately. Extract its complete Linux
-package, including `jre32`, to `$HOME/.local/share/romraider-dm20`. The installed
-Editor and Logger shortcuts then reproduce the validated launch configuration;
-the Logger uses the `uucp` device-access group. Locations can be overridden with
+Setup can now download and install the checksum-pinned RomRaider DimeMod DM20
+Linux package and its required Azul Zulu 32-bit Java runtime automatically at
+`$HOME/.local/share/romraider-dm20`. “Install everything” includes both. An
+existing complete DimeMod package is left unchanged. The Editor and Logger
+shortcuts reproduce the validated launch configuration; the Logger uses the
+`uucp` device-access group. Locations can be overridden with
 `ECUFLASH_WINEPREFIX`, `ECUFLASH_WINE`, and `ROMRAIDER_HOME`.
 Logger startup problems now appear in a graphical error dialog rather than
 failing silently. Its output log rotates at 10 MB to prevent unbounded growth.
@@ -102,8 +104,9 @@ entries, USB rule, and default source checkout from a terminal:
 bash ~/.local/src/subaru-ecu-tools-linux/linux/install-cachyos.sh --uninstall
 ```
 
-The uninstaller preserves separately obtained RomRaider files, ROMs,
-definitions, logs, and shared system packages.
+The uninstaller removes an installer-managed DimeMod package but preserves
+separately obtained RomRaider files, ROMs, definitions, logs, and shared system
+packages.
 
 Every check and installation writes a timestamped diagnostic log under
 `$HOME/.local/state/subaru-ecu-tools-linux`; `latest.log` always points to the

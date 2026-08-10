@@ -57,6 +57,10 @@ if kdialog --title "Subaru ECU Tools" --yesno \
     args+=(--install-udev)
 fi
 if kdialog --title "Subaru ECU Tools" --yesno \
+    "Download and install RomRaider DimeMod DM20 with its required 32-bit Java runtime?"; then
+    args+=(--install-romraider)
+fi
+if kdialog --title "Subaru ECU Tools" --yesno \
     "Download EcuFlash 1.44.4870 from Tactrix and open its installer in Wine?"; then
     args+=(--install-ecuflash)
 fi

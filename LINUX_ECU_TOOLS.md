@@ -10,10 +10,10 @@ The bridge has been validated for cable discovery and communication. That is
 not proof that writing an ECU is safe. Begin with a supervised, vehicle-connected
 read-only test. Keep a known-good recovery path and never interrupt a flash.
 
-No EcuFlash binary, RomRaider, Tactrix firmware, ECU definitions, or ROM images
-are committed here. The installer can fetch the complete EcuFlash distribution
-directly from Tactrix; obtain everything else from its respective project or
-vendor.
+No EcuFlash binary, RomRaider binary, Tactrix firmware, ECU definitions, or ROM
+images are committed to Git history. The installer fetches checksum-pinned
+EcuFlash, DimeMod, and Java packages from their documented sources or this
+project's GitHub Releases.
 
 ## CachyOS quick start
 
@@ -24,10 +24,10 @@ Download and inspect the native bootstrap before running it:
     bash /tmp/bootstrap-cachyos.sh --check
 
 Then build and install the user-level tools. The optional flags install missing
-repository packages and the OpenPort permission rule, and download the official
-EcuFlash installer:
+repository packages and the OpenPort permission rule, and download DimeMod and
+the official EcuFlash installer:
 
-    bash /tmp/bootstrap-cachyos.sh --install-deps --install-udev --install-ecuflash
+    bash /tmp/bootstrap-cachyos.sh --install-deps --install-udev --install-romraider --install-ecuflash
 
 For a graphical KDialog wizard on CachyOS KDE:
 
@@ -42,9 +42,9 @@ To remove files owned by this setup:
     bash ~/.local/src/subaru-ecu-tools-linux/linux/install-cachyos.sh --uninstall
 
 Removal includes the launchers, desktop entries, bridge/runtime data, EcuFlash
-prefix and cache, USB rule, and default source checkout. It preserves the
-separately obtained RomRaider package, ROMs, definitions, logs, and shared
-system packages.
+prefix and cache, USB rule, default source checkout, and installer-managed
+DimeMod package. It preserves separately obtained RomRaider packages, ROMs,
+definitions, logs, and shared system packages.
 
 ## Diagnostic logs
 
@@ -68,9 +68,9 @@ seconds and fails if it crashes or exits early. Set `ECUFLASH_WINE` to test a
 different Wine runner. Setup downloads the checksum-pinned Wine runtime from
 this project's GitHub Releases. The isolated runtime passed the startup test in
 a clean prefix, includes its LGPL license, and does not replace system Wine.
-Setup does not silently accept the Tactrix license and never downloads
-RomRaider, ECU definitions, ROM images, or firmware. Run it from a normal user
-account; it invokes `sudo` only for the explicit dependency and udev options.
+Setup does not silently accept the Tactrix license and never downloads ECU
+definitions, ROM images, or firmware. Run it from a normal user account; it
+invokes `sudo` only for the explicit dependency and udev options.
 
 Use the **EcuFlash (Wine)** application-menu shortcut installed by this
 project. Setup removes the vendor-generated shortcut named only **EcuFlash**,
@@ -104,9 +104,9 @@ details that made EcuFlash discovery work.
 
 ## RomRaider editor and logger
 
-1. Install the complete DimeMod RomRaider Linux ZIP at
-   `$HOME/.local/share/romraider-dm20`, or set `ROMRAIDER_HOME` to another
-   directory. Keep its bundled `jre32` directory.
+1. Run setup with `--install-romraider` (included by `--yes-all`) to install the
+   checksum-pinned DimeMod DM20 Linux package and Azul Zulu 32-bit JRE at
+   `$HOME/.local/share/romraider-dm20`. A complete existing package is kept.
 2. Put `linux/launch-romraider` on your `PATH` and make it executable.
 3. Run `ROMRAIDER_MODE=editor launch-romraider` for the editor.
 4. Run `ROMRAIDER_MODE=logger launch-romraider` for the logger.

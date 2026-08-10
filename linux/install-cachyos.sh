@@ -6,6 +6,7 @@ mode=install
 install_deps=false
 install_udev=false
 install_ecuflash=false
+install_romraider=false
 assume_yes=false
 
 if [[ -t 1 && -z "${NO_COLOR:-}" && "${TERM:-}" != dumb ]]; then
@@ -37,13 +38,15 @@ Usage: linux/install-cachyos.sh [options]
   --install-deps   Install missing CachyOS/Arch packages with sudo pacman
   --install-udev   Install the OpenPort 2.0 udev rule with sudo
   --install-ecuflash  Download and open Tactrix's official EcuFlash installer
+  --install-romraider  Install RomRaider DimeMod with a bundled 32-bit JRE
   --yes-all        Select every optional installation component
   --uninstall      Remove files installed by Subaru ECU Tools
   --yes            Do not prompt before --uninstall
   -h, --help       Show this help
 
 The default builds the bridge and installs user files under ~/.local.
-It never installs RomRaider, ROMs, definitions, or vehicle firmware.
+RomRaider DimeMod is installed only when selected. Setup never installs ROMs,
+definitions, or vehicle firmware.
 EOF
 }
 
@@ -53,7 +56,8 @@ while (($#)); do
         --install-deps) install_deps=true ;;
         --install-udev) install_udev=true ;;
         --install-ecuflash) install_ecuflash=true ;;
-        --yes-all) install_deps=true; install_udev=true; install_ecuflash=true ;;
+        --install-romraider) install_romraider=true ;;
+        --yes-all) install_deps=true; install_udev=true; install_ecuflash=true; install_romraider=true ;;
         --uninstall) mode=uninstall ;;
         --yes) assume_yes=true ;;
         -h|--help) usage; exit 0 ;;
@@ -161,6 +165,7 @@ wine_ecuflash_menu_dir="$applications_dir/wine/Programs/EcuFlash"
 cache_root="${XDG_CACHE_HOME:-$HOME/.cache}/subaru-ecu-tools-linux"
 ecuflash_prefix="${ECUFLASH_WINEPREFIX:-$data_root/ecuflash-proton}"
 default_source_dir="$HOME/.local/src/subaru-ecu-tools-linux"
+romraider_home="$data_root/romraider-dm20"
 
 if [[ "$mode" == uninstall ]]; then
     section "Remove Subaru ECU Tools"
@@ -181,7 +186,12 @@ if [[ "$mode" == uninstall ]]; then
     if [[ "$repo_root" == "$default_source_dir" ]]; then
         printf '  %s\n' "$default_source_dir"
     fi
-    echo "RomRaider DimeMod, ROMs, definitions, logs, and shared packages are preserved."
+    if [[ -f "$romraider_home/.installed-by-subaru-ecu-tools" ]]; then
+        printf '  %s\n' "$romraider_home"
+        echo "The installer-managed RomRaider package will be removed; user definitions and logs remain preserved."
+    else
+        echo "Separately installed RomRaider DimeMod, ROMs, definitions, logs, and shared packages are preserved."
+    fi
 
     if ! $assume_yes; then
         read -r -p "Remove these Subaru ECU Tools files? [y/N] " answer
@@ -200,6 +210,9 @@ if [[ "$mode" == uninstall ]]; then
         "$applications_dir/subaru-ecu-tools-setup.desktop"
     rm -rf -- "$data_dir" "$ecuflash_prefix" "$cache_root" "$state_dir" \
         "$wine_ecuflash_menu_dir"
+    if [[ -f "$romraider_home/.installed-by-subaru-ecu-tools" ]]; then
+        rm -rf -- "$romraider_home"
+    fi
     if [[ -e /etc/udev/rules.d/99-openport2.rules ]]; then
         sudo rm -f -- /etc/udev/rules.d/99-openport2.rules
         sudo udevadm control --reload-rules
@@ -227,7 +240,7 @@ if [[ "$os_family" != *cachyos* && "$os_family" != *arch* ]]; then
 fi
 
 section "Checking dependencies"
-packages=(base-devel curl github-cli libusb wine llvm-mingw zstd)
+packages=(base-devel curl github-cli libusb unzip wine llvm-mingw zstd)
 missing=()
 for package in "${packages[@]}"; do
     pacman -Q "$package" &>/dev/null || missing+=("$package")
@@ -325,6 +338,58 @@ if $install_udev; then
     sudo udevadm control --reload-rules
     sudo udevadm trigger --subsystem-match=usb
     echo "Added $USER to uucp. Log out and back in before using the Logger."
+fi
+
+if $install_romraider; then
+    section "Installing RomRaider DimeMod Editor and Logger"
+    if [[ -f "$romraider_home/RomRaider.jar" && \
+          -x "$romraider_home/jre32/bin/java" && \
+          -f "$romraider_home/lib/linux/32/j2534.so" ]]; then
+        ok "A complete RomRaider DimeMod installation is already present; leaving it unchanged."
+    else
+    romraider_url=https://github.com/Natzirt-BK/subaru-ecu-tools-linux/releases/download/romraider-dimemod-dm20-20250328/RomRaider1.0.0DM20-MAR282025-linux.zip
+    romraider_sha256=1f601e03fa75ed64ec895c5460371ab638c004d6fc4a5cf591a1315aa5c161ca
+    romraider_archive="$cache_root/RomRaider1.0.0DM20-MAR282025-linux.zip"
+    java_url=https://cdn.azul.com/zulu/bin/zulu8.96.0.19-ca-jre8.0.502-linux_i686.zip
+    java_sha256=6bff461243958e36151078feb321cf304ecb16e647fa2ab25931c4e1980c6130
+    java_archive="$cache_root/zulu8.96.0.19-ca-jre8.0.502-linux_i686.zip"
+    java_archive_root=zulu8.96.0.19-ca-jre8.0.502-linux_i686
+    mkdir -p "$cache_root"
+
+    if [[ ! -f "$romraider_archive" ]] || \
+       ! printf '%s  %s\n' "$romraider_sha256" "$romraider_archive" | sha256sum -c - >/dev/null 2>&1; then
+        step "Downloading RomRaider DimeMod DM20 for Linux"
+        curl --fail --location --output "$romraider_archive" "$romraider_url"
+    fi
+    printf '%s  %s\n' "$romraider_sha256" "$romraider_archive" | sha256sum -c -
+
+    if [[ ! -f "$java_archive" ]] || \
+       ! printf '%s  %s\n' "$java_sha256" "$java_archive" | sha256sum -c - >/dev/null 2>&1; then
+        step "Downloading Azul Zulu Java 8 (32-bit) for the RomRaider Logger"
+        curl --fail --location --output "$java_archive" "$java_url"
+    fi
+    printf '%s  %s\n' "$java_sha256" "$java_archive" | sha256sum -c -
+
+    romraider_stage=$(mktemp -d "$data_root/.romraider-install.XXXXXX")
+    unzip -q "$romraider_archive" -d "$romraider_stage"
+    unzip -q "$java_archive" -d "$romraider_stage"
+    mv -- "$romraider_stage/$java_archive_root" "$romraider_stage/RomRaider/jre32"
+    if [[ ! -f "$romraider_stage/RomRaider/RomRaider.jar" || \
+          ! -x "$romraider_stage/RomRaider/jre32/bin/java" || \
+          ! -f "$romraider_stage/RomRaider/lib/linux/32/j2534.so" ]]; then
+        fail "The verified RomRaider packages did not extract correctly."
+        exit 1
+    fi
+    : >"$romraider_stage/RomRaider/.installed-by-subaru-ecu-tools"
+    if [[ -e "$romraider_home" ]]; then
+        romraider_backup="${romraider_home}.backup-$(date +%Y%m%d-%H%M%S)"
+        warn "Preserving the existing incomplete RomRaider directory at $romraider_backup"
+        mv -- "$romraider_home" "$romraider_backup"
+    fi
+    mv -- "$romraider_stage/RomRaider" "$romraider_home"
+    rmdir -- "$romraider_stage"
+    ok "RomRaider DimeMod Editor and Logger installed with the required 32-bit Java runtime."
+    fi
 fi
 
 if $install_ecuflash; then
