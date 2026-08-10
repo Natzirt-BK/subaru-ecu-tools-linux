@@ -113,8 +113,10 @@ details that made EcuFlash discovery work.
 
 The launcher requires RomRaider's bundled 32-bit JRE by default because its
 Linux logger libraries are 32-bit. Set `ROMRAIDER_JAVA` to override it only
-with a compatible 32-bit runtime. The CachyOS Logger shortcut enters the
-`uucp` group before starting RomRaider.
+with a compatible 32-bit runtime. The CachyOS Logger launcher enters the
+`uucp` group before starting RomRaider. Missing membership, package, Java, and
+Java-exit errors appear in a graphical dialog. Terminal output is saved in
+`$HOME/.RomRaider/romraider_sout.log` and rotates at 10 MB.
 
 Desktop-entry templates are provided in `linux/`. Install the launchers on your
 `PATH` before using them.

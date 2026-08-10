@@ -89,6 +89,8 @@ package, including `jre32`, to `$HOME/.local/share/romraider-dm20`. The installe
 Editor and Logger shortcuts then reproduce the validated launch configuration;
 the Logger uses the `uucp` device-access group. Locations can be overridden with
 `ECUFLASH_WINEPREFIX`, `ECUFLASH_WINE`, and `ROMRAIDER_HOME`.
+Logger startup problems now appear in a graphical error dialog rather than
+failing silently. Its output log rotates at 10 MB to prevent unbounded growth.
 
 More detailed setup and troubleshooting notes are in
 [LINUX_ECU_TOOLS.md](LINUX_ECU_TOOLS.md).

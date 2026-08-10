@@ -1,7 +1,7 @@
 [Desktop Entry]
 Type=Application
 Name=RomRaider Logger
-Exec=/usr/bin/newgrp uucp -c "env ROMRAIDER_MODE=logger @BINDIR@/launch-romraider"
+Exec=env ROMRAIDER_MODE=logger @BINDIR@/launch-romraider
 Icon=applications-engineering
 Terminal=false
 Categories=Utility;Development;

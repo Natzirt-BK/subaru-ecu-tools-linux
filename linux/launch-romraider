@@ -11,15 +11,39 @@ if [ -z "${ROMRAIDER_HOME:-}" ]; then
 fi
 : "${ROMRAIDER_JAVA:=$ROMRAIDER_HOME/jre32/bin/java}"
 : "${ROMRAIDER_MODE:=editor}"
+current_user=${USER:-$(id -un)}
+
+report_error() {
+    printf '%s\n' "$1" >&2
+    if command -v kdialog >/dev/null 2>&1 && \
+       { [ -n "${DISPLAY:-}" ] || [ -n "${WAYLAND_DISPLAY:-}" ]; }; then
+        kdialog --title "RomRaider $ROMRAIDER_MODE could not start" --error "$1" || true
+    fi
+}
+
+if [ "$ROMRAIDER_MODE" = logger ] && ! id -nG | tr ' ' '\n' | grep -qx uucp; then
+    if getent group uucp | cut -d: -f4 | tr ',' '\n' | grep -qx "$current_user"; then
+        if [ "${ROMRAIDER_GROUP_REFRESHED:-0}" = 1 ]; then
+            report_error "The Logger could not activate the uucp device-access group. Log out and back in, then try again."
+            exit 1
+        fi
+        /usr/bin/newgrp uucp -c \
+            "env ROMRAIDER_MODE=logger ROMRAIDER_GROUP_REFRESHED=1 '$0'" || {
+            report_error "The Logger could not activate the uucp device-access group. Log out and back in, then try again."
+            exit 1
+        }
+        exit 0
+    fi
+    report_error "Your account is not in the uucp device-access group. Run Subaru ECU Tools Setup with the USB-permissions option, then log out and back in."
+    exit 1
+fi
 
 if [ ! -f "$ROMRAIDER_HOME/RomRaider.jar" ]; then
-    echo "RomRaider DimeMod was not found in $ROMRAIDER_HOME" >&2
-    echo "Install its Linux ZIP there or set ROMRAIDER_HOME." >&2
+    report_error "RomRaider DimeMod was not found in $ROMRAIDER_HOME. Install its complete Linux ZIP there or set ROMRAIDER_HOME."
     exit 1
 fi
 if [ ! -x "$ROMRAIDER_JAVA" ]; then
-    echo "The bundled 32-bit Java runtime was not found: $ROMRAIDER_JAVA" >&2
-    echo "Use the complete DimeMod Linux package or set ROMRAIDER_JAVA." >&2
+    report_error "The bundled 32-bit Java runtime was not found: $ROMRAIDER_JAVA. Use the complete DimeMod Linux package or set ROMRAIDER_JAVA."
     exit 1
 fi
 
@@ -30,8 +54,13 @@ case "$ROMRAIDER_MODE" in
 esac
 
 mkdir -p "$HOME/.RomRaider"
+romraider_log="$HOME/.RomRaider/romraider_sout.log"
+if [ -f "$romraider_log" ] && [ "$(wc -c <"$romraider_log")" -gt 10485760 ]; then
+    mv -f -- "$romraider_log" "$romraider_log.previous"
+fi
 cd "$ROMRAIDER_HOME"
-exec "$ROMRAIDER_JAVA" \
+set +e
+"$ROMRAIDER_JAVA" \
     -Djava.library.path=lib/linux/32 \
     -Dawt.useSystemAAFontSettings=lcd \
     -Dswing.aatext=true \
@@ -40,4 +69,10 @@ exec "$ROMRAIDER_JAVA" \
     -XX:-UseParallelGC \
     -XX:CompileThreshold=10000 \
     -jar RomRaider.jar "$@" \
-    >> "$HOME/.RomRaider/romraider_sout.log" 2>&1
+    >> "$romraider_log" 2>&1
+java_status=$?
+set -e
+if [ "$java_status" -ne 0 ]; then
+    report_error "RomRaider $ROMRAIDER_MODE exited with status $java_status. Diagnostic log: $romraider_log"
+fi
+exit "$java_status"
