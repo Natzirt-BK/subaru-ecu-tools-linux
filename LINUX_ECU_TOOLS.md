@@ -65,10 +65,12 @@ and it does not upload anything unless the user confirms.
 The optional EcuFlash step downloads checksum-pinned version 1.44.4870 directly
 from Tactrix. After the vendor installer closes, setup starts EcuFlash for 12
 seconds and fails if it crashes or exits early. Set `ECUFLASH_WINE` to test a
-non-system Wine runner. Setup does not silently accept the Tactrix license and
-never downloads RomRaider, ECU definitions, ROM images, or firmware. Run it
-from a normal user account; it invokes `sudo` only for the explicit dependency
-and udev options.
+different Wine runner. Setup downloads the checksum-pinned Wine runtime from
+this project's GitHub Releases. The isolated runtime passed the startup test in
+a clean prefix, includes its LGPL license, and does not replace system Wine.
+Setup does not silently accept the Tactrix license and never downloads
+RomRaider, ECU definitions, ROM images, or firmware. Run it from a normal user
+account; it invokes `sudo` only for the explicit dependency and udev options.
 
 ## OpenPort permissions
 

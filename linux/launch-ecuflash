@@ -5,14 +5,22 @@ set -eu
 : "${XDG_DATA_HOME:=$HOME/.local/share}"
 : "${ECU_TOOLS_DATA_DIR:=$XDG_DATA_HOME/subaru-ecu-tools-linux}"
 : "${ECUFLASH_WINEPREFIX:=$XDG_DATA_HOME/ecuflash-proton}"
-: "${ECUFLASH_WINE:=wine}"
 : "${ECUFLASH_DIR:=$ECUFLASH_WINEPREFIX/drive_c/Program Files (x86)/OpenECU/EcuFlash}"
+
+if [ -z "${ECUFLASH_WINE:-}" ]; then
+    bundled_wine="$ECU_TOOLS_DATA_DIR/runtime/ecuflash-wine-11.1/bin/wine"
+    if [ -x "$bundled_wine" ]; then
+        ECUFLASH_WINE=$bundled_wine
+    else
+        ECUFLASH_WINE=wine
+    fi
+fi
 
 : "${ECUFLASH_WINEDLLPATH:=$ECU_TOOLS_DATA_DIR/winedll}"
 
 if ! command -v "$ECUFLASH_WINE" >/dev/null 2>&1 && [ ! -x "$ECUFLASH_WINE" ]; then
     echo "The configured EcuFlash Wine runner is missing: $ECUFLASH_WINE" >&2
-    echo "Install Wine or set ECUFLASH_WINE to an executable." >&2
+    echo "Re-run setup with the EcuFlash option, or set ECUFLASH_WINE to an executable." >&2
     exit 1
 fi
 if [ ! -f "$ECUFLASH_DIR/ecuflash.exe" ]; then

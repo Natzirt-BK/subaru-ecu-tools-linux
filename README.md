@@ -76,7 +76,10 @@ because they change system packages or USB permissions:
 The EcuFlash download is the unmodified Tactrix 1.44.4870 distribution and is
 pinned by checksum. After installation, setup opens EcuFlash for a 12-second
 startup test and reports success only if it stays running. Its own installer
-shows the Tactrix license. `ECUFLASH_WINE` can select a non-system Wine runner.
+shows the Tactrix license. Setup also downloads a checksum-pinned Wine 11.1
+runtime tested specifically with EcuFlash; it does not replace system Wine.
+`ECUFLASH_WINE` can select a different runner explicitly.
+The exact runtime build recipe is in `linux/build-ecuflash-wine-runtime.sh`.
 
 DimeMod RomRaider must still be obtained separately. Extract its complete Linux
 package, including `jre32`, to `$HOME/.local/share/romraider-dm20`. The installed

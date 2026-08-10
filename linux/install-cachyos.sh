@@ -173,7 +173,7 @@ if [[ "$os_family" != *cachyos* && "$os_family" != *arch* ]]; then
     echo "Warning: designed for CachyOS/Arch; detected ${PRETTY_NAME:-unknown}." >&2
 fi
 
-packages=(base-devel curl libusb wine llvm-mingw)
+packages=(base-devel curl libusb wine llvm-mingw zstd)
 missing=()
 for package in "${packages[@]}"; do
     pacman -Q "$package" &>/dev/null || missing+=("$package")
@@ -271,10 +271,29 @@ if $install_udev; then
 fi
 
 if $install_ecuflash; then
+    wine_runtime_url=https://github.com/Natzirt-BK/subaru-ecu-tools-linux/releases/download/ecuflash-wine-11.1-1/ecuflash-wine-11.1-x86_64.tar.zst
+    wine_runtime_sha256=e3e1d6f83f54b710e01e93ae9150c14775ec6e4905bddcf08a127a7e602b2c03
+    wine_runtime_archive="$cache_root/ecuflash-wine-11.1-x86_64.tar.zst"
+    wine_runtime_dir="$data_dir/runtime/ecuflash-wine-11.1"
     ecuflash_url=https://www.tactrix.com/downloads/ecuflash_1444870_win.exe
     ecuflash_sha256=e9242d8882530fc320164f13e4107ceff9c862f5bd2e66debdbebe4895fffa0b
     ecuflash_installer="$cache_root/ecuflash_1444870_win.exe"
     mkdir -p "$cache_root"
+
+    if [[ ! -f "$wine_runtime_archive" ]] || \
+       ! printf '%s  %s\n' "$wine_runtime_sha256" "$wine_runtime_archive" | sha256sum -c - >/dev/null 2>&1; then
+        echo "Downloading the tested Wine 11.1 EcuFlash runtime..."
+        curl --fail --location --output "$wine_runtime_archive" "$wine_runtime_url"
+    fi
+    printf '%s  %s\n' "$wine_runtime_sha256" "$wine_runtime_archive" | sha256sum -c -
+    if [[ ! -x "$wine_runtime_dir/bin/wine" ]]; then
+        mkdir -p "$data_dir/runtime"
+        tar --zstd -xf "$wine_runtime_archive" -C "$data_dir/runtime"
+    fi
+    if [[ ! -x "$wine_runtime_dir/bin/wine" ]]; then
+        echo "The verified Wine runtime did not extract correctly." >&2
+        exit 1
+    fi
 
     if [[ ! -f "$ecuflash_installer" ]] || \
        ! printf '%s  %s\n' "$ecuflash_sha256" "$ecuflash_installer" | sha256sum -c - >/dev/null 2>&1; then
@@ -283,7 +302,7 @@ if $install_ecuflash; then
     fi
     printf '%s  %s\n' "$ecuflash_sha256" "$ecuflash_installer" | sha256sum -c -
 
-    ecuflash_wine="${ECUFLASH_WINE:-wine}"
+    ecuflash_wine="${ECUFLASH_WINE:-$wine_runtime_dir/bin/wine}"
     echo "Opening Tactrix's installer. Review and accept its license in the installer."
     WINEPREFIX="$ecuflash_prefix" "$ecuflash_wine" "$ecuflash_installer"
 
