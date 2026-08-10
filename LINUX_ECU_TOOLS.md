@@ -33,6 +33,19 @@ For a graphical KDialog wizard on CachyOS KDE:
 
     bash /tmp/bootstrap-cachyos.sh --gui
 
+The wizard includes **Install everything (yes to all)** and a guided removal
+option. The command-line equivalent for selecting every installation component
+is `--yes-all`.
+
+To remove files owned by this setup:
+
+    bash ~/.local/src/subaru-ecu-tools-linux/linux/install-cachyos.sh --uninstall
+
+Removal includes the launchers, desktop entries, bridge/runtime data, EcuFlash
+prefix and cache, USB rule, and default source checkout. It preserves the
+separately obtained RomRaider package, ROMs, definitions, logs, and shared
+system packages.
+
 The optional EcuFlash step downloads checksum-pinned version 1.44.4870 directly
 from Tactrix. After the vendor installer closes, setup starts EcuFlash for 12
 seconds and fails if it crashes or exits early. Set `ECUFLASH_WINE` to test a

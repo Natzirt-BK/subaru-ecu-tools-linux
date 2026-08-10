@@ -25,10 +25,26 @@ fi
 choice=$(kdialog --title "Subaru ECU Tools" --menu \
     "Choose what you want to do. No option writes to an ECU." \
     check "Check this CachyOS system only" \
-    install "Install the Linux tuning tools") || exit 0
+    all "Install everything (yes to all)" \
+    install "Choose installation components" \
+    uninstall "Remove Subaru ECU Tools") || exit 0
 
 if [[ "$choice" == check ]]; then
     exec konsole --hold -e "$installer" --check
+fi
+if [[ "$choice" == uninstall ]]; then
+    if kdialog --title "Remove Subaru ECU Tools" --warningyesno \
+        "Remove launchers, desktop entries, the Wine bridge, EcuFlash prefix, cache, USB rule, and default source checkout?\n\nRomRaider DimeMod, ROMs, definitions, logs, and shared packages will be preserved."; then
+        exec konsole --hold -e "$installer" --uninstall --yes
+    fi
+    exit 0
+fi
+if [[ "$choice" == all ]]; then
+    if kdialog --title "Confirm complete installation" --yesno \
+        "Install all dependencies, USB permissions, launchers, Wine bridge, and EcuFlash?\n\nThis prepares the computer only and never reads or writes an ECU."; then
+        exec konsole --hold -e "$installer" --yes-all
+    fi
+    exit 0
 fi
 
 args=()

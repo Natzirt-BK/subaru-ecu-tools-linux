@@ -61,7 +61,8 @@ curl -fsSL https://raw.githubusercontent.com/Natzirt-BK/subaru-ecu-tools-linux/m
 The wizard asks which pieces to install, then opens Konsole so progress and any
 `sudo` prompt stay visible. It never communicates with an ECU. After the first
 installation, **Subaru ECU Tools Setup** is also available in the application
-menu.
+menu. Choose **Install everything (yes to all)** for the complete setup, or
+**Remove Subaru ECU Tools** for guided cleanup.
 
 If dependencies or the OpenPort udev rule are missing, the installer can handle
 those too. It can also download the complete official EcuFlash installer from
@@ -85,6 +86,16 @@ the Logger uses the `uucp` device-access group. Locations can be overridden with
 
 More detailed setup and troubleshooting notes are in
 [LINUX_ECU_TOOLS.md](LINUX_ECU_TOOLS.md).
+
+To remove the installed launchers, bridge, EcuFlash prefix, cache, desktop
+entries, USB rule, and default source checkout from a terminal:
+
+```bash
+bash ~/.local/src/subaru-ecu-tools-linux/linux/install-cachyos.sh --uninstall
+```
+
+The uninstaller preserves separately obtained RomRaider files, ROMs,
+definitions, logs, and shared system packages.
 
 ## A serious safety note
 

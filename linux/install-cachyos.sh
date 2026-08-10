@@ -6,6 +6,7 @@ mode=install
 install_deps=false
 install_udev=false
 install_ecuflash=false
+assume_yes=false
 
 usage() {
     cat <<'EOF'
@@ -15,6 +16,9 @@ Usage: linux/install-cachyos.sh [options]
   --install-deps   Install missing CachyOS/Arch packages with sudo pacman
   --install-udev   Install the OpenPort 2.0 udev rule with sudo
   --install-ecuflash  Download and open Tactrix's official EcuFlash installer
+  --yes-all        Select every optional installation component
+  --uninstall      Remove files installed by Subaru ECU Tools
+  --yes            Do not prompt before --uninstall
   -h, --help       Show this help
 
 The default builds the bridge and installs user files under ~/.local.
@@ -28,11 +32,70 @@ while (($#)); do
         --install-deps) install_deps=true ;;
         --install-udev) install_udev=true ;;
         --install-ecuflash) install_ecuflash=true ;;
+        --yes-all) install_deps=true; install_udev=true; install_ecuflash=true ;;
+        --uninstall) mode=uninstall ;;
+        --yes) assume_yes=true ;;
         -h|--help) usage; exit 0 ;;
         *) echo "Unknown option: $1" >&2; usage >&2; exit 2 ;;
     esac
     shift
 done
+
+bin_dir="${XDG_BIN_HOME:-$HOME/.local/bin}"
+data_root="${XDG_DATA_HOME:-$HOME/.local/share}"
+data_dir="$data_root/subaru-ecu-tools-linux"
+applications_dir="$data_root/applications"
+cache_root="${XDG_CACHE_HOME:-$HOME/.cache}/subaru-ecu-tools-linux"
+ecuflash_prefix="${ECUFLASH_WINEPREFIX:-$data_root/ecuflash-proton}"
+default_source_dir="$HOME/.local/src/subaru-ecu-tools-linux"
+
+if [[ "$mode" == uninstall ]]; then
+    echo "Subaru ECU Tools will remove:"
+    printf '  %s\n' \
+        "$bin_dir/launch-ecuflash" \
+        "$bin_dir/launch-romraider" \
+        "$data_dir" \
+        "$ecuflash_prefix" \
+        "$cache_root" \
+        "$applications_dir/ecuflash.desktop" \
+        "$applications_dir/romraider-editor.desktop" \
+        "$applications_dir/romraider-logger.desktop" \
+        "$applications_dir/subaru-ecu-tools-setup.desktop" \
+        "/etc/udev/rules.d/99-openport2.rules"
+    if [[ "$repo_root" == "$default_source_dir" ]]; then
+        printf '  %s\n' "$default_source_dir"
+    fi
+    echo "RomRaider DimeMod, ROMs, definitions, logs, and shared packages are preserved."
+
+    if ! $assume_yes; then
+        read -r -p "Remove these Subaru ECU Tools files? [y/N] " answer
+        [[ "$answer" == [yY] || "$answer" == [yY][eE][sS] ]] || {
+            echo "Uninstall cancelled."
+            exit 0
+        }
+    fi
+
+    rm -f -- \
+        "$bin_dir/launch-ecuflash" \
+        "$bin_dir/launch-romraider" \
+        "$applications_dir/ecuflash.desktop" \
+        "$applications_dir/romraider-editor.desktop" \
+        "$applications_dir/romraider-logger.desktop" \
+        "$applications_dir/subaru-ecu-tools-setup.desktop"
+    rm -rf -- "$data_dir" "$ecuflash_prefix" "$cache_root"
+    if [[ -e /etc/udev/rules.d/99-openport2.rules ]]; then
+        sudo rm -f -- /etc/udev/rules.d/99-openport2.rules
+        sudo udevadm control --reload-rules
+        sudo udevadm trigger --subsystem-match=usb
+    fi
+    command -v update-desktop-database >/dev/null && \
+        update-desktop-database "$applications_dir" >/dev/null 2>&1 || true
+    if [[ "$repo_root" == "$default_source_dir" ]]; then
+        rm -rf -- "$default_source_dir"
+    fi
+    echo "Subaru ECU Tools removal completed."
+    exit 0
+fi
 
 if [[ ! -r /etc/os-release ]]; then
     echo "Cannot identify this Linux distribution." >&2
@@ -111,11 +174,6 @@ fi
 LLVM_MINGW_ROOT=/opt/llvm-mingw WINEBUILD=$(command -v winebuild) \
     "$repo_root/wine-bridge/build-openport-driver.sh"
 
-bin_dir="${XDG_BIN_HOME:-$HOME/.local/bin}"
-data_root="${XDG_DATA_HOME:-$HOME/.local/share}"
-data_dir="$data_root/subaru-ecu-tools-linux"
-applications_dir="$data_root/applications"
-
 install -d "$bin_dir" "$data_dir/winedll/x86_64-windows" \
     "$data_dir/winedll/x86_64-unix" "$applications_dir"
 install -m 0755 "$repo_root/linux/launch-ecuflash" "$bin_dir/launch-ecuflash"
@@ -150,7 +208,6 @@ fi
 if $install_ecuflash; then
     ecuflash_url=https://www.tactrix.com/downloads/ecuflash_1444870_win.exe
     ecuflash_sha256=e9242d8882530fc320164f13e4107ceff9c862f5bd2e66debdbebe4895fffa0b
-    cache_root="${XDG_CACHE_HOME:-$HOME/.cache}/subaru-ecu-tools-linux"
     ecuflash_installer="$cache_root/ecuflash_1444870_win.exe"
     mkdir -p "$cache_root"
 
@@ -161,7 +218,6 @@ if $install_ecuflash; then
     fi
     printf '%s  %s\n' "$ecuflash_sha256" "$ecuflash_installer" | sha256sum -c -
 
-    ecuflash_prefix="${ECUFLASH_WINEPREFIX:-$HOME/.local/share/ecuflash-proton}"
     ecuflash_wine="${ECUFLASH_WINE:-wine}"
     echo "Opening Tactrix's installer. Review and accept its license in the installer."
     WINEPREFIX="$ecuflash_prefix" "$ecuflash_wine" "$ecuflash_installer"
