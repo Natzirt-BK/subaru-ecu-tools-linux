@@ -17,25 +17,6 @@ The library can be compiled on Linux or Windows for either 32 or 64 bits systems
 - Run make install if you wish to install the library in `/usr/local/lib/`
 
 
-## Windows Compilation
-To compile under Windows you can use 'Build Tools for Visual Studio' or install the Visual Studio Community IDE and the build tools package.  
-
-- From the [libusb](https://libusb.info/ "libusb") web site download the Windows binaries
-- Extract the archive using [7-Zip](https://www.7-zip.org/ "7-Zip")
-- Copy or move the libusb folder that matches your VS version into the base j2534 project directory
-- Rename the VS20xx folder to libusb
-- Copy or move the libusb include folder from the archive into the renamed (libusb) folder in the project
-
-### Command line build
-To build on the command line, open '__platform__ Native Tools Command Prompt' where __platform__ is either x86 or x64 and change into the j2534 project directory.
-
-To build the Release version of the project, on the command line enter:  
-&nbsp;&nbsp;&nbsp;&nbsp;`msbuild.exe j2534.sln /p:Configuration="Release"`
-
-### Visual Studio build
-To build in Visual Studio, launch Visual Studio and open the solution file in the j2534 project directory.  Select Debug|Release and x86|x64 in the toolbar and from the Build menu select Build Solution.
-
-
 ## Using the library
 Before using this library, remove the SD card from the Openport 2.0
 
