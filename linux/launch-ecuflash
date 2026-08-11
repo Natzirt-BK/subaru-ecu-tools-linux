@@ -73,7 +73,7 @@ if [ "$openport_access_state" = inaccessible ] && \
         }
         exit 0
     fi
-    report_error "The connected OpenPort is not readable/writable. Desktop uaccess did not grant access and your account is not in the uucp fallback group. Run Subaru & Evo ECU Tools Setup with OpenPort USB permissions selected, then reconnect it."
+    report_error "The connected OpenPort is not readable/writable. Desktop uaccess did not grant access and your account is not in the uucp fallback group. Open Setup from the Subaru & Evo ECU Tools menu, select OpenPort USB permissions, then reconnect it."
     exit 1
 fi
 if [ "$openport_access_state" = inaccessible ]; then
@@ -88,7 +88,7 @@ if ! command -v "$ECUFLASH_WINE" >/dev/null 2>&1 && [ ! -x "$ECUFLASH_WINE" ]; t
 fi
 if [ ! -f "$ECUFLASH_DIR/ecuflash.exe" ]; then
     echo "EcuFlash is not installed in $ECUFLASH_DIR" >&2
-    echo "Run Subaru & Evo ECU Tools Setup with the EcuFlash option." >&2
+    echo "Open Setup from the Subaru & Evo ECU Tools menu and select EcuFlash." >&2
     exit 1
 fi
 
@@ -108,7 +108,7 @@ launch_log="$state_dir/ecuflash-launch.log"
 launch_lock="$state_dir/ecuflash-launch.lock"
 wine_server="$(dirname -- "$ECUFLASH_WINE")/wineserver"
 if [ ! -f "$bridge_windows" ] || [ ! -f "$bridge_unix" ]; then
-    report_error "The OpenPort Wine bridge is missing. Run Subaru & Evo ECU Tools Setup or Update."
+    report_error "The OpenPort Wine bridge is missing. Run Setup from the Subaru & Evo ECU Tools menu."
     exit 1
 fi
 if ! printf '%s  %s\n' "$bridge_j2534_vendor_sha256" "$bridge_j2534_vendor" | sha256sum -c - >/dev/null 2>&1; then

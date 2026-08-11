@@ -889,16 +889,19 @@ install_managed_user_files() {
         "$data_dir/registry/openport2-device-present.reg" 0644
     update_managed_file "$repo_root/wine-bridge/openport2-device-absent.reg" \
         "$data_dir/registry/openport2-device-absent.reg" 0644
-    for desktop in ecuflash evoscan romraider-editor romraider-logger subaru-ecu-tools-setup subaru-ecu-tools-update; do
+    for desktop in ecuflash evoscan romraider-editor romraider-logger subaru-ecu-tools-setup; do
         rendered=$(mktemp "$cache_root/desktop-$desktop.XXXXXX")
         sed -e "s|@BINDIR@|$bin_dir|g" \
             -e "s|@SETUP@|$repo_root/linux/setup-cachyos-gui.sh|g" \
-            -e "s|@UPDATER@|$repo_root/linux/update-cachyos.sh|g" \
             "$repo_root/linux/$desktop.desktop" \
             >"$rendered"
         update_managed_file "$rendered" "$applications_dir/$desktop.desktop" 0644
         rm -f -- "$rendered"
     done
+    if [[ -e "$applications_dir/subaru-ecu-tools-update.desktop" ]]; then
+        rm -f -- "$applications_dir/subaru-ecu-tools-update.desktop"
+        ok "Removed the redundant Update shortcut; Setup now offers updates first."
+    fi
     update_managed_file "$repo_root/linux/subaru-ecu-tools.directory" \
         "$tools_directory_file" 0644
     update_managed_file "$repo_root/linux/subaru-ecu-tools.menu" \
@@ -1703,13 +1706,13 @@ section "Installation complete"
 ok "Installed user tools successfully."
 if [[ -f "$ecuflash_prefix/drive_c/Program Files (x86)/OpenECU/EcuFlash/ecuflash.exe" ]]; then
     section "EcuFlash shortcut"
-    ok "Open 'EcuFlash (Wine)' from the application menu."
+    ok "Open 'EcuFlash' from the application menu."
     warn "Use the project shortcut so USB-state checks and diagnostic logging are active."
 fi
 if [[ -f "$data_dir/evoscan-exe.path" ]]; then
     section "EvoScan shortcut"
     warn "EvoScan Linux support is experimental and vehicle communication is not yet validated."
-    ok "Open 'EvoScan (Wine, Experimental)' from the application menu."
+    ok "Open 'EvoScan' from the application menu."
 fi
 create_documents_shortcuts
 echo "  Launchers: $bin_dir"

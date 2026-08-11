@@ -1,6 +1,6 @@
 [Desktop Entry]
 Type=Application
-Name=EcuFlash (Wine)
+Name=EcuFlash
 Comment=Launch EcuFlash with the OpenPort 2.0 Wine bridge
 Exec=@BINDIR@/launch-ecuflash
 Icon=applications-engineering

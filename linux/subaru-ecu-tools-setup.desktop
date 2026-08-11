@@ -1,6 +1,6 @@
 [Desktop Entry]
 Type=Application
-Name=Subaru & Evo ECU Tools Setup
+Name=Setup
 Comment=Install, repair, check, or remove Subaru and Evo ECU tools
 Exec=@SETUP@
 Icon=applications-engineering

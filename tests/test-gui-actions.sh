@@ -19,7 +19,8 @@ run_choice() {
     trace=$test_root/$name.trace
     output=$test_root/$name.output
     printf '%s' "$keys" | TERM=dumb SUBARU_SETUP_INPUT_DEVICE=/dev/stdin \
-        ECU_TOOLS_INSTALLER="$installer" TEST_TRACE="$trace" \
+        ECU_TOOLS_INSTALLER="$installer" ECU_TOOLS_SKIP_UPDATE_PROMPT=1 \
+        TEST_TRACE="$trace" \
         "$repo_root/linux/setup-cachyos-gui.sh" >"$output" 2>&1
     grep -F -- "$expected" "$trace" >/dev/null
     grep -F 'Select an option:' "$output" >/dev/null
@@ -31,7 +32,8 @@ run_choice check '3' '--check'
 run_choice uninstall '4y' '--uninstall --yes'
 
 printf '1n' | TERM=dumb SUBARU_SETUP_INPUT_DEVICE=/dev/stdin \
-    ECU_TOOLS_INSTALLER="$installer" TEST_TRACE="$test_root/cancel.trace" \
+    ECU_TOOLS_INSTALLER="$installer" ECU_TOOLS_SKIP_UPDATE_PROMPT=1 \
+    TEST_TRACE="$test_root/cancel.trace" \
     "$repo_root/linux/setup-cachyos-gui.sh" >/dev/null
 test ! -e "$test_root/cancel.trace"
 
@@ -39,7 +41,40 @@ run_choice invalid_then_check 'x3' '--check'
 grep -F 'Unknown selection. Press 1, 2, 3, 4, or Q.' \
     "$test_root/invalid_then_check.output" >/dev/null
 
+mkdir -p "$test_root/data/applications"
+touch "$test_root/data/applications/subaru-ecu-tools-setup.desktop"
+updater=$test_root/updater
+cat >"$updater" <<'EOF'
+#!/bin/sh
+printf '%s\n' "$*" >"$TEST_UPDATE_TRACE"
+EOF
+chmod +x "$updater"
+printf 'y' | TERM=dumb SUBARU_SETUP_INPUT_DEVICE=/dev/stdin \
+    XDG_DATA_HOME="$test_root/data" ECU_TOOLS_INSTALLER="$installer" \
+    ECU_TOOLS_UPDATER="$updater" TEST_UPDATE_TRACE="$test_root/update.trace" \
+    "$repo_root/linux/setup-cachyos-gui.sh" >"$test_root/update.output" 2>&1
+grep -Fx -- '--continue-setup' "$test_root/update.trace" >/dev/null
+grep -F 'Update Subaru & Evo ECU Tools before continuing?' \
+    "$test_root/update.output" >/dev/null
+
+printf 'n3' | TERM=dumb SUBARU_SETUP_INPUT_DEVICE=/dev/stdin \
+    XDG_DATA_HOME="$test_root/data" ECU_TOOLS_INSTALLER="$installer" \
+    ECU_TOOLS_UPDATER="$updater" TEST_TRACE="$test_root/no-update.trace" \
+    "$repo_root/linux/setup-cachyos-gui.sh" >"$test_root/no-update.output" 2>&1
+grep -Fx -- '--check' "$test_root/no-update.trace" >/dev/null
+grep -F 'Continuing without updating is not recommended.' \
+    "$test_root/no-update.output" >/dev/null
+
 engine=$repo_root/linux/install-cachyos.sh
+grep -F 'Removed the redundant Update shortcut; Setup now offers updates first.' \
+    "$engine" >/dev/null
+! grep -F 'subaru-ecu-tools-update;' "$engine" >/dev/null
+test ! -e "$repo_root/linux/subaru-ecu-tools-update.desktop"
+grep -F 'exec env ECU_TOOLS_SKIP_UPDATE_PROMPT=1' \
+    "$repo_root/linux/update-cachyos.sh" >/dev/null
+grep -Fx 'Name=Setup' "$repo_root/linux/subaru-ecu-tools-setup.desktop" >/dev/null
+grep -Fx 'Name=EcuFlash' "$repo_root/linux/ecuflash.desktop" >/dev/null
+grep -Fx 'Name=EvoScan' "$repo_root/linux/evoscan.desktop" >/dev/null
 grep -F 'read -rsn1 key </dev/tty' "$engine" >/dev/null
 grep -F 'setup_interactive=false' "$engine" >/dev/null
 test "$(grep -F -c '$setup_interactive || return 0' "$engine")" -eq 1

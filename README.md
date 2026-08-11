@@ -29,7 +29,10 @@ definitions, and logs are preserved.
 - RomRaider DimeMod Editor and Logger with official definitions
 
 Applications appear together under **Subaru & Evo ECU Tools** in the application
-menu. Setup prepares the computer only; it never reads or writes an ECU.
+menu with short names such as **Setup**, **EcuFlash**, and **RomRaider Logger**.
+After installation, **Setup** offers to update the project before showing its
+menu; skipping that update is supported but not recommended. Setup prepares the
+computer only; it never reads or writes an ECU.
 
 ## OpenPort validation
 

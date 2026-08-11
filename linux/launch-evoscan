@@ -24,7 +24,7 @@ report_error() {
 }
 
 if ! command -v "$EVOSCAN_WINE" >/dev/null 2>&1 && [ ! -x "$EVOSCAN_WINE" ]; then
-    report_error "The configured EvoScan Wine runner is missing: $EVOSCAN_WINE. Re-run Subaru & Evo ECU Tools Setup."
+    report_error "The configured EvoScan Wine runner is missing: $EVOSCAN_WINE. Open Setup from the Subaru & Evo ECU Tools menu."
     exit 1
 fi
 

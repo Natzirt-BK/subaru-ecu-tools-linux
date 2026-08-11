@@ -4,6 +4,8 @@ set -euo pipefail
 # Kept at the historical filename so existing desktop shortcuts continue to work.
 script_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 installer=${ECU_TOOLS_INSTALLER:-$script_dir/install-cachyos.sh}
+updater=${ECU_TOOLS_UPDATER:-$script_dir/update-cachyos.sh}
+installed_setup=${XDG_DATA_HOME:-$HOME/.local/share}/applications/subaru-ecu-tools-setup.desktop
 
 if [[ ! -x "$installer" ]]; then
     printf 'Cannot find the Subaru & Evo ECU Tools installer: %s\n' "$installer" >&2
@@ -70,6 +72,20 @@ draw_menu() {
 }
 
 draw_banner
+if [[ -f "$installed_setup" && "${ECU_TOOLS_SKIP_UPDATE_PROMPT:-0}" != 1 ]]; then
+    printf '  %bRecommended:%b check for installer and compatibility updates first.\n' \
+        "$green$bold" "$reset"
+    printf '  Y = update now (recommended); N = continue without updating (not recommended).\n\n'
+    if confirm 'Update Subaru & Evo ECU Tools before continuing?'; then
+        [[ -x "$updater" ]] || {
+            printf 'Cannot find the updater: %s\n' "$updater" >&2
+            exit 1
+        }
+        exec "$updater" --continue-setup
+    fi
+    printf '  %bContinuing without updating is not recommended.%b\n\n' \
+        "$yellow$bold" "$reset"
+fi
 while true; do
     draw_menu
     choice=$(read_key) || exit 0

@@ -3,6 +3,16 @@ set -euo pipefail
 
 repo_url=https://github.com/Natzirt-BK/subaru-ecu-tools-linux.git
 source_dir=${ECU_TOOLS_SOURCE_DIR:-$HOME/.local/src/subaru-ecu-tools-linux}
+continue_setup=false
+
+if [[ "${1:-}" == --continue-setup ]]; then
+    continue_setup=true
+    shift
+fi
+if (($#)); then
+    echo "Usage: $0 [--continue-setup]" >&2
+    exit 2
+fi
 
 if [[ ! -d "$source_dir/.git" ]]; then
     echo "The managed source checkout was not found: $source_dir" >&2
@@ -32,4 +42,10 @@ fi
 echo "==> Auditing installed files and rebuilding generated bridge components"
 echo "    A 0-file managed audit is normal when only generated bridge code changed."
 
+if $continue_setup; then
+    SUBARU_SETUP_NO_PAUSE=1 \
+        "$source_dir/linux/install-cachyos.sh" --update-files
+    exec env ECU_TOOLS_SKIP_UPDATE_PROMPT=1 \
+        "$source_dir/linux/setup-cachyos-gui.sh"
+fi
 exec "$source_dir/linux/install-cachyos.sh" --update-files
