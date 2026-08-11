@@ -129,9 +129,9 @@ cat >"$test_root/pw-play" <<'EOF'
 exec sleep 30
 EOF
 chmod +x "$test_root/pw-play"
-printf 'M' | PATH="$test_root:$PATH" TERM=dumb \
-    ECU_TOOLS_MUSIC_INPUT_DEVICE=/dev/stdin timeout 10 \
-    "$repo_root/linux/play-installer-chiptune" >/dev/null 2>&1
+printf 'M\n' | PATH="$test_root:$PATH" TERM=dumb timeout 10 \
+    script -q -e -c "$repo_root/linux/play-installer-chiptune" /dev/null \
+    >/dev/null 2>&1
 grep -F 'ACCESS GRANTED // SETUP COMPLETE' "$engine" >/dev/null
 test "$(grep -c -- '--progress-bar' "$engine")" -eq 4
 grep -F -- '--progress-bar' "$repo_root/linux/install-romraider-definitions" >/dev/null
