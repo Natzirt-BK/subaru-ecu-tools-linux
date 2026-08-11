@@ -66,7 +66,7 @@ read_yes_no() {
         case "$key" in
             y|Y) printf 'Y\n'; return 0 ;;
             n|N) printf 'N\n'; return 1 ;;
-            *) printf '\nPress Y or N — Enter is not required.\n' ;;
+            *) printf '\nPress Y or N.\n' ;;
         esac
     done
 }

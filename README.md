@@ -12,8 +12,6 @@ Paste this into a terminal:
 curl -fsSL https://raw.githubusercontent.com/Natzirt-BK/subaru-ecu-tools-linux/master/bootstrap-cachyos.sh | bash
 ```
 
-Menus use single keypresses, so you do not need to press Enter after a choice.
-
 1. **Install / repair** — normal setup and updates
 2. **Clean reinstall** — replace all installer-managed state
 3. **System check** — inspect the current installation

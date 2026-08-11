@@ -22,7 +22,7 @@ run_choice() {
         ECU_TOOLS_INSTALLER="$installer" TEST_TRACE="$trace" \
         "$repo_root/linux/setup-cachyos-gui.sh" >"$output" 2>&1
     grep -F -- "$expected" "$trace" >/dev/null
-    grep -F 'Select an option (no Enter required)' "$output" >/dev/null
+    grep -F 'Select an option:' "$output" >/dev/null
 }
 
 run_choice recommended '1y' '--yes-all'

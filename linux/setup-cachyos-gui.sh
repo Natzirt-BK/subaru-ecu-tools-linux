@@ -55,7 +55,7 @@ confirm() {
         case "$key" in
             y|Y) printf '%bY%b\n' "$green$bold" "$reset"; return 0 ;;
             n|N) printf '%bN%b\n' "$red$bold" "$reset"; return 1 ;;
-            *) printf '\n  Press Y or N — Enter is not required.\n' ;;
+            *) printf '\n  Press Y or N.\n' ;;
         esac
     done
 }
@@ -66,7 +66,7 @@ draw_menu() {
     printf '  %b3%b  %bSystem check%b         Diagnose installation and connected OpenPort\n' "$cyan$bold" "$reset" "$bold" "$reset"
     printf '  %b4%b  %bUninstall%b            Remove installer-managed components\n' "$cyan$bold" "$reset" "$bold" "$reset"
     printf '  %bQ%b  Exit\n\n' "$dim" "$reset"
-    printf '%b  Select an option (no Enter required): %b' "$yellow$bold" "$reset"
+    printf '%b  Select an option: %b' "$yellow$bold" "$reset"
 }
 
 draw_banner

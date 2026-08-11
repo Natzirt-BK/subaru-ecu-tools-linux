@@ -1,7 +1,7 @@
 # Linux installer files
 
-- `setup-cachyos-gui.sh` — single-key terminal menu; the historical filename
-  keeps existing shortcuts working
+- `setup-cachyos-gui.sh` — terminal setup menu; the historical filename keeps
+  existing shortcuts working
 - `install-cachyos.sh` — installation, repair, checks, and removal engine
 - `update-cachyos.sh` — refreshes managed files and validates EcuFlash/OpenPort
 - `launch-*` — installed application launchers
