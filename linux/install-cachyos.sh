@@ -62,6 +62,38 @@ openport_usb_present() {
     return 1
 }
 
+wait_for_stable_openport() {
+    local sysfs_root=${OPENPORT_USB_SYSFS_ROOT:-/sys/bus/usb/devices}
+    local previous= current= vendor_file product_file vendor product devnum_file devnum
+    local stable=0 attempt
+
+    for attempt in {1..20}; do
+        current=
+        for vendor_file in "$sysfs_root"/*/idVendor; do
+            [[ -f "$vendor_file" ]] || continue
+            read -r vendor <"$vendor_file" || continue
+            [[ "${vendor,,}" == 0403 ]] || continue
+            product_file=${vendor_file%/idVendor}/idProduct
+            [[ -f "$product_file" ]] || continue
+            read -r product <"$product_file" || continue
+            [[ "${product,,}" == cc4d ]] || continue
+            devnum_file=${vendor_file%/idVendor}/devnum
+            read -r devnum <"$devnum_file" || devnum=unknown
+            current="${vendor_file%/idVendor}:$devnum"
+            break
+        done
+        if [[ -n "$current" && "$current" == "$previous" ]]; then
+            ((stable += 1))
+            ((stable >= 4)) && return 0
+        else
+            previous=$current
+            stable=1
+        fi
+        sleep 0.5
+    done
+    return 1
+}
+
 usage() {
     cat <<'EOF'
 Usage: linux/install-cachyos.sh [options]
@@ -194,6 +226,7 @@ offer_error_report() {
         echo "Installed J2534 DLL: $(sha256sum "$data_dir/winedll/i386-windows/op20pt32.dll" 2>/dev/null || echo missing)"
         echo
         for extra_log in \
+            "$cache_root/ecuflash-j2534-probe.log" \
             "$state_dir/ecuflash-j2534-probe.log" \
             "$state_dir/ecuflash-force-refresh.log" \
             "$state_dir/ecuflash-j2534.log" \
@@ -471,7 +504,7 @@ install_ecuflash_runtime() {
 }
 
 restore_openport_after_probe() {
-    local wine_runner=$1 prefix=$2 registry_dir=$3 restore_log=$4
+    local wine_runner=$1 prefix=$2 registry_dir=$3 restore_log=$4 expect_present=${5:-false}
     local runtime_bin wineserver
 
     runtime_bin=$(dirname -- "$(command -v "$wine_runner" 2>/dev/null || printf '%s' "$wine_runner")")
@@ -479,6 +512,9 @@ restore_openport_after_probe() {
     if [[ -x "$wineserver" ]]; then
         WINEPREFIX="$prefix" "$wineserver" -k >>"$restore_log" 2>&1 || true
         WINEPREFIX="$prefix" "$wineserver" -w >>"$restore_log" 2>&1 || true
+    fi
+    if [[ "$expect_present" == true ]] && ! wait_for_stable_openport; then
+        warn "OpenPort did not remain stable after the communication probe."
     fi
     OPENPORT_REGISTRY_DIR="$registry_dir" \
     OPENPORT_STATE_LOG="$restore_log" \
@@ -590,7 +626,7 @@ if [[ "$mode" == update ]]; then
             update_probe_status=$?
             set -e
             restore_openport_after_probe "$update_wine" "$ecuflash_prefix" \
-                "$data_dir/registry" "$update_refresh_log"
+                "$data_dir/registry" "$update_refresh_log" true
             if ((update_probe_status)); then
                 fail "The read-only OpenPort J2534 probe failed with status $update_probe_status."
                 echo "Diagnostic log: $update_probe_log" >&2
@@ -1061,7 +1097,8 @@ if $install_ecuflash; then
     ecuflash_probe_status=$?
     set -e
     restore_openport_after_probe "$ecuflash_wine" "$ecuflash_prefix" \
-        "$data_dir/registry" "$ecuflash_bridge_log"
+        "$data_dir/registry" "$ecuflash_bridge_log" \
+        "$([[ ${#probe_args[@]} -eq 0 ]] && echo true || echo false)"
     if ((ecuflash_probe_status)); then
         fail "The OpenPort J2534 state probe failed with status $ecuflash_probe_status."
         echo "Diagnostic log: $ecuflash_probe_log" >&2

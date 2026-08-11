@@ -128,6 +128,9 @@ republishes the physical USB state, and starts EcuFlash through the installed
 launcher. Setup fails if that fresh EcuFlash session reports `J2534 error [no
 devices available]`, preventing a successful probe from masking a device that
 was not released for EcuFlash.
+Because an OpenPort reset can briefly re-enumerate it under a new Linux USB
+device number, setup waits for the replacement device to remain stable before
+starting EcuFlash.
 
 Setup can now download and install the checksum-pinned RomRaider DimeMod DM20
 Linux package and its required Azul Zulu 32-bit Java runtime automatically at

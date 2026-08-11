@@ -105,6 +105,8 @@ when a J2534 session closes. After setup runs its probe, it also restarts the
 selected Wine server and republishes the actual USB state before launching
 EcuFlash. A new EcuFlash log containing `J2534 error [no devices available]`
 causes setup to fail instead of reporting a false success.
+Setup also waits for a connected OpenPort's sysfs device number to settle after
+the probe, since the adapter can briefly disconnect and re-enumerate on reset.
 
 ## EvoScan (experimental)
 

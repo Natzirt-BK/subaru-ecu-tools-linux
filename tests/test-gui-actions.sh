@@ -39,5 +39,8 @@ installer=$repo_root/linux/install-cachyos.sh
 grep -F 'tail -c 24000' "$installer" >/dev/null
 grep -F 'tail -c 3500' "$installer" >/dev/null
 grep -F 'The complete ready-to-share report remains at:' "$installer" >/dev/null
+grep -F 'wait_for_stable_openport' "$installer" >/dev/null
+grep -F '"$cache_root/ecuflash-j2534-probe.log"' "$installer" >/dev/null
+grep -F 'LD_LIBRARY_PATH="/usr/lib32' "$repo_root/linux/launch-romraider" >/dev/null
 
 echo 'Graphical setup action tests passed.'

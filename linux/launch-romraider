@@ -79,6 +79,8 @@ if [ -f "$romraider_log" ] && [ "$(wc -c <"$romraider_log")" -gt 10485760 ]; the
     mv -f -- "$romraider_log" "$romraider_log.previous"
 fi
 cd "$ROMRAIDER_HOME"
+LD_LIBRARY_PATH="/usr/lib32${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+export LD_LIBRARY_PATH
 set +e
 "$ROMRAIDER_JAVA" \
     -Djava.library.path=lib/linux/32 \
