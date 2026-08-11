@@ -96,7 +96,11 @@ echo 'OpenPort live-state monitor tests passed.'
 # A clean install adds uucp after setup has already started. Its immediate
 # hardware probe must enter the new group instead of failing until next login.
 grep -q '^run_with_openport_access()' "$repo_root/linux/install-cachyos.sh"
-[ "$(grep -c 'run_with_openport_access env WINEPREFIX=' "$repo_root/linux/install-cachyos.sh")" -eq 5 ]
+[ "$(grep -c 'run_with_openport_access env WINEPREFIX=' "$repo_root/linux/install-cachyos.sh")" -eq 6 ]
 grep -q 'TAG+="uaccess"' "$repo_root/linux/99-openport2.rules"
+grep -q '^"HardwareId"=hex(7):' "$repo_root/wine-bridge/openport2-device-present.reg"
+grep -q '^"CompatibleIDs"=hex(7):' "$repo_root/wine-bridge/openport2-device-present.reg"
+grep -q '^"ConfigFlags"=dword:00000000$' "$repo_root/wine-bridge/openport2-device-present.reg"
+grep -q 'capture_openport_device_probe' "$repo_root/linux/install-cachyos.sh"
 
 echo 'OpenPort first-login access tests passed.'

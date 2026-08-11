@@ -117,6 +117,19 @@ capture_verbose_openport_probe() {
     stop_wine_prefix "$wine_runner" "$prefix" "$trace_log"
 }
 
+capture_openport_device_probe() {
+    local wine_runner=$1 prefix=$2 winedll_path=$3 device_probe=$4 trace_log=$5
+    {
+        echo
+        echo '=== OpenPort Windows interface/service probe ==='
+    } >>"$trace_log"
+    set +e
+    run_with_openport_access env WINEPREFIX="$prefix" \
+        WINEDLLPATH="$winedll_path" WINEDEBUG=-all \
+        "$wine_runner" "$device_probe" >>"$trace_log" 2>&1
+    set -e
+}
+
 openport_usb_present() {
     local sysfs_root=${OPENPORT_USB_SYSFS_ROOT:-/sys/bus/usb/devices}
     local vendor_file product_file vendor product
@@ -753,6 +766,8 @@ if [[ "$mode" == update ]]; then
             install -d "$data_dir/tools"
             install -m 0755 "$repo_root/build-wine-bridge/j2534-probe.exe" \
                 "$data_dir/tools/j2534-probe.exe"
+            install -m 0755 "$repo_root/build-wine-bridge/openport-device-probe.exe" \
+                "$data_dir/tools/openport-device-probe.exe"
             ok "OpenPort kernel bridge and diagnostic files are current."
         else
             fail "OpenPort bridge update failed. Diagnostic log: $bridge_build_log"
@@ -830,6 +845,9 @@ if [[ "$mode" == update ]]; then
             restore_openport_after_probe "$update_wine" "$ecuflash_prefix" \
                 "$data_dir/registry" "$update_refresh_log" true
             if ((update_probe_status)); then
+                capture_openport_device_probe "$update_wine" "$ecuflash_prefix" \
+                    "$data_dir/winedll" "$data_dir/tools/openport-device-probe.exe" \
+                    "$update_probe_log"
                 capture_verbose_openport_probe "$update_wine" "$ecuflash_prefix" \
                     "$data_dir/winedll" "$data_dir/tools/j2534-probe.exe" \
                     "$update_probe_log"
@@ -1079,6 +1097,8 @@ rm -f -- "$data_dir/winedll/i386-windows/op20pt32.dll" \
 install -d "$data_dir/tools"
 install -m 0755 "$repo_root/build-wine-bridge/j2534-probe.exe" \
     "$data_dir/tools/j2534-probe.exe"
+install -m 0755 "$repo_root/build-wine-bridge/openport-device-probe.exe" \
+    "$data_dir/tools/openport-device-probe.exe"
 
 
 if $install_udev; then
@@ -1323,6 +1343,9 @@ if $install_ecuflash; then
         "$data_dir/registry" "$ecuflash_bridge_log" \
         "$([[ ${#probe_args[@]} -eq 0 ]] && echo true || echo false)"
     if ((ecuflash_probe_status)); then
+        capture_openport_device_probe "$ecuflash_wine" "$ecuflash_prefix" \
+            "$data_dir/winedll" "$data_dir/tools/openport-device-probe.exe" \
+            "$ecuflash_probe_log"
         capture_verbose_openport_probe "$ecuflash_wine" "$ecuflash_prefix" \
             "$data_dir/winedll" "$data_dir/tools/j2534-probe.exe" \
             "$ecuflash_probe_log" "${probe_args[@]}"

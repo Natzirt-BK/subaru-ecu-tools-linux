@@ -44,6 +44,8 @@ mkdir -p "$crt_object_dir"
     "$root/wine-bridge/op20pt32.def" -lntdll
 "$WINEBUILD" --builtin -m32 -F op20pt32.dll "$output_dir/op20pt32.dll"
 "$compiler32" -O2 -o "$output_dir/j2534-probe.exe" "$root/wine-bridge/probe.c"
+"$compiler32" -O2 -o "$output_dir/openport-device-probe.exe" \
+    "$root/wine-bridge/device_probe.c" -lsetupapi -ladvapi32
 cc -O2 -fPIC -shared -I/usr/include/wine -I/usr/include/wine/windows \
     -I/usr/include/libusb-1.0 -I"$root/wine-bridge" -I"$root/j2534" \
     -o "$output_dir/op20pt32.so" \
@@ -66,3 +68,5 @@ sha256sum "$output_dir/op20pt32.dll"
 sha256sum "$output_dir/op20pt32.so"
 file "$output_dir/j2534-probe.exe"
 sha256sum "$output_dir/j2534-probe.exe"
+file "$output_dir/openport-device-probe.exe"
+sha256sum "$output_dir/openport-device-probe.exe"
