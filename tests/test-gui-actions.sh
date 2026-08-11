@@ -50,6 +50,11 @@ grep -F '*j2534-probe.log) log_bytes=12000' "$engine" >/dev/null
 ! grep -F 'WINEDEBUG=-all,+loaddll' "$engine" >/dev/null
 grep -F 'The complete ready-to-share report remains at:' "$engine" >/dev/null
 grep -F 'OpenPort USB access diagnostics:' "$engine" >/dev/null
+grep -F 'Host and installed-runtime diagnostics:' "$engine" >/dev/null
+grep -F 'first 9,000 bytes; may include identifying host' "$engine" >/dev/null
+grep -F 'It does not intentionally collect passwords, tokens, SSH keys' "$engine" >/dev/null
+grep -F 'ip -brief address' "$engine" >/dev/null
+grep -F 'OpenPort native bridge dependencies:' "$engine" >/dev/null
 grep -F 'effective write access:' "$engine" >/dev/null
 grep -F 'processes using node:' "$engine" >/dev/null
 grep -F 'Verbose OpenPort USB descriptor:' "$engine" >/dev/null

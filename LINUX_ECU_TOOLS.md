@@ -104,9 +104,13 @@ Every run updates:
 ~/.local/state/subaru-ecu-tools-linux/latest.log
 ```
 
-Failure reports include recent setup and application logs, source revision, and
-checksums for the installed launcher and J2534 DLL. Upload uses the authenticated
-GitHub CLI and requires explicit user confirmation. If upload fails, the complete
+Failure reports include recent setup and application logs, source revision,
+checksums, USB/permission details, and a bounded host/runtime snapshot. The
+snapshot may identify the username, hostname, home paths, local network
+addresses, hardware/USB identifiers, adapter serial, groups, and relevant
+packages/processes. It intentionally excludes credentials, tokens, SSH keys,
+browser data, and the unfiltered environment. Upload uses the authenticated
+GitHub CLI and requires explicit confirmation. If upload fails, the complete
 Markdown report remains beside the setup logs.
 
 Common checks:

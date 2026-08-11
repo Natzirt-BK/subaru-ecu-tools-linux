@@ -281,6 +281,109 @@ write_openport_usb_diagnostics() {
     fi
 }
 
+write_host_runtime_diagnostics() {
+    local runtime_root="$data_dir/runtime/ecuflash-winegdk-11.1/files"
+    local diagnostic_file
+
+    printf 'Captured: %s\n' "$(date --iso-8601=seconds 2>/dev/null || date)"
+    printf 'Hostname: %s\n' "$(hostname 2>&1 || echo unavailable)"
+    printf 'User and groups: %s\n' "$(id)"
+    printf 'Home: %s\n' "$HOME"
+    echo 'Operating system:'
+    if [[ -r /etc/os-release ]]; then
+        sed 's/^/  /' /etc/os-release
+    else
+        echo '  /etc/os-release unavailable'
+    fi
+    printf 'Kernel: '
+    uname -a 2>&1 || true
+    printf 'Architecture: '
+    uname -m 2>&1 || true
+    printf 'Desktop session: XDG_SESSION_TYPE=%s XDG_CURRENT_DESKTOP=%s DESKTOP_SESSION=%s DISPLAY=%s WAYLAND_DISPLAY=%s\n' \
+        "${XDG_SESSION_TYPE:-}" "${XDG_CURRENT_DESKTOP:-}" "${DESKTOP_SESSION:-}" \
+        "${DISPLAY:-}" "${WAYLAND_DISPLAY:-}"
+    printf 'Shell: %s\n' "${SHELL:-unknown}"
+    echo 'Locale:'
+    locale 2>&1 | sed 's/^/  /' || true
+    printf 'Timezone: '
+    timedatectl show --property=Timezone --value 2>&1 || date +%Z 2>&1 || true
+    echo 'CPU summary:'
+    if command -v lscpu >/dev/null 2>&1; then
+        lscpu 2>&1 | grep -E '^(Architecture|CPU\(s\)|Model name|Vendor ID|Virtualization|Hypervisor vendor):' | \
+            sed 's/^/  /' || true
+    else
+        echo '  lscpu unavailable'
+    fi
+    echo 'Display and USB controllers:'
+    if command -v lspci >/dev/null 2>&1; then
+        lspci -nnk 2>&1 | grep -A3 -Ei 'VGA compatible|3D controller|Display controller|USB controller' | \
+            sed 's/^/  /' || true
+    else
+        echo '  lspci unavailable'
+    fi
+    echo 'Memory:'
+    free -h 2>&1 | sed 's/^/  /' || true
+    echo 'Filesystem capacity:'
+    df -h "$HOME" /tmp 2>&1 | sed 's/^/  /' || true
+    echo 'Relevant mount options:'
+    if command -v findmnt >/dev/null 2>&1; then
+        findmnt -T "$HOME" -o TARGET,SOURCE,FSTYPE,OPTIONS 2>&1 | sed 's/^/  /' || true
+        findmnt -T /tmp -o TARGET,SOURCE,FSTYPE,OPTIONS 2>&1 | sed 's/^/  /' || true
+    else
+        echo '  findmnt unavailable'
+    fi
+    echo 'Network addresses:'
+    if command -v ip >/dev/null 2>&1; then
+        ip -brief address 2>&1 | sed 's/^/  /' || true
+    else
+        echo '  ip unavailable'
+    fi
+    echo 'Relevant installed packages:'
+    if command -v pacman >/dev/null 2>&1; then
+        pacman -Q git github-cli libusb lib32-libusb usbutils wine wine-mono \
+            llvm llvm-libs mingw-w64-gcc jre8-openjdk 2>&1 | sed 's/^/  /' || true
+    else
+        echo '  pacman unavailable'
+    fi
+    echo 'Relevant running processes:'
+    ps -eo pid,user,stat,lstart,comm 2>&1 | \
+        grep -Ei ' (wine|wine64|wineserver|wineboot|ecuflash|romraider|openport|j2534|java)$' | \
+        tail -80 | sed 's/^/  /' || echo '  none detected'
+    echo 'Relevant kernel modules:'
+    if command -v lsmod >/dev/null 2>&1; then
+        lsmod 2>&1 | grep -E '^(cdc_acm|usbcore|usb_common|xhci|ehci|uhci|ftdi)' | \
+            sed 's/^/  /' || echo '  none detected'
+    else
+        echo '  lsmod unavailable'
+    fi
+    echo 'Installed runtime and bridge files:'
+    printf 'Packaged Wine version: '
+    "$runtime_root/bin/wine" --version 2>&1 || true
+    for diagnostic_file in \
+        "$runtime_root/bin/wine" \
+        "$runtime_root/bin/wineserver" \
+        "$ecuflash_prefix/drive_c/windows/syswow64/op20pt32.dll" \
+        "$ecuflash_prefix/drive_c/windows/system32/drivers/openport.sys" \
+        "$ecuflash_prefix/drive_c/windows/system32/drivers/openport.so" \
+        "$data_dir/tools/j2534-probe.exe" \
+        "$data_dir/tools/openport-device-probe.exe"; do
+        if [[ -e "$diagnostic_file" ]]; then
+            stat -c '  %A %U:%G (%a) %s bytes %y %n' "$diagnostic_file" 2>&1 || true
+            sha256sum "$diagnostic_file" 2>&1 | sed 's/^/  sha256: /' || true
+            file "$diagnostic_file" 2>&1 | sed 's/^/  type: /' || true
+        else
+            printf '  missing: %s\n' "$diagnostic_file"
+        fi
+    done
+    echo 'OpenPort native bridge dependencies:'
+    if command -v ldd >/dev/null 2>&1; then
+        ldd "$ecuflash_prefix/drive_c/windows/system32/drivers/openport.so" 2>&1 | \
+            sed 's/^/  /' || true
+    else
+        echo '  ldd unavailable'
+    fi
+}
+
 usage() {
     cat <<'EOF'
 Usage: linux/install-cachyos.sh [options]
@@ -378,10 +481,10 @@ github_repo=Natzirt-BK/subaru-ecu-tools-linux
 ecuflash_vendor_j2534_sha256=f432084801762d919a3c31974616e097562424470003edc4f4fb843df34103cf
 offer_error_report() {
     local user_description=${1:-}
-    local report_file upload_error issue_url extra_log log_bytes usb_report latest_ecuflash_log
+    local report_file upload_error issue_url extra_log log_bytes usb_report host_report latest_ecuflash_log
 
     $setup_interactive || return 0
-    warn "The public report includes OpenPort USB descriptors, permissions, udev data, and recent filtered USB events. It may include the adapter serial and host USB details; review the report before sharing."
+    warn "The public report may identify this computer and user. It includes the username, hostname, home paths, local network addresses, hardware and USB identifiers, adapter serial, groups, relevant packages/processes, permissions, and bounded application/system logs. It does not intentionally collect passwords, tokens, SSH keys, browser data, or an unfiltered environment. Review the report before sharing."
     read_yes_no "Upload this error log in a public GitHub issue so the maintainer can investigate?" no || return 0
 
     if ! command -v gh >/dev/null 2>&1; then
@@ -412,6 +515,16 @@ offer_error_report() {
         echo "Source revision: $(git -C "$repo_root" rev-parse --short HEAD 2>/dev/null || echo unknown)"
         echo "Installed launcher: $(sha256sum "$bin_dir/launch-ecuflash" 2>/dev/null || echo missing)"
         echo "Installed J2534 DLL: $(sha256sum "$ecuflash_prefix/drive_c/windows/syswow64/op20pt32.dll" 2>/dev/null || echo missing)"
+        echo
+        echo 'Host and installed-runtime diagnostics:'
+        echo '(first 9,000 bytes; may include identifying host, user, network, hardware, process, and path details)'
+        echo '```text'
+        host_report=$(mktemp /tmp/subaru-ecu-tools-host-report.XXXXXX)
+        write_host_runtime_diagnostics >"$host_report" 2>&1
+        head -c 9000 "$host_report"
+        rm -f -- "$host_report"
+        echo
+        echo '```'
         echo
         echo 'OpenPort USB access diagnostics:'
         echo '(first 16,000 bytes; may include adapter serial and host USB details)'
