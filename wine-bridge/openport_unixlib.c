@@ -110,6 +110,8 @@ static int discover_endpoints(libusb_device_handle *handle)
 
 static NTSTATUS wrap_open(void *args)
 {
+    libusb_device **devices = NULL;
+    ssize_t device_count, i;
     int result = 0;
     (void)args;
     pthread_mutex_lock(&state_lock);
@@ -127,8 +129,24 @@ static NTSTATUS wrap_open(void *args)
     open_count = 1;
     result = libusb_init(&usb_context);
     if (result) goto fail;
-    usb_device = libusb_open_device_with_vid_pid(usb_context, 0x0403, 0xcc4d);
-    if (!usb_device) { result = LIBUSB_ERROR_NO_DEVICE; goto fail; }
+    device_count = libusb_get_device_list(usb_context, &devices);
+    if (device_count < 0) { result = (int)device_count; goto fail; }
+    result = LIBUSB_ERROR_NO_DEVICE;
+    for (i = 0; i < device_count; ++i)
+    {
+        struct libusb_device_descriptor descriptor;
+        int descriptor_result = libusb_get_device_descriptor(devices[i], &descriptor);
+        if (descriptor_result || descriptor.idVendor != 0x0403 || descriptor.idProduct != 0xcc4d)
+            continue;
+        result = libusb_open(devices[i], &usb_device);
+        fprintf(stderr, "openport: found 0403:cc4d bus=%u address=%u open=%d (%s)\n",
+                libusb_get_bus_number(devices[i]), libusb_get_device_address(devices[i]),
+                result, result ? libusb_error_name(result) : "success");
+        break;
+    }
+    libusb_free_device_list(devices, 1);
+    devices = NULL;
+    if (result) goto fail;
     libusb_set_auto_detach_kernel_driver(usb_device, 1);
     result = discover_endpoints(usb_device);
     if (!result) result = libusb_claim_interface(usb_device, data_interface);
@@ -139,6 +157,7 @@ static NTSTATUS wrap_open(void *args)
         goto done;
     }
 fail:
+    if (devices) libusb_free_device_list(devices, 1);
     fprintf(stderr, "openport: open failed libusb=%d (%s)\n", result, libusb_error_name(result));
     close_device();
 done:

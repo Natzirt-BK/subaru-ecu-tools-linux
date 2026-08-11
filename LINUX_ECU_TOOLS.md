@@ -69,8 +69,10 @@ after another complete Wine restart. Connected testing opens and closes the
 physical adapter; disconnected testing requires J2534
 `ERR_DEVICE_NOT_CONNECTED`.
 
-The udev rule grants OpenPort access through the `uucp` group. A new group
-membership may require logging out and back in.
+The udev rule grants OpenPort access through the `uucp` group and the active
+desktop seat. During a first install, setup runs its hardware validation through
+the newly granted group even though the original terminal has not inherited it
+yet. The launchers do the same until the next login refreshes the session.
 
 ## RomRaider definitions
 
@@ -114,6 +116,10 @@ lsusb | grep -i '0403:cc4d'
 id -nG | tr ' ' '\n' | grep -x uucp
 sha256sum ~/.local/share/ecuflash-proton/drive_c/windows/syswow64/op20pt32.dll
 ```
+
+The bridge log records whether libusb found the physical adapter and whether
+opening it succeeded, was denied, or was busy. This distinguishes USB access
+problems from Wine registry discovery failures.
 
 Expected official J2534 SHA-256:
 

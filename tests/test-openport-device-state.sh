@@ -50,6 +50,8 @@ fi
 # current device list, not merely readable descriptor metadata.
 grep -q 'libusb_get_device_list' "$repo_root/wine-bridge/openport_unixlib.c"
 grep -q 'devices\[i\] == opened' "$repo_root/wine-bridge/openport_unixlib.c"
+grep -q 'libusb_open(devices\[i\], &usb_device)' "$repo_root/wine-bridge/openport_unixlib.c"
+grep -q 'openport: found 0403:cc4d.*open=%d' "$repo_root/wine-bridge/openport_unixlib.c"
 if grep -q 'libusb_get_device_descriptor(libusb_get_device(usb_device)' \
     "$repo_root/wine-bridge/openport_unixlib.c"; then
     echo 'Stale-handle validation still relies on cached USB descriptor metadata.' >&2
@@ -90,3 +92,11 @@ wait "$monitor_pid" 2>/dev/null || true
 grep -q 'disconnected -> connected' "$monitor_log"
 
 echo 'OpenPort live-state monitor tests passed.'
+
+# A clean install adds uucp after setup has already started. Its immediate
+# hardware probe must enter the new group instead of failing until next login.
+grep -q '^run_with_openport_access()' "$repo_root/linux/install-cachyos.sh"
+[ "$(grep -c 'run_with_openport_access env WINEPREFIX=' "$repo_root/linux/install-cachyos.sh")" -eq 4 ]
+grep -q 'TAG+="uaccess"' "$repo_root/linux/99-openport2.rules"
+
+echo 'OpenPort first-login access tests passed.'

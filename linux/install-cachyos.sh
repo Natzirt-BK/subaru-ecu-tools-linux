@@ -81,6 +81,25 @@ stop_wine_prefix() {
     WINEPREFIX="$prefix" "$wineserver" -w >>"$log_target" 2>&1 || true
 }
 
+# A newly added supplementary group is not present in the process that ran
+# usermod.  Run hardware checks through that group immediately so a first-time
+# install tests the same USB access that launchers receive after login.
+run_with_openport_access() {
+    local group_command= current_user
+    current_user=${USER:-$(id -un)}
+    if id -nG | tr ' ' '\n' | grep -qx uucp || \
+       ! getent group uucp | cut -d: -f4 | tr ',' '\n' | grep -qx "$current_user"; then
+        "$@"
+        return
+    fi
+    command -v newgrp >/dev/null 2>&1 || {
+        fail "The uucp device-access group was added, but newgrp is unavailable. Log out and back in, then run Update."
+        return 1
+    }
+    printf -v group_command ' %q' "$@"
+    newgrp uucp -c "exec${group_command}"
+}
+
 openport_usb_present() {
     local sysfs_root=${OPENPORT_USB_SYSFS_ROOT:-/sys/bus/usb/devices}
     local vendor_file product_file vendor product
@@ -663,9 +682,9 @@ if [[ "$mode" == update ]]; then
         ok "Wine stopped, dependencies refreshed, bridge reloaded, and hashes verified."
         if openport_usb_present; then
             set +e
-            WINEPREFIX="$ecuflash_prefix" \
+            run_with_openport_access env WINEPREFIX="$ecuflash_prefix" \
                 WINEDLLPATH="$data_dir/winedll" \
-                WINEDEBUG=-all,+seh LOG_ENABLE="$state_dir/ecuflash-j2534.log" \
+                WINEDEBUG=-all LOG_ENABLE="$state_dir/ecuflash-j2534.log" \
                 "$update_wine" "$data_dir/tools/j2534-probe.exe" \
                 >"$update_probe_log" 2>&1
             update_probe_status=$?
@@ -681,9 +700,9 @@ if [[ "$mode" == update ]]; then
             ok "Read-only OpenPort J2534 probe passed."
         else
             set +e
-            WINEPREFIX="$ecuflash_prefix" \
+            run_with_openport_access env WINEPREFIX="$ecuflash_prefix" \
                 WINEDLLPATH="$data_dir/winedll" \
-                WINEDEBUG=-all,+seh LOG_ENABLE="$state_dir/ecuflash-j2534.log" \
+                WINEDEBUG=-all LOG_ENABLE="$state_dir/ecuflash-j2534.log" \
                 "$update_wine" "$data_dir/tools/j2534-probe.exe" --expect-absent \
                 >"$update_probe_log" 2>&1
             update_probe_status=$?
@@ -1138,9 +1157,9 @@ if $install_ecuflash; then
         probe_args=(--expect-absent)
     fi
     set +e
-    WINEPREFIX="$ecuflash_prefix" \
+    run_with_openport_access env WINEPREFIX="$ecuflash_prefix" \
         WINEDLLPATH="$data_dir/winedll" \
-        WINEDEBUG=-all,+seh LOG_ENABLE="$state_dir/ecuflash-j2534.log" \
+        WINEDEBUG=-all LOG_ENABLE="$state_dir/ecuflash-j2534.log" \
         "$ecuflash_wine" "$data_dir/tools/j2534-probe.exe" "${probe_args[@]}" \
         >"$ecuflash_probe_log" 2>&1
     ecuflash_probe_status=$?
@@ -1149,9 +1168,9 @@ if $install_ecuflash; then
         warn "The first J2534 probe did not complete; restarting Wine and retrying once."
         stop_wine_prefix "$ecuflash_wine" "$ecuflash_prefix" "$ecuflash_probe_log"
         set +e
-        WINEPREFIX="$ecuflash_prefix" \
+        run_with_openport_access env WINEPREFIX="$ecuflash_prefix" \
             WINEDLLPATH="$data_dir/winedll" \
-            WINEDEBUG=-all,+seh LOG_ENABLE="$state_dir/ecuflash-j2534.log" \
+            WINEDEBUG=-all LOG_ENABLE="$state_dir/ecuflash-j2534.log" \
             "$ecuflash_wine" "$data_dir/tools/j2534-probe.exe" "${probe_args[@]}" \
             >>"$ecuflash_probe_log" 2>&1
         ecuflash_probe_status=$?

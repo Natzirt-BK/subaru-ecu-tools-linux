@@ -39,6 +39,12 @@ Do not publish the legacy FTDI/OpenPort 1.x GUID
 the wrong D2XX probe (`0x220198`, `0x222198`, `0x2221c4`, `0x2220a4`). The
 OpenPort 2.0 interface GUID is `{6D1781B7-C987-4F6C-8D4F-1EFC098BEA67}`.
 
+The Unix bridge enumerates the matching libusb device before opening it and
+logs the bus, address, and exact libusb result. Do not use
+`libusb_open_device_with_vid_pid()` here: its null return hides the difference
+between an absent adapter and a present adapter that the current process cannot
+open.
+
 Computer-only validation on 2026-08-09 passed three clean EcuFlash launches.
 Every run reported API `04.04`, DLL `1.02.4870`, and firmware `1.17.4955`,
 without `J2534 error [no devices available]`.
