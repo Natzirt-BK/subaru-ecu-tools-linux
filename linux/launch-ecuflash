@@ -69,6 +69,7 @@ bridge_log="${XDG_STATE_HOME:-$HOME/.local/state}/subaru-ecu-tools-linux/ecuflas
 state_dir=$(dirname -- "$bridge_log")
 launch_log="$state_dir/ecuflash-launch.log"
 launch_lock="$state_dir/ecuflash-launch.lock"
+wine_server="$(dirname -- "$ECUFLASH_WINE")/wineserver"
 if [ ! -f "$bridge_windows" ] || [ ! -f "$bridge_unix" ]; then
     report_error "The OpenPort Wine bridge is missing. Run Subaru & Evo ECU Tools Setup or Update."
     exit 1
@@ -102,7 +103,6 @@ if [ "$installed_fingerprint" != "$bridge_fingerprint" ] || \
    ! cmp -s "$bridge_j2534_vendor" "$bridge_j2534_target"; then
     mkdir -p "$bridge_driver_dir" "$(dirname -- "$bridge_j2534_target")" \
         "$(dirname -- "$bridge_log")"
-    wine_server="$(dirname -- "$ECUFLASH_WINE")/wineserver"
     if [ -x "$wine_server" ]; then
         WINEPREFIX="$ECUFLASH_WINEPREFIX" "$wine_server" -k >/dev/null 2>&1 || true
         WINEPREFIX="$ECUFLASH_WINEPREFIX" "$wine_server" -w >/dev/null 2>&1 || true
@@ -143,6 +143,12 @@ ECUFLASH_WINEPREFIX="$ECUFLASH_WINEPREFIX" \
 else
     report_error "OpenPort physical-device state synchronization failed. Diagnostic log: $bridge_log"
     exit 1
+fi
+# Wine binds the OpenPort driver when its device service starts. The registry
+# import above may have started that service before the new USB state existed.
+if [ -x "$wine_server" ]; then
+    WINEPREFIX="$ECUFLASH_WINEPREFIX" "$wine_server" -k >/dev/null 2>&1 || true
+    WINEPREFIX="$ECUFLASH_WINEPREFIX" "$wine_server" -w >/dev/null 2>&1 || true
 fi
 if [ "$openport_state" = disconnected ] && \
    command -v kdialog >/dev/null 2>&1 && \

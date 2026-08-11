@@ -648,6 +648,9 @@ if [[ "$mode" == update ]]; then
         ECUFLASH_WINE="$update_wine" \
         ECUFLASH_WINEPREFIX="$ecuflash_prefix" \
             "$bin_dir/sync-openport-device-state" >/dev/null
+        # Start the probe in a fresh Wine session so PnP sees the state that was
+        # just imported and binds openport.sys before the official DLL opens it.
+        stop_wine_prefix "$update_wine" "$ecuflash_prefix" "$update_refresh_log"
         cmp -s "$update_j2534_vendor" "$update_j2534_target" || {
             fail "The EcuFlash J2534 DLL failed post-update verification."
             exit 1
@@ -1091,6 +1094,10 @@ if $install_ecuflash; then
         tail -50 "$ecuflash_bridge_log" >&2 || true
         exit 1
     fi
+
+    # Registration can start Wine before the connected-device entry is present.
+    # Restart here so the startup test gets a correctly bound OpenPort driver.
+    stop_wine_prefix "$ecuflash_wine" "$ecuflash_prefix" "$ecuflash_bridge_log"
 
     # The vendor installer may create generic menu entries that invoke system
     # Wine. They conflict with our tested EcuFlash (Wine) launcher.

@@ -24,6 +24,7 @@ jobs:
             tests/*.sh
       - name: Run tests
         run: |
+          set -eu
           for test_script in tests/*.sh; do
             "$test_script"
           done
