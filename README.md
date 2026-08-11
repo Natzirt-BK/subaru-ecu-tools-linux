@@ -61,8 +61,10 @@ Setup saves its output under:
 
 On failure, press `Y` when asked to create a GitHub diagnostic report. The
 report includes bounded excerpts from the setup, J2534, EcuFlash, and RomRaider
-logs. Review it before uploading; reports are public. If GitHub upload fails, a
-ready-to-share report is preserved locally.
+logs, plus OpenPort-targeted USB descriptors, permissions, udev state, and
+recent filtered kernel USB events. This may include the adapter serial and host
+USB details. Review it before uploading; reports are public. If GitHub upload
+fails, a ready-to-share report is preserved locally.
 
 Report problems at:
 [GitHub Issues](https://github.com/Natzirt-BK/subaru-ecu-tools-linux/issues)

@@ -158,6 +158,8 @@ write_openport_usb_diagnostics() {
     printf 'OpenPort lsusb: '
     if command -v lsusb >/dev/null 2>&1; then
         lsusb -d 0403:cc4d 2>&1 || true
+        echo 'USB topology:'
+        lsusb -t 2>&1 | sed 's/^/  /' || true
     else
         echo 'lsusb is unavailable'
     fi
@@ -173,7 +175,8 @@ write_openport_usb_diagnostics() {
         [[ "${product,,}" == cc4d ]] || continue
         found=true
         printf 'Sysfs device: %s\n' "${device_dir##*/}"
-        for value in busnum devnum authorized; do
+        for value in busnum devnum authorized speed version bNumInterfaces \
+            bConfigurationValue configuration devpath removable; do
             if [[ -r "$device_dir/$value" ]]; then
                 printf '  %s: ' "$value"
                 sed -n '1p' "$device_dir/$value"
@@ -190,6 +193,10 @@ write_openport_usb_diagnostics() {
             printf -v node '/dev/bus/usb/%03d/%03d' "$busnum" "$devnum"
             if [[ -e "$node" ]]; then
                 stat -c '  device node: %A %U:%G (%a) %n' "$node" 2>&1 || true
+                if command -v getfacl >/dev/null 2>&1; then
+                    echo '  device node ACL:'
+                    getfacl -cp "$node" 2>&1 | sed 's/^/    /' || true
+                fi
                 if run_with_openport_access test -r "$node"; then
                     echo '  effective read access: yes'
                 else
@@ -201,21 +208,47 @@ write_openport_usb_diagnostics() {
                     echo '  effective write access: no'
                 fi
                 if command -v fuser >/dev/null 2>&1; then
-                    printf '  processes using node: '
-                    fuser "$node" 2>&1 || echo 'none detected'
+                    echo '  processes using node:'
+                    fuser -v "$node" 2>&1 | sed 's/^/    /' || echo '    none detected'
                 fi
             else
                 printf '  device node: missing (%s)\n' "$node"
             fi
         fi
         if command -v udevadm >/dev/null 2>&1; then
-            echo '  selected udev properties:'
-            udevadm info --query=property --path="$device_dir" 2>/dev/null | \
-                grep -E '^(DEVPATH|DEVNAME|DRIVER|ID_VENDOR_ID|ID_MODEL_ID|TAGS|CURRENT_TAGS)=' | \
+            echo '  udev properties:'
+            udevadm info --query=property --path="$device_dir" 2>&1 | \
+                sed 's/^/    /' || true
+            echo '  udev attribute walk:'
+            udevadm info --attribute-walk --path="$device_dir" 2>&1 | \
                 sed 's/^/    /' || true
         fi
+        for value in control runtime_status runtime_active_time runtime_suspended_time autosuspend; do
+            if [[ -r "$device_dir/power/$value" ]]; then
+                printf '  power/%s: ' "$value"
+                sed -n '1p' "$device_dir/power/$value"
+            fi
+        done
     done
     $found || echo 'Sysfs OpenPort match: none'
+    echo 'Installed OpenPort udev rule:'
+    if [[ -r /etc/udev/rules.d/99-openport2.rules ]]; then
+        stat -c '  %A %U:%G (%a) %n' /etc/udev/rules.d/99-openport2.rules 2>&1 || true
+        sed 's/^/  /' /etc/udev/rules.d/99-openport2.rules
+    else
+        echo '  missing or unreadable'
+    fi
+    printf 'uucp group entry: '
+    getent group uucp 2>&1 || echo 'missing'
+    if command -v lsusb >/dev/null 2>&1; then
+        echo 'Verbose OpenPort USB descriptor:'
+        lsusb -v -d 0403:cc4d 2>&1 || true
+    fi
+    if command -v journalctl >/dev/null 2>&1; then
+        echo 'Recent kernel USB events (filtered):'
+        journalctl -k -n 300 --no-pager 2>&1 | \
+            grep -Ei 'usb|0403|cc4d|ftdi|openport' | tail -120 || true
+    fi
 }
 
 usage() {
@@ -315,9 +348,10 @@ github_repo=Natzirt-BK/subaru-ecu-tools-linux
 ecuflash_vendor_j2534_sha256=f432084801762d919a3c31974616e097562424470003edc4f4fb843df34103cf
 offer_error_report() {
     local user_description=${1:-}
-    local report_file upload_error issue_url extra_log log_bytes
+    local report_file upload_error issue_url extra_log log_bytes usb_report
 
     $setup_interactive || return 0
+    warn "The public report includes OpenPort USB descriptors, permissions, udev data, and recent filtered USB events. It may include the adapter serial and host USB details; review the report before sharing."
     read_yes_no "Upload this error log in a public GitHub issue so the maintainer can investigate?" no || return 0
 
     if ! command -v gh >/dev/null 2>&1; then
@@ -350,8 +384,13 @@ offer_error_report() {
         echo "Installed J2534 DLL: $(sha256sum "$ecuflash_prefix/drive_c/windows/syswow64/op20pt32.dll" 2>/dev/null || echo missing)"
         echo
         echo 'OpenPort USB access diagnostics:'
+        echo '(first 16,000 bytes; may include adapter serial and host USB details)'
         echo '```text'
-        write_openport_usb_diagnostics
+        usb_report=$(mktemp /tmp/subaru-ecu-tools-usb-report.XXXXXX)
+        write_openport_usb_diagnostics >"$usb_report" 2>&1
+        head -c 16000 "$usb_report"
+        rm -f -- "$usb_report"
+        echo
         echo '```'
         echo
         for extra_log in \
