@@ -147,6 +147,7 @@ else
 fi
 github_repo=Natzirt-BK/subaru-ecu-tools-linux
 offer_error_report() {
+    local user_description=${1:-}
     local answer report_file issue_url extra_log
 
     [[ -t 0 || -t 1 ]] || return 0
@@ -168,6 +169,11 @@ offer_error_report() {
     {
         echo "Setup submitted this report after a detected or user-reported problem."
         echo
+        if [[ -n "$user_description" ]]; then
+            echo "User description:"
+            printf '%s\n' "$user_description" | sed 's/^/> /'
+            echo
+        fi
         echo "Installer log (last 50,000 bytes):"
         echo '```text'
         tail -c 50000 "$log_file"
@@ -205,7 +211,7 @@ offer_error_report() {
     rm -f -- "$report_file"
 }
 confirm_success() {
-    local answer question
+    local answer question user_description
 
     [[ ( -t 0 || -t 1 ) && "${SUBARU_SETUP_NO_PAUSE:-0}" != 1 ]] || return 0
     case "$mode" in
@@ -217,7 +223,9 @@ confirm_success() {
     read -r -p "$question [Y/n] " answer </dev/tty || return 0
     if [[ "$answer" == [nN] || "$answer" == [nN][oO] ]]; then
         warn "The run exited successfully, but the user reported a problem."
-        offer_error_report
+        read -r -p "Briefly describe what went wrong (optional; do not include passwords or private data): " \
+            user_description </dev/tty || user_description=
+        offer_error_report "$user_description"
     else
         ok "Confirmed complete. No error report is needed."
     fi

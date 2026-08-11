@@ -69,6 +69,9 @@ issue. If the user answers yes and the GitHub CLI is already authenticated
 containing setup output and recent application logs when available. It never
 requests or saves a GitHub token,
 and it does not upload anything unless the user confirms.
+If the user reports that an otherwise successful run did not work, setup first
+accepts an optional one-line description and places it near the top of the
+diagnostic issue.
 
 The optional EcuFlash step downloads checksum-pinned version 1.44.4870 directly
 from Tactrix. After the vendor installer closes, setup starts EcuFlash for 12

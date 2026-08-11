@@ -180,9 +180,11 @@ must confirm each upload, and declining keeps the log local.
 The `--install-deps` and recommended-install paths install `github-cli`, but
 GitHub authentication remains an explicit user action.
 Before the graphical setup terminal closes, it always confirms the outcome. A
-successful run asks whether setup and its shortcuts worked; answering no offers
-the same GitHub report upload as a script-detected failure. The terminal closes
-only after the user presses Enter.
+successful run asks whether setup and its shortcuts worked. Answering no opens
+an optional free-text prompt so the user can explain what went wrong, then
+offers the same GitHub report upload as a script-detected failure. The
+description appears near the top of the report. The terminal closes only after
+the user presses Enter.
 
 ## A serious safety note
 
