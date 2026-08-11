@@ -98,6 +98,15 @@ echo 'OpenPort live-state monitor tests passed.'
 grep -q '^run_with_openport_access()' "$repo_root/linux/install-cachyos.sh"
 [ "$(grep -c 'run_with_openport_access env WINEPREFIX=' "$repo_root/linux/install-cachyos.sh")" -eq 6 ]
 grep -q 'TAG+="uaccess"' "$repo_root/linux/99-openport2.rules"
+grep -q '^openport_raw_access_state()' "$repo_root/linux/launch-ecuflash"
+grep -q 'OPENPORT_USB_SYSFS_ROOT' "$repo_root/linux/launch-ecuflash"
+grep -q 'OPENPORT_USB_DEV_ROOT' "$repo_root/linux/launch-ecuflash"
+grep -q 'Desktop uaccess did not grant access.*uucp fallback group' \
+    "$repo_root/linux/launch-ecuflash"
+if grep -q '^if ! id -nG.*grep -qx uucp' "$repo_root/linux/launch-ecuflash"; then
+    echo 'EcuFlash launcher still treats uucp membership as mandatory.' >&2
+    exit 1
+fi
 grep -q '^"HardwareId"=hex(7):' "$repo_root/wine-bridge/openport2-device-present.reg"
 grep -q '^"CompatibleIDs"=hex(7):' "$repo_root/wine-bridge/openport2-device-present.reg"
 grep -q '^"ConfigFlags"=dword:00000000$' "$repo_root/wine-bridge/openport2-device-present.reg"
