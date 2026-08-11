@@ -146,6 +146,29 @@ openport_usb_present() {
     return 1
 }
 
+openport_usb_accessible() {
+    local sysfs_root=${OPENPORT_USB_SYSFS_ROOT:-/sys/bus/usb/devices}
+    local dev_root=${OPENPORT_USB_DEV_ROOT:-/dev/bus/usb}
+    local vendor_file device_dir product_file vendor product busnum devnum node
+
+    for vendor_file in "$sysfs_root"/*/idVendor; do
+        [[ -f "$vendor_file" ]] || continue
+        read -r vendor <"$vendor_file" || continue
+        [[ "${vendor,,}" == 0403 ]] || continue
+        device_dir=${vendor_file%/idVendor}
+        product_file=$device_dir/idProduct
+        [[ -f "$product_file" ]] || continue
+        read -r product <"$product_file" || continue
+        [[ "${product,,}" == cc4d ]] || continue
+        read -r busnum <"$device_dir/busnum" || continue
+        read -r devnum <"$device_dir/devnum" || continue
+        [[ "$busnum" =~ ^[0-9]+$ && "$devnum" =~ ^[0-9]+$ ]] || continue
+        printf -v node '%s/%03d/%03d' "$dev_root" "$busnum" "$devnum"
+        [[ -r "$node" && -w "$node" ]] && return 0
+    done
+    return 1
+}
+
 wait_for_stable_openport() {
     local sysfs_root=${OPENPORT_USB_SYSFS_ROOT:-/sys/bus/usb/devices}
     local previous= current= vendor_file product_file vendor product devnum_file devnum
@@ -1198,11 +1221,14 @@ if [[ "$mode" == check ]]; then
     else
         warn "NOT INSTALLED: RomRaider Editor/Logger definition selection"
     fi
-    id -nG | tr ' ' '\n' | grep -qx uucp && ok "User is in uucp group" || \
-        warn "MISSING: user is not in uucp group (required by the Logger shortcut)"
-    openport_usb_present && \
-        ok "Tactrix OpenPort 2.0 detected" || \
-        step "OpenPort 2.0 is not currently detected (safe to connect later)"
+    if openport_usb_present; then
+        ok "Tactrix OpenPort 2.0 detected"
+        openport_usb_accessible && \
+            ok "Current session has raw read/write OpenPort access" || \
+            warn "MISSING: current session cannot read/write the connected OpenPort (desktop uaccess and uucp fallback unavailable)"
+    else
+        step "OpenPort 2.0 is not currently detected; USB access can be validated after connecting it"
+    fi
     exit "$checks_failed"
 fi
 

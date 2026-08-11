@@ -12,6 +12,8 @@ fi
 : "${ROMRAIDER_JAVA:=$ROMRAIDER_HOME/jre32/bin/java}"
 : "${ROMRAIDER_MODE:=editor}"
 current_user=${USER:-$(id -un)}
+: "${OPENPORT_USB_SYSFS_ROOT:=/sys/bus/usb/devices}"
+: "${OPENPORT_USB_DEV_ROOT:=/dev/bus/usb}"
 
 report_error() {
     printf '%s\n' "$1" >&2
@@ -21,7 +23,39 @@ report_error() {
     fi
 }
 
-if [ "$ROMRAIDER_MODE" = logger ] && ! id -nG | tr ' ' '\n' | grep -qx uucp; then
+openport_raw_access_state() {
+    openport_found=false
+    for vendor_file in "$OPENPORT_USB_SYSFS_ROOT"/*/idVendor; do
+        [ -f "$vendor_file" ] || continue
+        [ "$(tr '[:upper:]' '[:lower:]' <"$vendor_file")" = 0403 ] || continue
+        device_dir=${vendor_file%/idVendor}
+        [ -f "$device_dir/idProduct" ] || continue
+        [ "$(tr '[:upper:]' '[:lower:]' <"$device_dir/idProduct")" = cc4d ] || continue
+        openport_found=true
+        read -r busnum <"$device_dir/busnum" || continue
+        read -r devnum <"$device_dir/devnum" || continue
+        case "$busnum:$devnum" in
+            *[!0-9:]*|:|*:|*:*:*) continue ;;
+        esac
+        node=$(printf '%s/%03d/%03d' "$OPENPORT_USB_DEV_ROOT" "$busnum" "$devnum")
+        [ -r "$node" ] && [ -w "$node" ] && return 0
+    done
+    $openport_found && return 1
+    return 2
+}
+
+if openport_raw_access_state; then
+    openport_access_state=accessible
+else
+    case $? in
+        1) openport_access_state=inaccessible ;;
+        *) openport_access_state=disconnected ;;
+    esac
+fi
+
+if [ "$ROMRAIDER_MODE" = logger ] && \
+   [ "$openport_access_state" = inaccessible ] && \
+   ! id -nG | tr ' ' '\n' | grep -qx uucp; then
     if getent group uucp | cut -d: -f4 | tr ',' '\n' | grep -qx "$current_user"; then
         if [ "${ROMRAIDER_GROUP_REFRESHED:-0}" = 1 ]; then
             report_error "The Logger could not activate the uucp device-access group. Log out and back in, then try again."
@@ -34,7 +68,12 @@ if [ "$ROMRAIDER_MODE" = logger ] && ! id -nG | tr ' ' '\n' | grep -qx uucp; the
         }
         exit 0
     fi
-    report_error "Your account is not in the uucp device-access group. Run Subaru & Evo ECU Tools Setup with the USB-permissions option, then log out and back in."
+    report_error "The connected OpenPort is not readable/writable. Desktop uaccess did not grant access and your account is not in the uucp fallback group. Run Subaru & Evo ECU Tools Setup with USB permissions selected, then reconnect it."
+    exit 1
+fi
+if [ "$ROMRAIDER_MODE" = logger ] && \
+   [ "$openport_access_state" = inaccessible ]; then
+    report_error "The connected OpenPort is not readable/writable even though the uucp fallback group is active. Check its udev rule and reconnect it."
     exit 1
 fi
 

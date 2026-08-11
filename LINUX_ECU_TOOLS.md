@@ -69,10 +69,11 @@ after another complete Wine restart. Connected testing opens and closes the
 physical adapter; disconnected testing requires J2534
 `ERR_DEVICE_NOT_CONNECTED`.
 
-The udev rule grants OpenPort access through the `uucp` group and the active
-desktop seat. During a first install, setup runs its hardware validation through
-the newly granted group even though the original terminal has not inherited it
-yet. The launchers do the same until the next login refreshes the session.
+The udev rule grants OpenPort access to the active desktop seat through
+`uaccess`; membership in `uucp` is a fallback. Setup and the launchers test the
+actual connected USB node before using the fallback group. A restart is not
+normally required; reconnecting the adapter applies the rule, and a logout/login
+refreshes fallback group membership when needed.
 
 ## RomRaider definitions
 

@@ -107,6 +107,17 @@ if grep -q '^if ! id -nG.*grep -qx uucp' "$repo_root/linux/launch-ecuflash"; the
     echo 'EcuFlash launcher still treats uucp membership as mandatory.' >&2
     exit 1
 fi
+grep -q '^openport_raw_access_state()' "$repo_root/linux/launch-romraider"
+grep -q 'Desktop uaccess did not grant access.*uucp fallback group' \
+    "$repo_root/linux/launch-romraider"
+grep -q '^openport_usb_accessible()' "$repo_root/linux/install-cachyos.sh"
+grep -q 'Current session has raw read/write OpenPort access' \
+    "$repo_root/linux/install-cachyos.sh"
+if grep -q 'user is not in uucp group (required by the Logger shortcut)' \
+    "$repo_root/linux/install-cachyos.sh"; then
+    echo 'System check still treats uucp membership as mandatory.' >&2
+    exit 1
+fi
 grep -q '^"HardwareId"=hex(7):' "$repo_root/wine-bridge/openport2-device-present.reg"
 grep -q '^"CompatibleIDs"=hex(7):' "$repo_root/wine-bridge/openport2-device-present.reg"
 grep -q '^"ConfigFlags"=dword:00000000$' "$repo_root/wine-bridge/openport2-device-present.reg"
