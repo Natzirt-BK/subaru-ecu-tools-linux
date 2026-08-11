@@ -9,6 +9,8 @@ extern NTSTATUS WINAPI __wine_init_unix_call(void);
 #define WINE_UNIX_CALL(code, args) __wine_unix_call_dispatcher(__wine_unixlib_handle, (code), (args))
 
 static DEVICE_OBJECT *openport_device;
+static UNICODE_STRING openport_symbolic_link;
+static BOOLEAN openport_symbolic_link_created;
 
 struct device_extension
 {
@@ -90,6 +92,11 @@ static void WINAPI driver_unload(DRIVER_OBJECT *driver)
     if (openport_device)
     {
         struct device_extension *extension = openport_device->DeviceExtension;
+        if (openport_symbolic_link_created)
+        {
+            IoDeleteSymbolicLink(&openport_symbolic_link);
+            openport_symbolic_link_created = FALSE;
+        }
         if (extension && extension->interface_name.Buffer)
         {
             IoSetDeviceInterfaceState(&extension->interface_name, FALSE);
@@ -99,6 +106,37 @@ static void WINAPI driver_unload(DRIVER_OBJECT *driver)
         IoDeleteDevice(openport_device);
         openport_device = NULL;
     }
+}
+
+static NTSTATUS create_standalone_device(DRIVER_OBJECT *driver)
+{
+    struct device_extension *extension;
+    DEVICE_OBJECT *device;
+    UNICODE_STRING device_name;
+    NTSTATUS status;
+
+    RtlInitUnicodeString(&device_name, L"\\Device\\OpenPortWine");
+    status = IoCreateDevice(driver, sizeof(*extension), &device_name, FILE_DEVICE_UNKNOWN,
+                            0, FALSE, &device);
+    if (status) return status;
+    extension = device->DeviceExtension;
+    extension->lower_device = NULL;
+    extension->interface_name.Buffer = NULL;
+    extension->interface_name.Length = 0;
+    extension->interface_name.MaximumLength = 0;
+    RtlInitUnicodeString(&openport_symbolic_link,
+        L"\\??\\USB#VID_0403&PID_CC4D#272&256&1&4#{6D1781B7-C987-4F6C-8D4F-1EFC098BEA67}");
+    status = IoCreateSymbolicLink(&openport_symbolic_link, &device_name);
+    if (status)
+    {
+        IoDeleteDevice(device);
+        return status;
+    }
+    openport_symbolic_link_created = TRUE;
+    device->Flags |= DO_BUFFERED_IO;
+    device->Flags &= ~DO_DEVICE_INITIALIZING;
+    openport_device = device;
+    return STATUS_SUCCESS;
 }
 
 static NTSTATUS WINAPI add_device(DRIVER_OBJECT *driver, DEVICE_OBJECT *physical_device)
@@ -156,5 +194,9 @@ NTSTATUS WINAPI DriverEntry(DRIVER_OBJECT *driver, UNICODE_STRING *registry_path
     driver->MajorFunction[IRP_MJ_POWER] = dispatch_passthrough;
     driver->DriverExtension->AddDevice = add_device;
     driver->DriverUnload = driver_unload;
-    return STATUS_SUCCESS;
+    /* Wine may enumerate the registry interface without ever delivering the
+     * PnP AddDevice callback.  The bridge transports USB through libusb and
+     * does not need the Wine USB PDO, so publish the expected device link as
+     * soon as the service starts.  AddDevice remains for older Wine behavior. */
+    return create_standalone_device(driver);
 }

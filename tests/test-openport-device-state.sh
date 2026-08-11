@@ -111,5 +111,9 @@ grep -q '^"HardwareId"=hex(7):' "$repo_root/wine-bridge/openport2-device-present
 grep -q '^"CompatibleIDs"=hex(7):' "$repo_root/wine-bridge/openport2-device-present.reg"
 grep -q '^"ConfigFlags"=dword:00000000$' "$repo_root/wine-bridge/openport2-device-present.reg"
 grep -q 'capture_openport_device_probe' "$repo_root/linux/install-cachyos.sh"
+grep -q 'create_standalone_device' "$repo_root/wine-bridge/openport_driver.c"
+grep -q 'IoCreateSymbolicLink' "$repo_root/wine-bridge/openport_driver.c"
+grep -q 'Wine may enumerate the registry interface without ever delivering' \
+    "$repo_root/wine-bridge/openport_driver.c"
 
 echo 'OpenPort first-login access tests passed.'

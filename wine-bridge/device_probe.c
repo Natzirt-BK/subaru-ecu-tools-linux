@@ -51,13 +51,18 @@ static void start_service(void)
         printf("SERVICE_STATE_BEFORE_QUERY=FAIL ERROR=%lu\n",
                (unsigned long)GetLastError());
 
-    SetLastError(ERROR_SUCCESS);
-    if (StartServiceA(service, 0, NULL))
-        printf("SERVICE_START=OK ERROR=0\n");
+    if (status.dwCurrentState == SERVICE_RUNNING)
+        printf("SERVICE_START=SKIPPED ALREADY_RUNNING=1\n");
     else
     {
-        error = GetLastError();
-        printf("SERVICE_START=FAIL ERROR=%lu\n", (unsigned long)error);
+        SetLastError(ERROR_SUCCESS);
+        if (StartServiceA(service, 0, NULL))
+            printf("SERVICE_START=OK ERROR=0\n");
+        else
+        {
+            error = GetLastError();
+            printf("SERVICE_START=FAIL ERROR=%lu\n", (unsigned long)error);
+        }
     }
     for (attempt = 0; attempt < 20; attempt++)
     {
