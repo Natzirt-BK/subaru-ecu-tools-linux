@@ -158,7 +158,7 @@ fi
 github_repo=Natzirt-BK/subaru-ecu-tools-linux
 offer_error_report() {
     local user_description=${1:-}
-    local answer report_file issue_url extra_log
+    local answer report_file upload_error issue_url extra_log
 
     [[ -t 0 || -t 1 ]] || return 0
     read -r -p "Upload this error log in a public GitHub issue so the maintainer can investigate? [y/N] " answer </dev/tty || return 0
@@ -175,7 +175,7 @@ offer_error_report() {
         return 0
     fi
 
-    report_file=$(mktemp /tmp/subaru-ecu-tools-report.XXXXXX)
+    report_file="$state_dir/report-$log_stamp.md"
     {
         echo "Setup submitted this report after a detected or user-reported problem."
         echo
@@ -184,9 +184,9 @@ offer_error_report() {
             printf '%s\n' "$user_description" | sed 's/^/> /'
             echo
         fi
-        echo "Installer log (last 50,000 bytes):"
+        echo "Installer log (last 24,000 bytes):"
         echo '```text'
-        tail -c 50000 "$log_file"
+        tail -c 24000 "$log_file"
         echo
         echo '```'
         echo "Source revision: $(git -C "$repo_root" rev-parse --short HEAD 2>/dev/null || echo unknown)"
@@ -204,21 +204,25 @@ offer_error_report() {
             "$HOME/.RomRaider/romraider_sout.log"; do
             [[ -s "$extra_log" ]] || continue
             echo
-            echo "Application log: $extra_log (last 20,000 bytes)"
+            echo "Application log: $extra_log (last 3,500 bytes)"
             echo '```text'
-            tail -c 20000 "$extra_log"
+            tail -c 3500 "$extra_log"
             echo
             echo '```'
         done
     } >"$report_file"
+    upload_error=$(mktemp /tmp/subaru-ecu-tools-upload-error.XXXXXX)
     if issue_url=$(gh issue create --repo "$github_repo" \
         --title "Setup diagnostic report ($log_stamp)" \
-        --body-file "$report_file"); then
+        --body-file "$report_file" 2>"$upload_error"); then
         echo "Error report uploaded: $issue_url"
+        rm -f -- "$report_file"
     else
-        echo "GitHub upload failed. Your log remains at: $log_file" >&2
+        echo "GitHub upload failed: $(tail -n 1 "$upload_error")" >&2
+        echo "The complete ready-to-share report remains at: $report_file" >&2
+        echo "You can attach it manually at: https://github.com/$github_repo/issues/new" >&2
     fi
-    rm -f -- "$report_file"
+    rm -f -- "$upload_error"
 }
 confirm_success() {
     local answer question user_description

@@ -195,6 +195,9 @@ a prior `gh auth login`; setup never asks for or stores a GitHub token. The user
 must confirm each upload, and declining keeps the log local.
 The `--install-deps` and recommended-install paths install `github-cli`, but
 GitHub authentication remains an explicit user action.
+Reports are kept below GitHub's issue-body limit. If submission still fails,
+setup prints GitHub's error, preserves a ready-to-attach Markdown report beside
+the setup logs, and shows the manual issue URL.
 Before the graphical setup terminal closes, it always confirms the outcome. A
 successful run asks whether setup and its shortcuts worked. Answering no opens
 an optional free-text prompt so the user can explain what went wrong, then

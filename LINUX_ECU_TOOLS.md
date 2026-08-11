@@ -72,6 +72,9 @@ issue. If the user answers yes and the GitHub CLI is already authenticated
 containing setup output and recent application logs when available. It never
 requests or saves a GitHub token,
 and it does not upload anything unless the user confirms.
+The generated report is bounded to fit a GitHub issue. If upload fails, setup
+prints the underlying error and preserves the ready-to-attach Markdown report
+in the setup-log directory for manual submission.
 If the user reports that an otherwise successful run did not work, setup first
 accepts an optional one-line description and places it near the top of the
 diagnostic issue.

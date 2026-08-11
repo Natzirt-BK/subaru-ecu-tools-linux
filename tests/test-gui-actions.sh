@@ -35,4 +35,9 @@ run_choice update 'update-cachyos.sh'
 run_choice check '--check'
 run_choice uninstall '--uninstall --yes'
 
+installer=$repo_root/linux/install-cachyos.sh
+grep -F 'tail -c 24000' "$installer" >/dev/null
+grep -F 'tail -c 3500' "$installer" >/dev/null
+grep -F 'The complete ready-to-share report remains at:' "$installer" >/dev/null
+
 echo 'Graphical setup action tests passed.'
