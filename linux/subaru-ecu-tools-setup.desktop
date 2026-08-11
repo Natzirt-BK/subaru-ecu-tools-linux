@@ -1,9 +1,9 @@
 [Desktop Entry]
 Type=Application
-Name=Subaru ECU Tools Setup
-Comment=Set up EcuFlash and RomRaider support on CachyOS
+Name=Subaru & Evo ECU Tools Setup
+Comment=Set up EcuFlash, RomRaider, and experimental EvoScan support on CachyOS
 Exec=@SETUP@
 Icon=applications-engineering
 Terminal=false
-Categories=Utility;Automotive;
+Categories=Utility;Engineering;
 StartupNotify=true

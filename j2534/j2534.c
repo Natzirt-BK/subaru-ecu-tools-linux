@@ -54,6 +54,7 @@ typedef struct _connection
 	unsigned long protocol_id;
 	struct libusb_context *ctx;
 	struct libusb_device_handle *dev_handle;
+	int kernel_driver_detached;
 } connection_t;
 
 typedef struct _endpoint
@@ -664,13 +665,17 @@ int32_t PassThruOpen(const void *pName, unsigned long *pDeviceID)
 	}
 
 	//find out if kernel driver is attached
-	if (libusb_kernel_driver_active(con->dev_handle, 0) == 1)
+	con->kernel_driver_detached = FALSE;
+	if (libusb_kernel_driver_active(con->dev_handle, endpoint->intf_num) == 1)
 	{
 		if (write_log)
 			writelog("\tKernel Driver Active\n");
-		if (libusb_detach_kernel_driver(con->dev_handle, 0) == 0) //detach it
+		if (libusb_detach_kernel_driver(con->dev_handle, endpoint->intf_num) == 0) //detach it
+		{
+			con->kernel_driver_detached = TRUE;
 			if (write_log)
 				writelog("\tKernel Driver Detached\n");
+		}
 	}
 
 	//claim interface
@@ -680,6 +685,8 @@ int32_t PassThruOpen(const void *pName, unsigned long *pDeviceID)
 		if (write_log)
 			writelog("\tCannot Claim Interface\n");
 		snprintf(LAST_ERROR, LE_LEN, "Cannot claim interface from kernel driver");
+		if (con->kernel_driver_detached)
+			libusb_attach_kernel_driver(con->dev_handle, endpoint->intf_num);
 		libusb_close(con->dev_handle);
 		libusb_exit(con->ctx);
 		return error_map(r);
@@ -730,10 +737,21 @@ int32_t PassThruClose(const unsigned long DeviceID)
 	{
 		uint8_t data[MAX_LEN];
 		strcpy(data, "atz\r\n");
-		int r = usb_send_expect(data, strlen(data), MAX_LEN, 2000, NULL);
+		r = usb_send_expect(data, strlen(data), MAX_LEN, 2000, NULL);
 		r = libusb_release_interface(con->dev_handle, endpoint->intf_num);
+		/* Always offer the interface back. This also repairs an interface left
+		   detached by an older bridge or an interrupted diagnostic probe. */
+		int attach_result = libusb_attach_kernel_driver(con->dev_handle, endpoint->intf_num);
+		if (write_log)
+		{
+			writelog(attach_result == LIBUSB_SUCCESS ?
+				"Kernel Driver Reattached\n" : "No Kernel Driver Reattached\n");
+		}
+		con->kernel_driver_detached = FALSE;
 		libusb_close(con->dev_handle);
 		libusb_exit(con->ctx);
+		con->dev_handle = NULL;
+		con->ctx = NULL;
 
 		if (write_log)
 		{

@@ -2,16 +2,171 @@
 set -eu
 
 # Override these in the environment when your installation differs.
-: "${ECUFLASH_WINEPREFIX:=$HOME/.local/share/ecuflash-proton}"
-: "${ECUFLASH_WINE:=wine}"
-: "${ECUFLASH_DIR:=$ECUFLASH_WINEPREFIX/drive_c/Program Files (x86)/OpenECU/EcuFlash}"
-
 : "${XDG_DATA_HOME:=$HOME/.local/share}"
 : "${ECU_TOOLS_DATA_DIR:=$XDG_DATA_HOME/subaru-ecu-tools-linux}"
+: "${ECUFLASH_WINEPREFIX:=$XDG_DATA_HOME/ecuflash-proton}"
+: "${ECUFLASH_DIR:=$ECUFLASH_WINEPREFIX/drive_c/Program Files (x86)/OpenECU/EcuFlash}"
+
+if [ -z "${ECUFLASH_WINE:-}" ]; then
+    project_wine="$ECU_TOOLS_DATA_DIR/runtime/ecuflash-wine-11.1/bin/wine"
+    if [ -x "$project_wine" ]; then
+        ECUFLASH_WINE=$project_wine
+    else
+        ECUFLASH_WINE=wine
+    fi
+fi
+
 : "${ECUFLASH_WINEDLLPATH:=$ECU_TOOLS_DATA_DIR/winedll}"
+current_user=${USER:-$(id -un)}
+
+report_error() {
+    printf '%s\n' "$1" >&2
+    if command -v kdialog >/dev/null 2>&1 && \
+       { [ -n "${DISPLAY:-}" ] || [ -n "${WAYLAND_DISPLAY:-}" ]; }; then
+        kdialog --title "EcuFlash could not start" --error "$1" || true
+    fi
+}
+
+if ! id -nG | tr ' ' '\n' | grep -qx uucp; then
+    if getent group uucp | cut -d: -f4 | tr ',' '\n' | grep -qx "$current_user"; then
+        if [ "${ECUFLASH_GROUP_REFRESHED:-0}" = 1 ]; then
+            report_error "EcuFlash could not activate the uucp device-access group. Log out and back in, then try again."
+            exit 1
+        fi
+        /usr/bin/newgrp uucp -c \
+            "env ECUFLASH_GROUP_REFRESHED=1 '$0'" || {
+            report_error "EcuFlash could not activate the uucp device-access group. Log out and back in, then try again."
+            exit 1
+        }
+        exit 0
+    fi
+    report_error "Your account is not in the uucp device-access group. Run Subaru & Evo ECU Tools Setup with OpenPort USB permissions selected."
+    exit 1
+fi
+
+if ! command -v "$ECUFLASH_WINE" >/dev/null 2>&1 && [ ! -x "$ECUFLASH_WINE" ]; then
+    echo "The configured EcuFlash Wine runner is missing: $ECUFLASH_WINE" >&2
+    echo "Re-run setup with the EcuFlash option, or set ECUFLASH_WINE to an executable." >&2
+    exit 1
+fi
+if [ ! -f "$ECUFLASH_DIR/ecuflash.exe" ]; then
+    echo "EcuFlash is not installed in $ECUFLASH_DIR" >&2
+    echo "Run Subaru & Evo ECU Tools Setup with the EcuFlash option." >&2
+    exit 1
+fi
+
+bridge_windows="$ECUFLASH_WINEDLLPATH/x86_64-windows/openport.sys"
+bridge_unix="$ECUFLASH_WINEDLLPATH/x86_64-unix/openport.so"
+bridge_j2534_windows="$ECUFLASH_WINEDLLPATH/i386-windows/op20pt32.dll"
+bridge_j2534_unix="$ECUFLASH_WINEDLLPATH/x86_64-unix/op20pt32.so"
+bridge_registry="$ECU_TOOLS_DATA_DIR/registry"
+bridge_state_sync=$(dirname -- "$0")/sync-openport-device-state
+bridge_driver_dir="$ECUFLASH_WINEPREFIX/drive_c/windows/system32/drivers"
+bridge_j2534_target="$ECUFLASH_WINEPREFIX/drive_c/windows/syswow64/op20pt32.dll"
+bridge_j2534_vendor_backup="$ECUFLASH_WINEPREFIX/drive_c/windows/syswow64/op20pt32.vendor.dll"
+bridge_marker="$ECUFLASH_WINEPREFIX/.openport-bridge-registered-v3"
+bridge_log="${XDG_STATE_HOME:-$HOME/.local/state}/subaru-ecu-tools-linux/ecuflash-openport-registration.log"
+state_dir=$(dirname -- "$bridge_log")
+launch_log="$state_dir/ecuflash-launch.log"
+launch_lock="$state_dir/ecuflash-launch.lock"
+LOG_ENABLE="$state_dir/ecuflash-j2534.log"
+export LOG_ENABLE
+if [ ! -f "$bridge_windows" ] || [ ! -f "$bridge_unix" ] || \
+   [ ! -f "$bridge_j2534_windows" ] || [ ! -f "$bridge_j2534_unix" ]; then
+    report_error "The OpenPort Wine bridge is missing. Run Subaru & Evo ECU Tools Setup or Update."
+    exit 1
+fi
+if [ ! -f "$bridge_registry/openport-driver-wine.reg" ] || \
+   [ ! -f "$bridge_registry/openport2-wine.reg" ] || \
+   [ ! -f "$bridge_registry/openport2-device-present.reg" ] || \
+   [ ! -f "$bridge_registry/openport2-device-absent.reg" ] || \
+   [ ! -x "$bridge_state_sync" ]; then
+    report_error "The OpenPort Wine registry files are missing. Run Subaru & Evo ECU Tools Update."
+    exit 1
+fi
+bridge_fingerprint=$(sha256sum \
+    "$bridge_windows" "$bridge_unix" \
+    "$bridge_j2534_windows" "$bridge_j2534_unix" \
+    "$bridge_registry/openport2-wine.reg" \
+    "$bridge_registry/openport-driver-wine.reg" \
+    "$bridge_registry/openport2-device-present.reg" \
+    "$bridge_registry/openport2-device-absent.reg" \
+    "$bridge_state_sync" | sha256sum | cut -d' ' -f1)
+installed_fingerprint=$(cat "$bridge_marker" 2>/dev/null || true)
+if [ "$installed_fingerprint" != "$bridge_fingerprint" ] || \
+   ! cmp -s "$bridge_windows" "$bridge_driver_dir/openport.sys" || \
+   ! cmp -s "$bridge_unix" "$bridge_driver_dir/openport.so" || \
+   ! cmp -s "$bridge_j2534_windows" "$bridge_j2534_target"; then
+    mkdir -p "$bridge_driver_dir" "$(dirname -- "$bridge_j2534_target")" \
+        "$(dirname -- "$bridge_log")"
+    wine_server="$(dirname -- "$ECUFLASH_WINE")/wineserver"
+    if [ -x "$wine_server" ]; then
+        WINEPREFIX="$ECUFLASH_WINEPREFIX" "$wine_server" -k >/dev/null 2>&1 || true
+        WINEPREFIX="$ECUFLASH_WINEPREFIX" "$wine_server" -w >/dev/null 2>&1 || true
+    fi
+    if [ -f "$bridge_j2534_target" ] && \
+       ! cmp -s "$bridge_j2534_windows" "$bridge_j2534_target" && \
+       [ ! -e "$bridge_j2534_vendor_backup" ]; then
+        cp -p -- "$bridge_j2534_target" "$bridge_j2534_vendor_backup"
+    fi
+    install -m 0644 "$bridge_windows" "$bridge_driver_dir/openport.sys"
+    install -m 0755 "$bridge_unix" "$bridge_driver_dir/openport.so"
+    install -m 0644 "$bridge_j2534_windows" "$bridge_j2534_target"
+    if WINEPREFIX="$ECUFLASH_WINEPREFIX" WINEDEBUG=-all \
+       "$ECUFLASH_WINE" regedit /S "$bridge_registry/openport2-wine.reg" \
+       >"$bridge_log" 2>&1 && \
+       WINEPREFIX="$ECUFLASH_WINEPREFIX" WINEDEBUG=-all \
+       "$ECUFLASH_WINE" regedit /S "$bridge_registry/openport-driver-wine.reg" \
+       >>"$bridge_log" 2>&1; then
+        printf '%s\n' "$bridge_fingerprint" >"$bridge_marker"
+    else
+        report_error "OpenPort Wine registration failed. Diagnostic log: $bridge_log"
+        exit 1
+    fi
+fi
 
 export WINEPREFIX="$ECUFLASH_WINEPREFIX"
 export WINEDLLPATH="$ECUFLASH_WINEDLLPATH${WINEDLLPATH:+:$WINEDLLPATH}"
+WINEDLLOVERRIDES="op20pt32,j2534=b${WINEDLLOVERRIDES:+;$WINEDLLOVERRIDES}"
+export WINEDLLOVERRIDES
+: "${WINEDEBUG:=-all,+loaddll}"
+export WINEDEBUG
+
+mkdir -p "$state_dir"
+exec 9>"$launch_lock"
+if command -v flock >/dev/null 2>&1 && ! flock -n 9; then
+    report_error "EcuFlash is already running from this Wine prefix. Close the existing EcuFlash window before opening another one."
+    exit 1
+fi
+if openport_state=$(OPENPORT_REGISTRY_DIR="$bridge_registry" \
+OPENPORT_STATE_LOG="$bridge_log" \
+ECUFLASH_WINE="$ECUFLASH_WINE" \
+ECUFLASH_WINEPREFIX="$ECUFLASH_WINEPREFIX" \
+    "$bridge_state_sync"); then
+    :
+else
+    report_error "OpenPort physical-device state synchronization failed. Diagnostic log: $bridge_log"
+    exit 1
+fi
+if [ -f "$launch_log" ] && [ "$(wc -c <"$launch_log")" -gt 10485760 ]; then
+    mv -f -- "$launch_log" "$launch_log.previous"
+fi
+{
+    printf '\n=== EcuFlash launch %s ===\n' "$(date --iso-8601=seconds 2>/dev/null || date)"
+    printf 'Wine: %s\nPrefix: %s\nGroups: ' "$ECUFLASH_WINE" "$ECUFLASH_WINEPREFIX"
+    id -nG
+    printf 'OpenPort physical state: %s\n' "$openport_state"
+    if command -v lsusb >/dev/null 2>&1; then
+        lsusb -d 0403:cc4d 2>&1 || printf '%s\n' 'OpenPort USB device not listed.'
+    fi
+} >>"$launch_log" 2>&1
 
 cd "$ECUFLASH_DIR"
-exec "$ECUFLASH_WINE" ecuflash.exe "$@"
+set +e
+"$ECUFLASH_WINE" ecuflash.exe "$@" >>"$launch_log" 2>&1
+wine_status=$?
+set -e
+if [ "$wine_status" -ne 0 ]; then
+    report_error "EcuFlash exited with status $wine_status. Diagnostic log: $launch_log"
+fi
+exit "$wine_status"

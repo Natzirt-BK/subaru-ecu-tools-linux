@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Update Subaru & Evo ECU Tools
+Comment=Update launchers and setup files without reinstalling large applications
+Exec=@UPDATER@
+Icon=system-software-update
+Terminal=true
+Categories=Utility;Engineering;
+StartupNotify=true

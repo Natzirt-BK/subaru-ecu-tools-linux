@@ -1,0 +1,26 @@
+REGEDIT4
+
+[HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Enum\USB\VID_0403&PID_CC4D\272&256&1&3]
+"Class"="VehiclePassThru"
+"ClassGUID"="{FB1CF0C4-B412-451f-9F04-DF7537A5003C}"
+"DeviceDesc"="Tactrix Openport 2.0 J2534 Vehicle Interface"
+"FriendlyName"="Openport 2.0"
+"Mfg"="Tactrix Inc."
+"Service"="openport"
+
+[HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Enum\USB\VID_0403&PID_CC4D\272&256&1&4]
+"Class"="VehiclePassThru"
+"ClassGUID"="{FB1CF0C4-B412-451f-9F04-DF7537A5003C}"
+"DeviceDesc"="Tactrix Openport 2.0 J2534 Vehicle Interface"
+"FriendlyName"="Openport 2.0"
+"Mfg"="Tactrix Inc."
+"Service"="openport"
+
+[HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\DeviceClasses\{6D1781B7-C987-4F6C-8D4F-1EFC098BEA67}\##?#USB#VID_0403&PID_CC4D#272&256&1&4#{6D1781B7-C987-4F6C-8D4F-1EFC098BEA67}]
+"DeviceInstance"="USB\\VID_0403&PID_CC4D\\272&256&1&4"
+
+[HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\DeviceClasses\{6D1781B7-C987-4F6C-8D4F-1EFC098BEA67}\##?#USB#VID_0403&PID_CC4D#272&256&1&4#{6D1781B7-C987-4F6C-8D4F-1EFC098BEA67}\#]
+"SymbolicLink"="\\\\?\\USB#VID_0403&PID_CC4D#272&256&1&4#{6D1781B7-C987-4F6C-8D4F-1EFC098BEA67}"
+
+[HKEY_LOCAL_MACHINE\SYSTEM\CurrentControlSet\Control\DeviceClasses\{6D1781B7-C987-4F6C-8D4F-1EFC098BEA67}\##?#USB#VID_0403&PID_CC4D#272&256&1&4#{6D1781B7-C987-4F6C-8D4F-1EFC098BEA67}\#\Control]
+"Linked"=dword:00000001

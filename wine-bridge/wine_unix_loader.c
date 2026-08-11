@@ -8,11 +8,12 @@
 
 typedef uint64_t unixlib_handle_t;
 typedef NTSTATUS (WINAPI *unix_dispatcher_t)(unixlib_handle_t, unsigned int, void *);
+#ifdef OPENPORT_KERNEL_BUILD
 extern NTSTATUS WINAPI NtQueryVirtualMemory(HANDLE, const void *, int,
                                             void *, SIZE_T, SIZE_T *);
 extern NTSTATUS WINAPI LdrGetDllHandle(const WCHAR *, ULONG, const UNICODE_STRING *, HMODULE *);
 extern void *WINAPI RtlFindExportedRoutineByName(HMODULE, const char *);
-
+#endif
 extern IMAGE_DOS_HEADER __ImageBase;
 extern unix_dispatcher_t __wine_unix_call_dispatcher;
 
@@ -39,6 +40,11 @@ unix_dispatcher_t __wine_unix_call_dispatcher = init_dispatcher;
 
 NTSTATUS WINAPI __wine_init_unix_call(void)
 {
-    return NtQueryVirtualMemory((HANDLE)(LONG_PTR)-1, &__ImageBase, 1000,
+    return NtQueryVirtualMemory((HANDLE)(LONG_PTR)-1, &__ImageBase,
+#ifdef OPENPORT_KERNEL_BUILD
+                                1000,
+#else
+                                (MEMORY_INFORMATION_CLASS)1000,
+#endif
                                 &__wine_unixlib_handle, sizeof(__wine_unixlib_handle), NULL);
 }

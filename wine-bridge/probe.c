@@ -1,15 +1,19 @@
 #include <stdint.h>
 #include <stdio.h>
+#include <string.h>
 #include <windows.h>
+
+#define J2534_ERR_DEVICE_NOT_CONNECTED 8
 
 typedef int32_t (*open_fn)(const void *, uint32_t *);
 typedef int32_t (*close_fn)(uint32_t);
 typedef int32_t (*version_fn)(uint32_t, char *, char *, char *);
 typedef int32_t (*error_fn)(char *);
 
-int main(void)
+int main(int argc, char **argv)
 {
-    HMODULE dll = LoadLibraryA("j2534.dll");
+    /* Exercise the exact absolute DLL path registered for EcuFlash. */
+    HMODULE dll = LoadLibraryA("C:\\windows\\syswow64\\op20pt32.dll");
     uint32_t device = 0;
     char firmware[80] = {0}, dll_version[80] = {0}, api[80] = {0}, error[80] = {0};
     open_fn open_device;
@@ -17,10 +21,17 @@ int main(void)
     version_fn read_version;
     error_fn get_error;
     int32_t ret;
+    int expect_absent = argc == 2 && !strcmp(argv[1], "--expect-absent");
+
+    if (argc > 2 || (argc == 2 && !expect_absent))
+    {
+        printf("Usage: j2534-probe.exe [--expect-absent]\n");
+        return 64;
+    }
 
     if (!dll)
     {
-        printf("LOAD_FAIL=%lu\n", GetLastError());
+        printf("LOAD_FAIL=%lu DLL=C:\\windows\\syswow64\\op20pt32.dll\n", GetLastError());
         return 2;
     }
     open_device = (open_fn)GetProcAddress(dll, "PassThruOpen");
@@ -35,6 +46,18 @@ int main(void)
     ret = open_device(NULL, &device);
     get_error(error);
     printf("OPEN=%ld DEVICE=%lu ERROR=%s\n", (long)ret, (unsigned long)device, error);
+    if (expect_absent)
+    {
+        if (ret == J2534_ERR_DEVICE_NOT_CONNECTED)
+        {
+            printf("ABSENT_OK\n");
+            return 0;
+        }
+        printf("ABSENT_FAIL expected=%d actual=%ld\n",
+               J2534_ERR_DEVICE_NOT_CONNECTED, (long)ret);
+        if (!ret) close_device(device);
+        return 6;
+    }
     if (ret) return 4;
     ret = read_version(device, firmware, dll_version, api);
     printf("VERSION=%ld FW=%s DLL=%s API=%s\n", (long)ret, firmware, dll_version, api);

@@ -1,0 +1,160 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+source_name=official
+units=metric
+language=en
+vehicle_make=
+vehicle_year=
+vehicle_model=
+custom_editor=
+custom_logger=
+
+usage() {
+    cat <<'EOF'
+Usage: install-romraider-definitions [options]
+
+  --source official|stable|beta|alpha
+  --units metric|standard|imperial
+  --language en|de
+  --vehicle-make NAME  --vehicle-year YEAR  --vehicle-model NAME
+  --custom-editor FILE   Import a user-supplied Editor XML (experimental)
+  --custom-logger FILE   Import a user-supplied Logger XML (experimental)
+
+Year/model are recorded for support and guidance. RomRaider selects an Editor
+definition using the ROM ID; year/model alone cannot safely identify one.
+EOF
+}
+
+while (($#)); do
+    case "$1" in
+        --source) shift; source_name=${1:?--source requires a value} ;;
+        --units) shift; units=${1:?--units requires a value} ;;
+        --language) shift; language=${1:?--language requires a value} ;;
+        --vehicle-make) shift; vehicle_make=${1:?--vehicle-make requires a value} ;;
+        --vehicle-year) shift; vehicle_year=${1:?--vehicle-year requires a value} ;;
+        --vehicle-model) shift; vehicle_model=${1:?--vehicle-model requires a value} ;;
+        --custom-editor) shift; custom_editor=${1:?--custom-editor requires a file} ;;
+        --custom-logger) shift; custom_logger=${1:?--custom-logger requires a file} ;;
+        -h|--help) usage; exit 0 ;;
+        *) echo "Unknown option: $1" >&2; usage >&2; exit 2 ;;
+    esac
+    shift
+done
+
+case "$source_name" in official|stable|beta|alpha) ;; *) echo "Invalid definition source: $source_name" >&2; exit 2 ;; esac
+case "$units" in metric|standard|imperial) ;; *) echo "Invalid units: $units" >&2; exit 2 ;; esac
+case "$language" in en|de) ;; *) echo "Invalid language: $language" >&2; exit 2 ;; esac
+
+data_root=${XDG_DATA_HOME:-$HOME/.local/share}
+data_dir=$data_root/subaru-ecu-tools-linux
+definitions_dir=$data_root/subaru-evo-ecu-definitions
+cache_dir=${XDG_CACHE_HOME:-$HOME/.cache}/subaru-ecu-tools-linux/definitions
+manifest=$data_dir/definitions-active.conf
+mkdir -p "$data_dir" "$definitions_dir" "$cache_dir"
+for value in "$source_name" "$units" "$language" "$vehicle_make" "$vehicle_year" "$vehicle_model" "$custom_editor" "$custom_logger"; do
+    [[ "$value" != *$'\n'* ]] || { echo "Definition options cannot contain newlines." >&2; exit 2; }
+done
+validate_custom_xml() {
+    local input=$1 kind=$2
+    [[ -f "$input" ]] || { echo "Selected $kind XML does not exist: $input" >&2; exit 1; }
+    case "$kind" in
+        editor) grep -q '<roms[ >]' "$input" ;;
+        logger) grep -q '<logger[ >]' "$input" ;;
+    esac || { echo "Selected file is not a RomRaider $kind definition XML: $input" >&2; exit 1; }
+}
+[[ -z "$custom_editor" ]] || validate_custom_xml "$custom_editor" editor
+[[ -z "$custom_logger" ]] || validate_custom_xml "$custom_logger" logger
+
+download_verified() {
+    local url=$1 output=$2 checksum=$3 label=$4
+    if [[ ! -f "$output" ]] || ! printf '%s  %s\n' "$checksum" "$output" | sha256sum -c - >/dev/null 2>&1; then
+        echo "  -> Downloading $label"
+        curl --fail --location --output "$output" "$url"
+    fi
+    printf '%s  %s\n' "$checksum" "$output" | sha256sum -c - >/dev/null
+}
+
+official_release=https://github.com/Natzirt-BK/subaru-ecu-tools-linux/releases/download/romraider-definitions-v1
+editor_dir=$definitions_dir/editor/$source_name
+logger_dir=$definitions_dir/logger/official-v370
+mkdir -p "$editor_dir" "$logger_dir"
+
+if [[ "$source_name" == official ]]; then
+    archive=$cache_dir/romraider-editor-official-0.8.3.1b.tar.zst
+    download_verified "$official_release/romraider-editor-official-0.8.3.1b.tar.zst" "$archive" \
+        de3ac85c28492165b01fde31e0a53bd2df89633dd8359df45473faf3cf700188 \
+        "official RomRaider Editor definitions 0.8.3.1b"
+    if [[ "$units" == metric ]]; then
+        editor_file=ecu_defs_METRIC.xml
+    else
+        editor_file=ecu_defs_STANDARD.xml
+    fi
+    editor_definition=$editor_dir/$editor_file
+    tar --zstd -xOf "$archive" "./$editor_file" >"$editor_definition"
+else
+    case "$source_name" in
+        stable)
+            commit=9b2992eba8133fe5338b89aa77b22c1bb14d6507
+            checksum=326ae0d2ca48ca4014a817d42e501f42d21b823961028f4768e93fa386e86e82
+            ;;
+        beta)
+            commit=0f7d305aac7a9a63f6007b8f125cbf8531676b87
+            checksum=9c8a31981caeb04755fb1415e6a860ff96f47babfe2d66bf6c81153d2ceabfd2
+            ;;
+        alpha)
+            commit=89a03499398d9492c8ffa01dc8d28fdb0350bf24
+            checksum=e7b7d3ff9ee626ab35b8e6ed7a6d0ca25bc557a5106ce9919da835b1ac702bbb
+            ;;
+    esac
+    archive=$cache_dir/subaru-definitions-$source_name-$commit.tar.gz
+    download_verified "https://github.com/Merp/SubaruDefs/archive/$commit.tar.gz" "$archive" "$checksum" \
+        "Subaru $source_name community definitions"
+    member="SubaruDefs-$commit/RomRaider/ecu/$([[ "$units" == metric ]] && echo metric || echo standard)/ecu_defs.xml"
+    tar -xOf "$archive" "$member" >"$editor_dir/ecu_defs.xml"
+    editor_definition=$editor_dir/ecu_defs.xml
+fi
+
+logger_archive=$cache_dir/romraider-logger-v370-official.tar.zst
+download_verified "$official_release/romraider-logger-v370-official.tar.zst" "$logger_archive" \
+    22421beb9f8e5dfd352b3ab1faed37b7e2f177cb7be4a7073d43b4e4c0d8e763 \
+    "official RomRaider Logger definitions v370"
+case "$units:$language" in
+    metric:en) logger_file=logger_METRIC_EN_v370.xml ;;
+    metric:de) logger_file=logger_METRIC_DE_v370.xml ;;
+    imperial:en) logger_file=logger_IMP_EN_v370.xml ;;
+    imperial:de) logger_file=logger_IMP_DE_v370.xml ;;
+    standard:en) logger_file=logger_STD_EN_v370.xml ;;
+    standard:de) logger_file=logger_STD_DE_v370.xml ;;
+esac
+logger_definition=$logger_dir/$logger_file
+tar --zstd -xOf "$logger_archive" "./$logger_file" >"$logger_definition"
+
+import_xml() {
+    local input=$1 destination
+    mkdir -p "$definitions_dir/imported"
+    destination=$definitions_dir/imported/$(basename -- "$input")
+    install -m 0644 "$input" "$destination"
+    printf '%s' "$destination"
+}
+
+[[ -z "$custom_editor" ]] || editor_definition=$(import_xml "$custom_editor")
+[[ -z "$custom_logger" ]] || logger_definition=$(import_xml "$custom_logger")
+
+{
+    printf 'EDITOR_DEFINITION=%s\n' "$editor_definition"
+    printf 'LOGGER_DEFINITION=%s\n' "$logger_definition"
+    printf 'DEFINITION_SOURCE=%s\n' "$source_name"
+    printf 'DEFINITION_UNITS=%s\n' "$units"
+    printf 'VEHICLE_MAKE=%s\n' "$vehicle_make"
+    printf 'VEHICLE_YEAR=%s\n' "$vehicle_year"
+    printf 'VEHICLE_MODEL=%s\n' "$vehicle_model"
+} >"$manifest"
+
+configurator=${XDG_BIN_HOME:-$HOME/.local/bin}/configure-romraider-definitions
+[[ -x "$configurator" ]] && "$configurator"
+
+echo "  OK Editor definition: $editor_definition"
+echo "  OK Logger definition: $logger_definition"
+echo "  Vehicle note: ${vehicle_year:-unspecified} ${vehicle_make:-unspecified} ${vehicle_model:-unspecified}"
+echo "  RomRaider will match the Editor definition by exact ROM ID."

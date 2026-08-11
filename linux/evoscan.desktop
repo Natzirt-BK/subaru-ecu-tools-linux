@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=EvoScan (Wine, Experimental)
+Comment=Launch purchaser-installed EvoScan in the tested OpenPort Wine environment
+Exec=@BINDIR@/launch-evoscan
+Icon=applications-engineering
+Terminal=false
+Categories=Utility;Engineering;
+StartupNotify=true

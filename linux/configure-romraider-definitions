@@ -1,0 +1,65 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+settings=${ROMRAIDER_SETTINGS:-$HOME/.RomRaider/settings.xml}
+manifest=${ROMRAIDER_DEFINITIONS_MANIFEST:-${XDG_DATA_HOME:-$HOME/.local/share}/subaru-ecu-tools-linux/definitions-active.conf}
+
+[[ -f "$manifest" ]] || exit 0
+EDITOR_DEFINITION= LOGGER_DEFINITION=
+while IFS= read -r line; do
+    case "$line" in
+        EDITOR_DEFINITION=*) EDITOR_DEFINITION=${line#*=} ;;
+        LOGGER_DEFINITION=*) LOGGER_DEFINITION=${line#*=} ;;
+    esac
+done <"$manifest"
+[[ -f "$settings" ]] || exit 0
+
+xml_escape() {
+    local value=$1
+    value=${value//&/&amp;}
+    value=${value//</&lt;}
+    value=${value//>/&gt;}
+    value=${value//\"/&quot;}
+    value=${value//\'/&apos;}
+    printf '%s' "$value"
+}
+
+editor_xml=$(xml_escape "${EDITOR_DEFINITION:-}")
+logger_xml=$(xml_escape "${LOGGER_DEFINITION:-}")
+tmp=$(mktemp "${settings}.tmp.XXXXXX")
+trap 'rm -f -- "$tmp"' EXIT
+
+awk -v editor="$editor_xml" -v logger="$logger_xml" '
+    /<!-- subaru-evo-tools definition -->/ { managed = 1; next }
+    managed && /<(ecudefinitionfile|definition) / { managed = 0; next }
+    managed { managed = 0 }
+    /<files>/ && editor != "" {
+        print
+        print "        <!-- subaru-evo-tools definition -->"
+        print "        <ecudefinitionfile name=\"" editor "\"/>"
+        editor = ""
+        next
+    }
+    /<definition path=/ && logger != "" {
+        print "        <!-- subaru-evo-tools definition -->"
+        print "        <definition path=\"" logger "\"/>"
+        logger = ""
+        next
+    }
+    { print }
+' "$settings" >"$tmp"
+
+if [[ -n "$logger_xml" ]] && ! grep -q '<definition path=' "$tmp"; then
+    awk -v logger="$logger_xml" '
+        /<\/logger>/ {
+            print "        <!-- subaru-evo-tools definition -->"
+            print "        <definition path=\"" logger "\"/>"
+        }
+        { print }
+    ' "$tmp" >"${tmp}.logger"
+    mv -- "${tmp}.logger" "$tmp"
+fi
+
+chmod --reference="$settings" "$tmp" 2>/dev/null || true
+mv -- "$tmp" "$settings"
+trap - EXIT

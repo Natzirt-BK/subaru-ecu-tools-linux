@@ -17,10 +17,22 @@ The Wine prefix is 64-bit even though EcuFlash is a 32-bit application. A
 `WINEDLLPATH` directories. This is required; otherwise Wine can silently load
 an older cached `openport.sys`.
 
+The 32-bit J2534 frontend must include Wine's `winecrt0` `unix_lib.o`. That
+startup object registers the paired native Unix library with Wine. A normal
+MinGW DLL can have all the expected J2534 exports yet fail at `LoadLibrary`
+with Windows error 126 because the Unix-library registration is absent.
+
 The OpenPort 2.0 (`0403:cc4d`) exposes two USB interfaces. Interface 0 contains
 interrupt/status endpoint `0x81`. J2534 data uses interface 1 with bulk OUT
 `0x02` and bulk IN `0x82`. Claiming interface 0 or reading `0x81` produces
 successful writes followed by read timeouts.
+
+The service, J2534 provider, and USB device interface have deliberately
+separate registry files. Driver installation must never permanently enumerate
+the USB device: `linux/sync-openport-device-state` adds that interface only
+when Linux sysfs contains `0403:cc4d`, and deletes it when the cable is absent.
+This prevents EcuFlash from displaying a phantom OpenPort merely because the
+bridge is installed.
 
 Do not publish the legacy FTDI/OpenPort 1.x GUID
 `{219D0508-57A8-4FF5-97A1-BD86587C6C7E}` for this cable. It makes EcuFlash run

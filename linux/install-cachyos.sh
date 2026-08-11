@@ -6,33 +6,624 @@ mode=install
 install_deps=false
 install_udev=false
 install_ecuflash=false
+install_romraider=false
+install_evoscan=false
+install_definitions=false
+definition_source=official
+definition_units=metric
+definition_language=en
+vehicle_make=
+vehicle_year=
+vehicle_model=
+custom_editor_definition=
+custom_logger_definition=
+evoscan_installer=${EVOSCAN_INSTALLER:-}
+assume_yes=false
+if [[ -n "$evoscan_installer" ]]; then
+    install_evoscan=true
+    install_ecuflash=true
+fi
+
+if [[ -t 1 && -z "${NO_COLOR:-}" && "${TERM:-}" != dumb ]]; then
+    color_reset=$'\033[0m'
+    color_bold=$'\033[1m'
+    color_red=$'\033[31m'
+    color_green=$'\033[32m'
+    color_yellow=$'\033[33m'
+    color_blue=$'\033[34m'
+    color_cyan=$'\033[36m'
+    use_color=true
+else
+    color_reset= color_bold= color_red= color_green=
+    color_yellow= color_blue= color_cyan=
+    use_color=false
+fi
+
+section() { printf '\n%b==> %s%b\n' "$color_bold$color_cyan" "$*" "$color_reset"; }
+step() { printf '%b  -> %s%b\n' "$color_blue" "$*" "$color_reset"; }
+ok() { printf '%b  OK %b%s\n' "$color_green" "$color_reset" "$*"; }
+warn() { printf '%b  WARNING %b%s\n' "$color_yellow" "$color_reset" "$*" >&2; }
+fail() { printf '%b  ERROR %b%s\n' "$color_red" "$color_reset" "$*" >&2; }
+
+openport_usb_present() {
+    local sysfs_root=${OPENPORT_USB_SYSFS_ROOT:-/sys/bus/usb/devices}
+    local vendor_file product_file vendor product
+
+    for vendor_file in "$sysfs_root"/*/idVendor; do
+        [[ -f "$vendor_file" ]] || continue
+        read -r vendor <"$vendor_file" || continue
+        [[ "${vendor,,}" == 0403 ]] || continue
+        product_file=${vendor_file%/idVendor}/idProduct
+        [[ -f "$product_file" ]] || continue
+        read -r product <"$product_file" || continue
+        [[ "${product,,}" == cc4d ]] && return 0
+    done
+    return 1
+}
 
 usage() {
     cat <<'EOF'
 Usage: linux/install-cachyos.sh [options]
 
   --check          Check the system without building or installing anything
+  --update-files   Audit and update all installer-managed support files
   --install-deps   Install missing CachyOS/Arch packages with sudo pacman
   --install-udev   Install the OpenPort 2.0 udev rule with sudo
   --install-ecuflash  Download and open Tactrix's official EcuFlash installer
+  --install-romraider  Install RomRaider DimeMod with a bundled 32-bit JRE
+  --install-definitions SOURCE  Install RomRaider definitions (official, stable, beta, alpha)
+  --definition-units UNITS     metric, standard, or imperial (default: metric)
+  --definition-language LANG   en or de (default: en)
+  --vehicle-make/--vehicle-year/--vehicle-model VALUE  Record vehicle guidance
+  --custom-editor-definition FILE  Import an experimental Editor XML
+  --custom-logger-definition FILE  Import an experimental Logger XML
+  --evoscan-installer FILE  Install a purchaser-supplied EvoScan EXE or MSI (experimental)
+  --yes-all        Select every optional installation component
+  --uninstall      Remove files installed by Subaru & Evo ECU Tools
+  --yes            Do not prompt before --uninstall
   -h, --help       Show this help
 
 The default builds the bridge and installs user files under ~/.local.
-It never installs RomRaider, ROMs, definitions, or vehicle firmware.
+RomRaider DimeMod is installed only when selected. Setup never installs ROMs,
+definitions, or vehicle firmware.
 EOF
 }
 
 while (($#)); do
     case "$1" in
         --check) mode=check ;;
+        --update-files) mode=update ;;
         --install-deps) install_deps=true ;;
         --install-udev) install_udev=true ;;
         --install-ecuflash) install_ecuflash=true ;;
+        --install-romraider) install_romraider=true ;;
+        --install-definitions)
+            shift; (($#)) || { echo "--install-definitions requires a source." >&2; exit 2; }
+            definition_source=$1; install_definitions=true; install_romraider=true
+            ;;
+        --definition-units) shift; definition_units=${1:?--definition-units requires a value} ;;
+        --definition-language) shift; definition_language=${1:?--definition-language requires a value} ;;
+        --vehicle-make) shift; vehicle_make=${1:?--vehicle-make requires a value} ;;
+        --vehicle-year) shift; vehicle_year=${1:?--vehicle-year requires a value} ;;
+        --vehicle-model) shift; vehicle_model=${1:?--vehicle-model requires a value} ;;
+        --custom-editor-definition)
+            shift; custom_editor_definition=${1:?--custom-editor-definition requires a file}
+            install_definitions=true; install_romraider=true
+            ;;
+        --custom-logger-definition)
+            shift; custom_logger_definition=${1:?--custom-logger-definition requires a file}
+            install_definitions=true; install_romraider=true
+            ;;
+        --evoscan-installer)
+            shift
+            (($#)) || { echo "--evoscan-installer requires a file path." >&2; exit 2; }
+            evoscan_installer=$1
+            install_evoscan=true
+            install_ecuflash=true
+            ;;
+        --yes-all) install_deps=true; install_udev=true; install_ecuflash=true; install_romraider=true; install_definitions=true ;;
+        --uninstall) mode=uninstall ;;
+        --yes) assume_yes=true ;;
         -h|--help) usage; exit 0 ;;
         *) echo "Unknown option: $1" >&2; usage >&2; exit 2 ;;
     esac
     shift
 done
+
+log_stamp=$(date +%Y%m%d-%H%M%S)
+state_dir="${XDG_STATE_HOME:-$HOME/.local/state}/subaru-ecu-tools-linux"
+if [[ "$mode" == uninstall ]]; then
+    log_file="/tmp/subaru-ecu-tools-uninstall-$log_stamp.log"
+else
+    mkdir -p "$state_dir"
+    log_file="$state_dir/setup-$log_stamp.log"
+    ln -sfn "$(basename -- "$log_file")" "$state_dir/latest.log"
+fi
+if $use_color; then
+    : >"$log_file"
+    exec > >(tee >(sed -u $'s/\033\[[0-9;]*m//g' >>"$log_file")) 2>&1
+else
+    exec > >(tee -a "$log_file") 2>&1
+fi
+github_repo=Natzirt-BK/subaru-ecu-tools-linux
+offer_error_report() {
+    local answer report_file issue_url extra_log
+
+    [[ -t 0 || -t 1 ]] || return 0
+    read -r -p "Upload this error log in a public GitHub issue so the maintainer can investigate? [y/N] " answer </dev/tty || return 0
+    [[ "$answer" == [yY] || "$answer" == [yY][eE][sS] ]] || return 0
+
+    if ! command -v gh >/dev/null 2>&1; then
+        echo "Automatic upload requires GitHub CLI. Install 'github-cli', run 'gh auth login', then retry."
+        echo "No log was uploaded. Your log remains at: $log_file"
+        return 0
+    fi
+    if ! gh auth status --hostname github.com >/dev/null 2>&1; then
+        echo "GitHub CLI is not signed in. Run 'gh auth login', then retry."
+        echo "No log was uploaded. Your log remains at: $log_file"
+        return 0
+    fi
+
+    report_file=$(mktemp /tmp/subaru-ecu-tools-report.XXXXXX)
+    {
+        echo "Setup submitted this report after a detected or user-reported problem."
+        echo
+        echo "Installer log (last 50,000 bytes):"
+        echo '```text'
+        tail -c 50000 "$log_file"
+        echo
+        echo '```'
+        echo "Source revision: $(git -C "$repo_root" rev-parse --short HEAD 2>/dev/null || echo unknown)"
+        echo "Installed launcher: $(sha256sum "$bin_dir/launch-ecuflash" 2>/dev/null || echo missing)"
+        echo "Installed J2534 DLL: $(sha256sum "$data_dir/winedll/i386-windows/op20pt32.dll" 2>/dev/null || echo missing)"
+        echo
+        for extra_log in \
+            "$state_dir/ecuflash-j2534-probe.log" \
+            "$state_dir/ecuflash-force-refresh.log" \
+            "$state_dir/ecuflash-j2534.log" \
+            "$state_dir/ecuflash-launch.log" \
+            "$state_dir/ecuflash-openport-registration.log" \
+            "$cache_root/ecuflash-openport-registration.log" \
+            "$state_dir/romraider-launch.log" \
+            "$HOME/.RomRaider/romraider_sout.log"; do
+            [[ -s "$extra_log" ]] || continue
+            echo
+            echo "Application log: $extra_log (last 20,000 bytes)"
+            echo '```text'
+            tail -c 20000 "$extra_log"
+            echo
+            echo '```'
+        done
+    } >"$report_file"
+    if issue_url=$(gh issue create --repo "$github_repo" \
+        --title "Setup diagnostic report ($log_stamp)" \
+        --body-file "$report_file"); then
+        echo "Error report uploaded: $issue_url"
+    else
+        echo "GitHub upload failed. Your log remains at: $log_file" >&2
+    fi
+    rm -f -- "$report_file"
+}
+confirm_success() {
+    local answer question
+
+    [[ ( -t 0 || -t 1 ) && "${SUBARU_SETUP_NO_PAUSE:-0}" != 1 ]] || return 0
+    case "$mode" in
+        check) question="Did the system check complete as expected?" ;;
+        uninstall) question="Did removal complete as expected?" ;;
+        update) question="Did the update and automatic OpenPort test complete successfully?" ;;
+        *) question="Did installation complete and do the installed shortcuts open correctly?" ;;
+    esac
+    read -r -p "$question [Y/n] " answer </dev/tty || return 0
+    if [[ "$answer" == [nN] || "$answer" == [nN][oO] ]]; then
+        warn "The run exited successfully, but the user reported a problem."
+        offer_error_report
+    else
+        ok "Confirmed complete. No error report is needed."
+    fi
+}
+wait_before_close() {
+    [[ ( -t 0 || -t 1 ) && "${SUBARU_SETUP_NO_PAUSE:-0}" != 1 ]] || return 0
+    read -r -p "Press Enter to close this setup terminal..." _ </dev/tty || true
+}
+log_result() {
+    local status=$?
+    trap - EXIT
+    if ((status)); then
+        echo
+        fail "Subaru & Evo ECU Tools stopped with status $status."
+        echo "Share this diagnostic log when requesting help: $log_file"
+        offer_error_report
+    else
+        echo "Diagnostic log: $log_file"
+        confirm_success
+    fi
+    wait_before_close
+    exit "$status"
+}
+trap log_result EXIT
+
+bin_dir="${XDG_BIN_HOME:-$HOME/.local/bin}"
+data_root="${XDG_DATA_HOME:-$HOME/.local/share}"
+data_dir="$data_root/subaru-ecu-tools-linux"
+applications_dir="$data_root/applications"
+wine_ecuflash_menu_dir="$applications_dir/wine/Programs/EcuFlash"
+cache_root="${XDG_CACHE_HOME:-$HOME/.cache}/subaru-ecu-tools-linux"
+ecuflash_prefix="${ECUFLASH_WINEPREFIX:-$data_root/ecuflash-proton}"
+default_source_dir="$HOME/.local/src/subaru-ecu-tools-linux"
+romraider_home="$data_root/romraider-dm20"
+definitions_home="$data_root/subaru-evo-ecu-definitions"
+
+create_documents_shortcuts() {
+    local documents_dir tools_documents link target documents_evoscan_exe=
+    local active_editor_definition= active_logger_definition= documents_line
+
+    if command -v xdg-user-dir >/dev/null 2>&1; then
+        documents_dir=$(xdg-user-dir DOCUMENTS 2>/dev/null || true)
+    fi
+    if [[ -z "${documents_dir:-}" || "$documents_dir" == "$HOME" ]]; then
+        documents_dir="$HOME/Documents"
+    fi
+    tools_documents="$documents_dir/Subaru & Evo ECU Tools"
+    install -d \
+        "$definitions_home/editor" \
+        "$definitions_home/logger" \
+        "$definitions_home/imported" \
+        "$tools_documents/RomRaider Editor" \
+        "$tools_documents/RomRaider Logger" \
+        "$tools_documents/EcuFlash" \
+        "$tools_documents/EvoScan" \
+        "$tools_documents/Diagnostic Logs"
+
+    if [[ -f "$data_dir/evoscan-exe.path" ]]; then
+        IFS= read -r documents_evoscan_exe <"$data_dir/evoscan-exe.path" || true
+    fi
+    if [[ -f "$data_dir/definitions-active.conf" ]]; then
+        while IFS= read -r documents_line; do
+            case "$documents_line" in
+                EDITOR_DEFINITION=*) active_editor_definition=${documents_line#*=} ;;
+                LOGGER_DEFINITION=*) active_logger_definition=${documents_line#*=} ;;
+            esac
+        done <"$data_dir/definitions-active.conf"
+    fi
+
+    add_documents_link() {
+        link=$1
+        target=$2
+        [[ -e "$target" ]] || return 0
+        if [[ -L "$link" ]]; then
+            ln -sfn -- "$target" "$link"
+        elif [[ ! -e "$link" ]]; then
+            ln -s -- "$target" "$link"
+        else
+            warn "Preserving the existing Documents item instead of replacing it: $link"
+        fi
+    }
+
+    add_documents_link "$tools_documents/RomRaider Editor/Definitions" \
+        "$definitions_home/editor"
+    add_documents_link "$tools_documents/RomRaider Logger/Definitions" \
+        "$definitions_home/logger"
+    add_documents_link "$tools_documents/RomRaider Editor/Imported Definitions" \
+        "$definitions_home/imported"
+    add_documents_link "$tools_documents/RomRaider Editor/Active Definition.xml" \
+        "${active_editor_definition:-/path/that/does/not/exist}"
+    add_documents_link "$tools_documents/RomRaider Logger/Active Definition.xml" \
+        "${active_logger_definition:-/path/that/does/not/exist}"
+    add_documents_link "$tools_documents/EcuFlash/Definitions" \
+        "$ecuflash_prefix/drive_c/Program Files (x86)/OpenECU/EcuFlash/rommetadata"
+    add_documents_link "$tools_documents/EvoScan/Installed Program" \
+        "${documents_evoscan_exe:-/path/that/does/not/exist}"
+    add_documents_link "$tools_documents/Diagnostic Logs/Setup Logs" "$state_dir"
+    add_documents_link "$tools_documents/Diagnostic Logs/RomRaider Logs" "$HOME/.RomRaider"
+    printf '%s\n' \
+        'These folders are shortcuts to the files used by Subaru & Evo ECU Tools.' \
+        'Changes made through these shortcuts affect the real definitions and logs.' \
+        'RomRaider normally configures definition paths automatically.' \
+        'Do not select a definition by model year alone; verify the exact ROM ID.' \
+        >"$tools_documents/README - File Locations.txt"
+    ok "Easy-access folders: $tools_documents"
+}
+
+install_managed_user_files() {
+    local source target desktop rendered expected_mode actual_mode
+    local checked=0 updated=0 current=0
+
+    install -d "$bin_dir" "$applications_dir" "$data_dir/registry"
+
+    update_managed_file() {
+        source=$1
+        target=$2
+        mode_bits=$3
+        expected_mode=${mode_bits#0}
+        ((checked+=1))
+        actual_mode=$(stat -c '%a' "$target" 2>/dev/null || true)
+        if [[ -f "$target" ]] && cmp -s "$source" "$target" && \
+           [[ "$actual_mode" == "$expected_mode" ]]; then
+            ((current+=1))
+            step "Current: ${target#"$HOME/"}"
+        else
+            install -m "$mode_bits" "$source" "$target"
+            ((updated+=1))
+            ok "Updated: ${target#"$HOME/"}"
+        fi
+    }
+
+    for source in launch-ecuflash launch-evoscan launch-romraider \
+        sync-openport-device-state \
+        configure-romraider-definitions install-romraider-definitions; do
+        update_managed_file "$repo_root/linux/$source" "$bin_dir/$source" 0755
+    done
+    update_managed_file "$repo_root/wine-bridge/openport-driver-wine.reg" \
+        "$data_dir/registry/openport-driver-wine.reg" 0644
+    update_managed_file "$repo_root/wine-bridge/openport2-wine.reg" \
+        "$data_dir/registry/openport2-wine.reg" 0644
+    update_managed_file "$repo_root/wine-bridge/openport2-device-present.reg" \
+        "$data_dir/registry/openport2-device-present.reg" 0644
+    update_managed_file "$repo_root/wine-bridge/openport2-device-absent.reg" \
+        "$data_dir/registry/openport2-device-absent.reg" 0644
+    for desktop in ecuflash evoscan romraider-editor romraider-logger subaru-ecu-tools-setup subaru-ecu-tools-update; do
+        rendered=$(mktemp "$cache_root/desktop-$desktop.XXXXXX")
+        sed -e "s|@BINDIR@|$bin_dir|g" \
+            -e "s|@SETUP@|$repo_root/linux/setup-cachyos-gui.sh|g" \
+            -e "s|@UPDATER@|$repo_root/linux/update-cachyos.sh|g" \
+            "$repo_root/linux/$desktop.desktop" \
+            >"$rendered"
+        update_managed_file "$rendered" "$applications_dir/$desktop.desktop" 0644
+        rm -f -- "$rendered"
+    done
+    command -v update-desktop-database >/dev/null && \
+        update-desktop-database "$applications_dir" >/dev/null 2>&1 || true
+    ok "Managed-file audit complete: $checked checked, $updated updated, $current already current."
+}
+
+ecuflash_runtime_url=https://github.com/Natzirt-BK/subaru-ecu-tools-linux/releases/download/ecuflash-wine-11.1-1/ecuflash-wine-11.1-x86_64.tar.zst
+ecuflash_runtime_sha256=e3e1d6f83f54b710e01e93ae9150c14775ec6e4905bddcf08a127a7e602b2c03
+ecuflash_wine_sha256=db39819d2e916e15abe2e55c167f21fb8ffb5400eb8083b8ef08359c7b2b1c70
+ecuflash_runtime_archive="$cache_root/ecuflash-wine-11.1-x86_64.tar.zst"
+ecuflash_runtime_root="$data_dir/runtime"
+ecuflash_runtime_dir="$ecuflash_runtime_root/ecuflash-wine-11.1"
+install_ecuflash_runtime() {
+    mkdir -p "$cache_root" "$ecuflash_runtime_root"
+    if [[ ! -f "$ecuflash_runtime_archive" ]] || \
+       ! printf '%s  %s\n' "$ecuflash_runtime_sha256" "$ecuflash_runtime_archive" | \
+           sha256sum -c - >/dev/null 2>&1; then
+        step "Downloading the project-built Wine 11.1 runtime"
+        curl --fail --location --output "$ecuflash_runtime_archive" "$ecuflash_runtime_url"
+    fi
+    printf '%s  %s\n' "$ecuflash_runtime_sha256" "$ecuflash_runtime_archive" | sha256sum -c - >/dev/null
+    if [[ ! -x "$ecuflash_runtime_dir/bin/wine" ]] || \
+       ! printf '%s  %s\n' "$ecuflash_wine_sha256" "$ecuflash_runtime_dir/bin/wine" | \
+           sha256sum -c - >/dev/null 2>&1 || \
+       [[ ! -f "$ecuflash_runtime_dir/COPYING.LIB" ]]; then
+        rm -rf -- "$ecuflash_runtime_dir"
+        tar --zstd -xf "$ecuflash_runtime_archive" -C "$ecuflash_runtime_root"
+    fi
+    if [[ ! -x "$ecuflash_runtime_dir/bin/wine" ]] || \
+       ! printf '%s  %s\n' "$ecuflash_wine_sha256" "$ecuflash_runtime_dir/bin/wine" | \
+           sha256sum -c - >/dev/null 2>&1 || \
+       [[ ! -f "$ecuflash_runtime_dir/COPYING.LIB" ]]; then
+        fail "The verified Wine 11.1 runtime is incomplete."
+        exit 1
+    fi
+    ok "Project-built Wine 11.1 runtime verified."
+}
+
+if [[ "$mode" == update ]]; then
+    section "Auditing installed files against the latest release"
+    if ! pacman -Q lib32-libusb &>/dev/null; then
+        step "Installing the 32-bit USB runtime required by RomRaider Logger"
+        sudo pacman -S --needed lib32-libusb
+    else
+        ok "RomRaider Logger 32-bit USB runtime is current."
+    fi
+    mkdir -p "$cache_root"
+    install_managed_user_files
+    if [[ -f "$ecuflash_prefix/drive_c/Program Files (x86)/OpenECU/EcuFlash/ecuflash.exe" ]]; then
+        section "Rebuilding the installed OpenPort J2534 bridge"
+        bridge_build_log="$cache_root/openport-bridge-build.log"
+        if LLVM_MINGW_ROOT=/opt/llvm-mingw WINEBUILD=$(command -v winebuild) \
+            "$repo_root/wine-bridge/build-openport-driver.sh" >"$bridge_build_log" 2>&1; then
+            install -d "$data_dir/winedll/i386-windows" \
+                "$data_dir/winedll/x86_64-windows" "$data_dir/winedll/x86_64-unix"
+            install -m 0644 "$repo_root/build-wine-bridge/winedll/x86_64-windows/openport.sys" \
+                "$data_dir/winedll/x86_64-windows/openport.sys"
+            install -m 0755 "$repo_root/build-wine-bridge/winedll/x86_64-unix/openport.so" \
+                "$data_dir/winedll/x86_64-unix/openport.so"
+            for bridge_name in op20pt32 j2534; do
+                install -m 0644 "$repo_root/build-wine-bridge/winedll/i386-windows/$bridge_name.dll" \
+                    "$data_dir/winedll/i386-windows/$bridge_name.dll"
+                install -m 0755 "$repo_root/build-wine-bridge/winedll/x86_64-unix/$bridge_name.so" \
+                    "$data_dir/winedll/x86_64-unix/$bridge_name.so"
+            done
+            install -d "$data_dir/tools"
+            install -m 0755 "$repo_root/build-wine-bridge/j2534-probe.exe" \
+                "$data_dir/tools/j2534-probe.exe"
+            ok "OpenPort kernel and direct J2534 bridge files are current."
+        else
+            fail "OpenPort bridge update failed. Diagnostic log: $bridge_build_log"
+            tail -50 "$bridge_build_log" >&2 || true
+            exit 1
+        fi
+        section "Checking the installed EcuFlash runtime"
+        install_ecuflash_runtime
+        section "Force-refreshing Wine and OpenPort dependencies"
+        update_wine=${ECUFLASH_WINE:-$ecuflash_runtime_dir/bin/wine}
+        command -v "$update_wine" >/dev/null 2>&1 || [[ -x "$update_wine" ]] || {
+            fail "The configured EcuFlash Wine runner is missing: $update_wine"
+            exit 1
+        }
+        update_runtime_bin=$(dirname -- "$(command -v "$update_wine" 2>/dev/null || printf '%s' "$update_wine")")
+        update_wineserver="$update_runtime_bin/wineserver"
+        update_driver_dir="$ecuflash_prefix/drive_c/windows/system32/drivers"
+        update_j2534_target="$ecuflash_prefix/drive_c/windows/syswow64/op20pt32.dll"
+        update_j2534_backup="$ecuflash_prefix/drive_c/windows/syswow64/op20pt32.vendor.dll"
+        update_refresh_log="$state_dir/ecuflash-force-refresh.log"
+        update_probe_log="$state_dir/ecuflash-j2534-probe.log"
+        install -d "$update_driver_dir" "$(dirname -- "$update_j2534_target")" "$state_dir"
+        WINEPREFIX="$ecuflash_prefix" "$update_wineserver" -k >/dev/null 2>&1 || true
+        WINEPREFIX="$ecuflash_prefix" "$update_wineserver" -w >/dev/null 2>&1 || true
+        rm -f -- \
+            "$ecuflash_prefix/.openport-bridge-registered-v1" \
+            "$ecuflash_prefix/.openport-bridge-registered-v2" \
+            "$ecuflash_prefix/.openport-bridge-registered-v3"
+        WINEPREFIX="$ecuflash_prefix" WINEDEBUG=-all \
+            "$update_wine" wineboot -u >"$update_refresh_log" 2>&1
+        if [[ -f "$update_j2534_target" ]] && \
+           ! cmp -s "$data_dir/winedll/i386-windows/op20pt32.dll" "$update_j2534_target" && \
+           [[ ! -e "$update_j2534_backup" ]]; then
+            cp -p -- "$update_j2534_target" "$update_j2534_backup"
+        fi
+        install -m 0644 "$data_dir/winedll/i386-windows/op20pt32.dll" \
+            "$update_j2534_target"
+        install -m 0644 "$data_dir/winedll/x86_64-windows/openport.sys" \
+            "$update_driver_dir/openport.sys"
+        install -m 0755 "$data_dir/winedll/x86_64-unix/openport.so" \
+            "$update_driver_dir/openport.so"
+        WINEPREFIX="$ecuflash_prefix" WINEDEBUG=-all LOG_ENABLE="$state_dir/ecuflash-j2534.log" \
+            "$update_wine" regedit /S "$data_dir/registry/openport2-wine.reg" \
+            >>"$update_refresh_log" 2>&1
+        WINEPREFIX="$ecuflash_prefix" WINEDEBUG=-all LOG_ENABLE="$state_dir/ecuflash-j2534.log" \
+            "$update_wine" regedit /S "$data_dir/registry/openport-driver-wine.reg" \
+            >>"$update_refresh_log" 2>&1
+        OPENPORT_REGISTRY_DIR="$data_dir/registry" \
+        OPENPORT_STATE_LOG="$update_refresh_log" \
+        ECUFLASH_WINE="$update_wine" \
+        ECUFLASH_WINEPREFIX="$ecuflash_prefix" \
+            "$bin_dir/sync-openport-device-state" >/dev/null
+        cmp -s "$data_dir/winedll/i386-windows/op20pt32.dll" "$update_j2534_target" || {
+            fail "The EcuFlash J2534 DLL failed post-update verification."
+            exit 1
+        }
+        cmp -s "$data_dir/winedll/x86_64-windows/openport.sys" \
+            "$update_driver_dir/openport.sys" || {
+            fail "The OpenPort Wine driver failed post-update verification."
+            exit 1
+        }
+        ok "Wine stopped, dependencies refreshed, bridge reloaded, and hashes verified."
+        if openport_usb_present; then
+            set +e
+            WINEPREFIX="$ecuflash_prefix" \
+                WINEDLLPATH="$data_dir/winedll" \
+                WINEDLLOVERRIDES='op20pt32,j2534=b' \
+                WINEDEBUG=-all,+loaddll LOG_ENABLE="$state_dir/ecuflash-j2534.log" \
+                "$update_wine" "$data_dir/tools/j2534-probe.exe" \
+                >"$update_probe_log" 2>&1
+            update_probe_status=$?
+            set -e
+            if ((update_probe_status)); then
+                fail "The read-only OpenPort J2534 probe failed with status $update_probe_status."
+                echo "Diagnostic log: $update_probe_log" >&2
+                tail -50 "$update_probe_log" >&2 || true
+                exit 1
+            fi
+            ok "Read-only OpenPort J2534 probe passed."
+        else
+            set +e
+            WINEPREFIX="$ecuflash_prefix" \
+                WINEDLLPATH="$data_dir/winedll" \
+                WINEDLLOVERRIDES='op20pt32,j2534=b' \
+                WINEDEBUG=-all,+loaddll LOG_ENABLE="$state_dir/ecuflash-j2534.log" \
+                "$update_wine" "$data_dir/tools/j2534-probe.exe" --expect-absent \
+                >"$update_probe_log" 2>&1
+            update_probe_status=$?
+            set -e
+            if ((update_probe_status)); then
+                fail "The unplugged OpenPort probe did not report device-not-connected."
+                echo "Diagnostic log: $update_probe_log" >&2
+                tail -50 "$update_probe_log" >&2 || true
+                exit 1
+            fi
+            ok "Unplugged OpenPort probe correctly reported device-not-connected."
+        fi
+    fi
+    create_documents_shortcuts
+    ok "Every installer-managed launcher, registry file, and desktop entry is current."
+    echo "Large runtimes and vendor applications were not reinstalled."
+    exit 0
+fi
+
+if [[ "$mode" == uninstall ]]; then
+    section "Remove Subaru & Evo ECU Tools"
+    warn "The following project-managed files will be removed:"
+    printf '  %s\n' \
+        "$bin_dir/launch-ecuflash" \
+        "$bin_dir/launch-evoscan" \
+        "$bin_dir/launch-romraider" \
+        "$bin_dir/configure-romraider-definitions" \
+        "$bin_dir/install-romraider-definitions" \
+        "$data_dir" \
+        "$ecuflash_prefix" \
+        "$cache_root" \
+        "$state_dir" \
+        "$wine_ecuflash_menu_dir" \
+        "$applications_dir/ecuflash.desktop" \
+        "$applications_dir/evoscan.desktop" \
+        "$applications_dir/romraider-editor.desktop" \
+        "$applications_dir/romraider-logger.desktop" \
+        "$applications_dir/subaru-ecu-tools-setup.desktop" \
+        "$applications_dir/subaru-ecu-tools-update.desktop" \
+        "/etc/udev/rules.d/99-openport2.rules"
+    if [[ "$repo_root" == "$default_source_dir" ]]; then
+        printf '  %s\n' "$default_source_dir"
+    fi
+    if [[ -f "$romraider_home/.installed-by-subaru-ecu-tools" ]]; then
+        printf '  %s\n' "$romraider_home"
+        echo "The installer-managed RomRaider package will be removed; definitions in $definitions_home and logs remain preserved."
+    else
+        echo "Separately installed RomRaider DimeMod, ROMs, definitions, logs, and shared packages are preserved."
+    fi
+
+    if ! $assume_yes; then
+        read -r -p "Remove these Subaru & Evo ECU Tools files? [y/N] " answer
+        [[ "$answer" == [yY] || "$answer" == [yY][eE][sS] ]] || {
+            echo "Uninstall cancelled."
+            exit 0
+        }
+    fi
+
+    rm -f -- \
+        "$bin_dir/launch-ecuflash" \
+        "$bin_dir/launch-evoscan" \
+        "$bin_dir/launch-romraider" \
+        "$bin_dir/configure-romraider-definitions" \
+        "$bin_dir/install-romraider-definitions" \
+        "$applications_dir/ecuflash.desktop" \
+        "$applications_dir/evoscan.desktop" \
+        "$applications_dir/romraider-editor.desktop" \
+        "$applications_dir/romraider-logger.desktop" \
+        "$applications_dir/subaru-ecu-tools-setup.desktop" \
+        "$applications_dir/subaru-ecu-tools-update.desktop"
+    rm -rf -- "$data_dir" "$ecuflash_prefix" "$cache_root" "$state_dir" \
+        "$wine_ecuflash_menu_dir"
+    if [[ -f "$romraider_home/.installed-by-subaru-ecu-tools" ]]; then
+        rm -rf -- "$romraider_home"
+    fi
+    if [[ -e /etc/udev/rules.d/99-openport2.rules ]]; then
+        sudo rm -f -- /etc/udev/rules.d/99-openport2.rules
+        sudo udevadm control --reload-rules
+        sudo udevadm trigger --subsystem-match=usb
+    fi
+    command -v update-desktop-database >/dev/null && \
+        update-desktop-database "$applications_dir" >/dev/null 2>&1 || true
+    if [[ "$repo_root" == "$default_source_dir" ]]; then
+        rm -rf -- "$default_source_dir"
+    fi
+    ok "Subaru & Evo ECU Tools removal completed."
+    echo "The final removal log is outside the installed paths: $log_file"
+    exit 0
+fi
+
+if $install_evoscan; then
+    [[ -f "$evoscan_installer" ]] || {
+        fail "The selected EvoScan installer does not exist: $evoscan_installer"
+        exit 1
+    }
+    file --brief "$evoscan_installer" | grep -Eq 'PE32|MSI|Microsoft|Composite Document' || {
+        fail "The selected file is not a Windows EXE/MSI installer: $evoscan_installer"
+        exit 1
+    }
+fi
 
 if [[ ! -r /etc/os-release ]]; then
     echo "Cannot identify this Linux distribution." >&2
@@ -42,18 +633,20 @@ fi
 source /etc/os-release
 os_family="${ID:-} ${ID_LIKE:-}"
 if [[ "$os_family" != *cachyos* && "$os_family" != *arch* ]]; then
-    echo "Warning: designed for CachyOS/Arch; detected ${PRETTY_NAME:-unknown}." >&2
+    warn "Designed for CachyOS/Arch; detected ${PRETTY_NAME:-unknown}."
 fi
 
-packages=(base-devel curl libusb wine llvm-mingw)
+section "Checking dependencies"
+packages=(base-devel curl github-cli libusb lib32-libusb unzip wine llvm-mingw zstd)
 missing=()
 for package in "${packages[@]}"; do
     pacman -Q "$package" &>/dev/null || missing+=("$package")
 done
 
 if ((${#missing[@]})); then
-    echo "Missing packages: ${missing[*]}"
+    warn "Missing packages: ${missing[*]}"
     if $install_deps; then
+        step "Installing missing CachyOS packages"
         sudo pacman -S --needed "${missing[@]}"
     else
         echo "Re-run with --install-deps, or install them with:"
@@ -65,9 +658,9 @@ checks_failed=0
 check_path() {
     local description=$1 path=$2
     if [[ -e "$path" ]]; then
-        printf 'OK: %s\n' "$description"
+        ok "$description"
     else
-        printf 'MISSING: %s (%s)\n' "$description" "$path"
+        fail "MISSING: $description ($path)"
         checks_failed=1
     fi
 }
@@ -75,82 +668,395 @@ check_path() {
 check_path "LLVM-MinGW compiler" /opt/llvm-mingw/bin/x86_64-w64-mingw32-gcc
 check_path "LLVM-MinGW DDK headers" /opt/llvm-mingw/x86_64-w64-mingw32/include/ddk
 check_path "Wine headers" /usr/include/wine/windows
+check_path "Wine 32-bit startup library" /usr/lib/wine/i386-windows/libwinecrt0.a
 check_path "libusb headers" /usr/include/libusb-1.0/libusb.h
+check_path "RomRaider 32-bit libusb runtime" /usr/lib32/libusb-1.0.so.0
 command -v winebuild >/dev/null || { echo "MISSING: winebuild"; checks_failed=1; }
 command -v cc >/dev/null || { echo "MISSING: C compiler"; checks_failed=1; }
 
 if [[ "$mode" == check ]]; then
-    command -v lsusb >/dev/null && \
-        lsusb -d 0403:cc4d >/dev/null 2>&1 && \
-        echo "OK: Tactrix OpenPort 2.0 detected" || \
-        echo "INFO: OpenPort 2.0 is not currently detected (safe to connect later)."
+    check_data_root="${XDG_DATA_HOME:-$HOME/.local/share}"
+    check_ecuflash="$check_data_root/ecuflash-proton/drive_c/Program Files (x86)/OpenECU/EcuFlash/ecuflash.exe"
+    check_evoscan=$(find "$check_data_root/ecuflash-proton/drive_c" -type f \
+        -iname 'EvoScan*.exe' ! -iname '*setup*' ! -iname '*unins*' -print -quit 2>/dev/null || true)
+    check_romraider="$check_data_root/romraider-dm20"
+    [[ -f "$check_ecuflash" ]] && ok "EcuFlash installed" || \
+        warn "NOT INSTALLED: EcuFlash"
+    [[ -n "$check_evoscan" ]] && ok "EvoScan installed (experimental Linux support)" || \
+        warn "NOT INSTALLED: EvoScan (optional, purchaser-supplied installer required)"
+    if [[ -f "$check_romraider/RomRaider.jar" && -x "$check_romraider/jre32/bin/java" ]]; then
+        ok "RomRaider DimeMod with bundled 32-bit Java detected"
+    else
+        warn "NOT INSTALLED: complete RomRaider DimeMod Linux package"
+    fi
+    check_definition_manifest="$check_data_root/subaru-ecu-tools-linux/definitions-active.conf"
+    if [[ -f "$check_definition_manifest" ]]; then
+        EDITOR_DEFINITION= LOGGER_DEFINITION=
+        while IFS= read -r definition_line; do
+            case "$definition_line" in
+                EDITOR_DEFINITION=*) EDITOR_DEFINITION=${definition_line#*=} ;;
+                LOGGER_DEFINITION=*) LOGGER_DEFINITION=${definition_line#*=} ;;
+            esac
+        done <"$check_definition_manifest"
+        [[ -f "${EDITOR_DEFINITION:-}" ]] && ok "RomRaider Editor definition configured" || \
+            warn "MISSING: configured RomRaider Editor definition"
+        [[ -f "${LOGGER_DEFINITION:-}" ]] && ok "RomRaider Logger definition configured" || \
+            warn "MISSING: configured RomRaider Logger definition"
+    else
+        warn "NOT INSTALLED: RomRaider Editor/Logger definition selection"
+    fi
+    id -nG | tr ' ' '\n' | grep -qx uucp && ok "User is in uucp group" || \
+        warn "MISSING: user is not in uucp group (required by the Logger shortcut)"
+    openport_usb_present && \
+        ok "Tactrix OpenPort 2.0 detected" || \
+        step "OpenPort 2.0 is not currently detected (safe to connect later)"
     exit "$checks_failed"
 fi
 
 if ((${#missing[@]})) && ! $install_deps; then
-    echo "Dependencies are incomplete; no files were installed." >&2
+    fail "Dependencies are incomplete; no files were installed."
     exit 1
 fi
 if ((checks_failed)); then
-    echo "Build prerequisites are incomplete; no files were installed." >&2
+    fail "Build prerequisites are incomplete; no files were installed."
     exit 1
 fi
 
-LLVM_MINGW_ROOT=/opt/llvm-mingw WINEBUILD=$(command -v winebuild) \
-    "$repo_root/wine-bridge/build-openport-driver.sh"
+section "Building the OpenPort Wine bridge"
+mkdir -p "$cache_root"
+bridge_build_log="$cache_root/openport-bridge-build.log"
+if LLVM_MINGW_ROOT=/opt/llvm-mingw WINEBUILD=$(command -v winebuild) \
+    "$repo_root/wine-bridge/build-openport-driver.sh" >"$bridge_build_log" 2>&1; then
+    ok "OpenPort Wine bridge built and verified."
+else
+    fail "OpenPort Wine bridge build failed. Diagnostic log: $bridge_build_log"
+    tail -50 "$bridge_build_log" >&2 || true
+    exit 1
+fi
 
-bin_dir="${XDG_BIN_HOME:-$HOME/.local/bin}"
-data_root="${XDG_DATA_HOME:-$HOME/.local/share}"
-data_dir="$data_root/subaru-ecu-tools-linux"
-applications_dir="$data_root/applications"
-
-install -d "$bin_dir" "$data_dir/winedll/x86_64-windows" \
+install -d "$bin_dir" "$data_dir/winedll/i386-windows" \
+    "$data_dir/winedll/x86_64-windows" \
     "$data_dir/winedll/x86_64-unix" "$applications_dir"
-install -m 0755 "$repo_root/linux/launch-ecuflash" "$bin_dir/launch-ecuflash"
-install -m 0755 "$repo_root/linux/launch-romraider" "$bin_dir/launch-romraider"
+install_managed_user_files
 install -m 0644 "$repo_root/build-wine-bridge/winedll/x86_64-windows/openport.sys" \
     "$data_dir/winedll/x86_64-windows/openport.sys"
 install -m 0755 "$repo_root/build-wine-bridge/winedll/x86_64-unix/openport.so" \
     "$data_dir/winedll/x86_64-unix/openport.so"
-
-for desktop in ecuflash romraider-editor romraider-logger subaru-ecu-tools-setup; do
-    sed -e "s|@BINDIR@|$bin_dir|g" \
-        -e "s|@SETUP@|$repo_root/linux/setup-cachyos-gui.sh|g" \
-        "$repo_root/linux/$desktop.desktop" \
-        > "$applications_dir/$desktop.desktop"
+for bridge_name in op20pt32 j2534; do
+    install -m 0644 "$repo_root/build-wine-bridge/winedll/i386-windows/$bridge_name.dll" \
+        "$data_dir/winedll/i386-windows/$bridge_name.dll"
+    install -m 0755 "$repo_root/build-wine-bridge/winedll/x86_64-unix/$bridge_name.so" \
+        "$data_dir/winedll/x86_64-unix/$bridge_name.so"
 done
-command -v update-desktop-database >/dev/null && \
-    update-desktop-database "$applications_dir" >/dev/null 2>&1 || true
+install -d "$data_dir/tools"
+install -m 0755 "$repo_root/build-wine-bridge/j2534-probe.exe" \
+    "$data_dir/tools/j2534-probe.exe"
+
 
 if $install_udev; then
+    section "Configuring OpenPort USB permissions"
+    if ! getent group uucp >/dev/null; then
+        fail "The required uucp device-access group does not exist."
+        exit 1
+    fi
     sudo install -m 0644 "$repo_root/linux/99-openport2.rules" \
         /etc/udev/rules.d/99-openport2.rules
+    sudo usermod -aG uucp "$USER"
     sudo udevadm control --reload-rules
     sudo udevadm trigger --subsystem-match=usb
+    echo "Added $USER to uucp. Log out and back in before using the Logger."
+fi
+
+if $install_romraider; then
+    section "Installing RomRaider DimeMod Editor and Logger"
+    if [[ -f "$romraider_home/RomRaider.jar" && \
+          -x "$romraider_home/jre32/bin/java" && \
+          -f "$romraider_home/lib/linux/32/j2534.so" && \
+          -f "$romraider_home/i18n/com/romraider/logger/ecu/ui/tab/injector/InjectorTabImpl.properties" ]]; then
+        ok "A complete RomRaider DimeMod installation is already present; leaving it unchanged."
+    else
+    romraider_url=https://github.com/Natzirt-BK/subaru-ecu-tools-linux/releases/download/romraider-dimemod-dm20-20250328/RomRaider1.0.0DM20-MAR282025-linux.zip
+    romraider_sha256=1f601e03fa75ed64ec895c5460371ab638c004d6fc4a5cf591a1315aa5c161ca
+    romraider_archive="$cache_root/RomRaider1.0.0DM20-MAR282025-linux.zip"
+    java_url=https://cdn.azul.com/zulu/bin/zulu8.96.0.19-ca-jre8.0.502-linux_i686.zip
+    java_sha256=6bff461243958e36151078feb321cf304ecb16e647fa2ab25931c4e1980c6130
+    java_archive="$cache_root/zulu8.96.0.19-ca-jre8.0.502-linux_i686.zip"
+    java_archive_root=zulu8.96.0.19-ca-jre8.0.502-linux_i686
+    mkdir -p "$cache_root"
+
+    if [[ ! -f "$romraider_archive" ]] || \
+       ! printf '%s  %s\n' "$romraider_sha256" "$romraider_archive" | sha256sum -c - >/dev/null 2>&1; then
+        step "Downloading RomRaider DimeMod DM20 for Linux"
+        curl --fail --location --output "$romraider_archive" "$romraider_url"
+    fi
+    printf '%s  %s\n' "$romraider_sha256" "$romraider_archive" | sha256sum -c -
+
+    if [[ ! -f "$java_archive" ]] || \
+       ! printf '%s  %s\n' "$java_sha256" "$java_archive" | sha256sum -c - >/dev/null 2>&1; then
+        step "Downloading Azul Zulu Java 8 (32-bit) for the RomRaider Logger"
+        curl --fail --location --output "$java_archive" "$java_url"
+    fi
+    printf '%s  %s\n' "$java_sha256" "$java_archive" | sha256sum -c -
+
+    romraider_stage=$(mktemp -d "$data_root/.romraider-install.XXXXXX")
+    unzip -q "$romraider_archive" -d "$romraider_stage"
+    unzip -q "$java_archive" -d "$romraider_stage"
+    mv -- "$romraider_stage/$java_archive_root" "$romraider_stage/RomRaider/jre32"
+    injector_bundle_root="$romraider_stage/RomRaider/i18n/com/romraider/logger/ecu/ui/tab"
+    if [[ -d "$injector_bundle_root/Injector" && ! -e "$injector_bundle_root/injector" ]]; then
+        mv -- "$injector_bundle_root/Injector" "$injector_bundle_root/injector"
+    fi
+    if [[ ! -f "$romraider_stage/RomRaider/RomRaider.jar" || \
+          ! -x "$romraider_stage/RomRaider/jre32/bin/java" || \
+          ! -f "$romraider_stage/RomRaider/lib/linux/32/j2534.so" || \
+          ! -f "$romraider_stage/RomRaider/i18n/com/romraider/logger/ecu/ui/tab/injector/InjectorTabImpl.properties" ]]; then
+        fail "The verified RomRaider packages did not extract correctly."
+        exit 1
+    fi
+    : >"$romraider_stage/RomRaider/.installed-by-subaru-ecu-tools"
+    if [[ -e "$romraider_home" ]]; then
+        romraider_backup="${romraider_home}.backup-$(date +%Y%m%d-%H%M%S)"
+        warn "Preserving the existing incomplete RomRaider directory at $romraider_backup"
+        mv -- "$romraider_home" "$romraider_backup"
+    fi
+    mv -- "$romraider_stage/RomRaider" "$romraider_home"
+    rmdir -- "$romraider_stage"
+    ok "RomRaider DimeMod Editor and Logger installed with the required 32-bit Java runtime."
+    fi
+fi
+
+if $install_definitions; then
+    section "Installing RomRaider Editor and Logger definitions"
+    definition_args=(
+        --source "$definition_source"
+        --units "$definition_units"
+        --language "$definition_language"
+    )
+    [[ -z "$vehicle_make" ]] || definition_args+=(--vehicle-make "$vehicle_make")
+    [[ -z "$vehicle_year" ]] || definition_args+=(--vehicle-year "$vehicle_year")
+    [[ -z "$vehicle_model" ]] || definition_args+=(--vehicle-model "$vehicle_model")
+    [[ -z "$custom_editor_definition" ]] || \
+        definition_args+=(--custom-editor "$custom_editor_definition")
+    [[ -z "$custom_logger_definition" ]] || \
+        definition_args+=(--custom-logger "$custom_logger_definition")
+    "$bin_dir/install-romraider-definitions" "${definition_args[@]}"
+    if [[ "$definition_source" == beta || "$definition_source" == alpha ]]; then
+        warn "Experimental $definition_source Editor definitions were selected at the user's discretion."
+    fi
 fi
 
 if $install_ecuflash; then
+    section "Installing and testing the EcuFlash environment"
     ecuflash_url=https://www.tactrix.com/downloads/ecuflash_1444870_win.exe
     ecuflash_sha256=e9242d8882530fc320164f13e4107ceff9c862f5bd2e66debdbebe4895fffa0b
-    cache_root="${XDG_CACHE_HOME:-$HOME/.cache}/subaru-ecu-tools-linux"
     ecuflash_installer="$cache_root/ecuflash_1444870_win.exe"
     mkdir -p "$cache_root"
 
+    install_ecuflash_runtime
+
     if [[ ! -f "$ecuflash_installer" ]] || \
        ! printf '%s  %s\n' "$ecuflash_sha256" "$ecuflash_installer" | sha256sum -c - >/dev/null 2>&1; then
-        echo "Downloading the complete, unmodified EcuFlash 1.44.4870 installer from Tactrix..."
+        step "Downloading the complete, unmodified EcuFlash 1.44.4870 installer from Tactrix"
         curl --fail --location --output "$ecuflash_installer" "$ecuflash_url"
     fi
     printf '%s  %s\n' "$ecuflash_sha256" "$ecuflash_installer" | sha256sum -c -
 
-    ecuflash_prefix="${ECUFLASH_WINEPREFIX:-$HOME/.local/share/ecuflash-proton}"
-    ecuflash_wine="${ECUFLASH_WINE:-wine}"
-    echo "Opening Tactrix's installer. Review and accept its license in the installer."
-    WINEPREFIX="$ecuflash_prefix" "$ecuflash_wine" "$ecuflash_installer"
+    ecuflash_wine="${ECUFLASH_WINE:-$ecuflash_runtime_dir/bin/wine}"
+    ecuflash_dir="$ecuflash_prefix/drive_c/Program Files (x86)/OpenECU/EcuFlash"
+    if [[ ! -f "$ecuflash_dir/ecuflash.exe" ]]; then
+        step "Opening Tactrix's installer; review and accept its license"
+        ecuflash_install_log="$cache_root/ecuflash-installer.log"
+        set +e
+        WINEPREFIX="$ecuflash_prefix" WINEDEBUG=-all \
+            WINEDLLOVERRIDES="winemenubuilder.exe=d" \
+            "$ecuflash_wine" "$ecuflash_installer" >"$ecuflash_install_log" 2>&1
+        ecuflash_install_status=$?
+        set -e
+        if [[ $ecuflash_install_status -ne 0 ]]; then
+            fail "The Tactrix installer exited with status $ecuflash_install_status."
+            echo "Diagnostic log: $ecuflash_install_log" >&2
+            exit 1
+        fi
+        ok "The Tactrix installer closed normally."
+    else
+        ok "EcuFlash is already installed in the shared Wine prefix."
+    fi
+
+    section "Registering the OpenPort 2.0 Wine bridge"
+    ecuflash_driver_dir="$ecuflash_prefix/drive_c/windows/system32/drivers"
+    ecuflash_bridge_log="$cache_root/ecuflash-openport-registration.log"
+    install -d "$ecuflash_driver_dir"
+    install -m 0644 "$data_dir/winedll/x86_64-windows/openport.sys" \
+        "$ecuflash_driver_dir/openport.sys"
+    install -m 0755 "$data_dir/winedll/x86_64-unix/openport.so" \
+        "$ecuflash_driver_dir/openport.so"
+    ecuflash_j2534_target="$ecuflash_prefix/drive_c/windows/syswow64/op20pt32.dll"
+    ecuflash_j2534_backup="$ecuflash_prefix/drive_c/windows/syswow64/op20pt32.vendor.dll"
+    if [[ -f "$ecuflash_j2534_target" ]] && \
+       ! cmp -s "$data_dir/winedll/i386-windows/op20pt32.dll" "$ecuflash_j2534_target" && \
+       [[ ! -e "$ecuflash_j2534_backup" ]]; then
+        cp -p -- "$ecuflash_j2534_target" "$ecuflash_j2534_backup"
+    fi
+    install -m 0644 "$data_dir/winedll/i386-windows/op20pt32.dll" \
+        "$ecuflash_j2534_target"
+    if WINEPREFIX="$ecuflash_prefix" WINEDEBUG=-all \
+        "$ecuflash_wine" regedit /S "$data_dir/registry/openport2-wine.reg" \
+        >"$ecuflash_bridge_log" 2>&1 && \
+       WINEPREFIX="$ecuflash_prefix" WINEDEBUG=-all \
+        "$ecuflash_wine" regedit /S "$data_dir/registry/openport-driver-wine.reg" \
+        >>"$ecuflash_bridge_log" 2>&1 && \
+       OPENPORT_REGISTRY_DIR="$data_dir/registry" \
+       OPENPORT_STATE_LOG="$ecuflash_bridge_log" \
+       ECUFLASH_WINE="$ecuflash_wine" \
+       ECUFLASH_WINEPREFIX="$ecuflash_prefix" \
+        "$bin_dir/sync-openport-device-state" >/dev/null; then
+        bridge_fingerprint=$(sha256sum \
+            "$data_dir/winedll/x86_64-windows/openport.sys" \
+            "$data_dir/winedll/x86_64-unix/openport.so" \
+            "$data_dir/winedll/i386-windows/op20pt32.dll" \
+            "$data_dir/winedll/x86_64-unix/op20pt32.so" \
+            "$data_dir/registry/openport2-wine.reg" \
+            "$data_dir/registry/openport-driver-wine.reg" \
+            "$data_dir/registry/openport2-device-present.reg" \
+            "$data_dir/registry/openport2-device-absent.reg" \
+            "$bin_dir/sync-openport-device-state" | sha256sum | cut -d' ' -f1)
+        printf '%s\n' "$bridge_fingerprint" \
+            >"$ecuflash_prefix/.openport-bridge-registered-v3"
+        ok "OpenPort driver files and Wine registry entries installed."
+    else
+        fail "OpenPort Wine bridge registration failed. Diagnostic log: $ecuflash_bridge_log"
+        tail -50 "$ecuflash_bridge_log" >&2 || true
+        exit 1
+    fi
+
+    # The vendor installer may create generic menu entries that invoke system
+    # Wine. They conflict with our tested EcuFlash (Wine) launcher.
+    rm -rf -- "$wine_ecuflash_menu_dir"
+    command -v update-desktop-database >/dev/null && \
+        update-desktop-database "$applications_dir" >/dev/null 2>&1 || true
+
+    if [[ ! -f "$ecuflash_dir/ecuflash.exe" ]]; then
+        echo "EcuFlash installation was not completed; setup cannot report success." >&2
+        exit 1
+    fi
+
+    step "Testing EcuFlash startup for 12 seconds; leave its window open"
+    smoke_log="$cache_root/ecuflash-startup.log"
+    set +e
+    (
+        cd "$ecuflash_dir" || exit 1
+        timeout 12s env WINEPREFIX="$ecuflash_prefix" \
+            WINEDLLPATH="$data_dir/winedll" WINEDEBUG=-all \
+            "$ecuflash_wine" ecuflash.exe
+    ) >"$smoke_log" 2>&1
+    smoke_status=$?
+    set -e
+    ecuflash_wineserver="$(dirname -- "$(command -v "$ecuflash_wine" 2>/dev/null || printf '%s' "$ecuflash_wine")")/wineserver"
+    [[ -x "$ecuflash_wineserver" ]] && \
+        WINEPREFIX="$ecuflash_prefix" "$ecuflash_wineserver" -k >/dev/null 2>&1 || true
+    if [[ $smoke_status -ne 124 ]]; then
+        fail "EcuFlash failed its startup test (status $smoke_status)."
+        echo "Diagnostic log: $smoke_log" >&2
+        exit 1
+    fi
+    ok "EcuFlash remained running for the complete startup test."
+
+    ecuflash_probe_log="$cache_root/ecuflash-j2534-probe.log"
+    probe_args=()
+    if openport_usb_present; then
+        step "Testing physical OpenPort communication through J2534"
+    else
+        step "Verifying that the unplugged J2534 bridge reports device-not-connected"
+        probe_args=(--expect-absent)
+    fi
+    set +e
+    WINEPREFIX="$ecuflash_prefix" \
+        WINEDLLPATH="$data_dir/winedll" \
+        WINEDLLOVERRIDES='op20pt32,j2534=b' \
+        WINEDEBUG=-all,+loaddll LOG_ENABLE="$state_dir/ecuflash-j2534.log" \
+        "$ecuflash_wine" "$data_dir/tools/j2534-probe.exe" "${probe_args[@]}" \
+        >"$ecuflash_probe_log" 2>&1
+    ecuflash_probe_status=$?
+    set -e
+    if ((ecuflash_probe_status)); then
+        fail "The OpenPort J2534 state probe failed with status $ecuflash_probe_status."
+        echo "Diagnostic log: $ecuflash_probe_log" >&2
+        tail -50 "$ecuflash_probe_log" >&2 || true
+        exit 1
+    fi
+    if ((${#probe_args[@]})); then
+        ok "Unplugged OpenPort probe correctly reported device-not-connected."
+    else
+        ok "Physical OpenPort communication probe passed."
+    fi
 fi
 
-echo
-echo "Installed user tools successfully."
+if $install_evoscan; then
+    section "Installing EvoScan (experimental Linux support)"
+    evoscan_wine="${EVOSCAN_WINE:-$wine_runtime_dir/bin/wine}"
+    evoscan_install_log="$cache_root/evoscan-installer.log"
+    step "Opening the purchaser-supplied EvoScan installer"
+    set +e
+    if [[ "${evoscan_installer,,}" == *.msi ]]; then
+        WINEPREFIX="$ecuflash_prefix" WINEDEBUG=-all \
+            WINEDLLOVERRIDES="winemenubuilder.exe=d" \
+            "$evoscan_wine" msiexec /i "$evoscan_installer" \
+            >"$evoscan_install_log" 2>&1
+    else
+        WINEPREFIX="$ecuflash_prefix" WINEDEBUG=-all \
+            WINEDLLOVERRIDES="winemenubuilder.exe=d" \
+            "$evoscan_wine" "$evoscan_installer" >"$evoscan_install_log" 2>&1
+    fi
+    evoscan_install_status=$?
+    set -e
+    if [[ $evoscan_install_status -ne 0 ]]; then
+        fail "The EvoScan installer exited with status $evoscan_install_status."
+        echo "Diagnostic log: $evoscan_install_log" >&2
+        exit 1
+    fi
+
+    evoscan_exe=$(find "$ecuflash_prefix/drive_c" -type f \
+        -iname 'EvoScan*.exe' ! -iname '*setup*' ! -iname '*unins*' \
+        -printf '%p\n' 2>/dev/null | sort -Vr | sed -n '1p')
+    if [[ -z "$evoscan_exe" ]]; then
+        fail "EvoScan installation finished, but no EvoScan executable was found."
+        echo "Diagnostic log: $evoscan_install_log" >&2
+        exit 1
+    fi
+    printf '%s\n' "$evoscan_exe" >"$data_dir/evoscan-exe.path"
+
+    step "Testing EvoScan startup for 15 seconds; complete activation if prompted"
+    evoscan_smoke_log="$cache_root/evoscan-startup.log"
+    set +e
+    (
+        cd "$(dirname -- "$evoscan_exe")" || exit 1
+        timeout 15s env WINEPREFIX="$ecuflash_prefix" \
+            WINEDLLPATH="$data_dir/winedll" WINEDEBUG=-all \
+            "$evoscan_wine" "$evoscan_exe"
+    ) >"$evoscan_smoke_log" 2>&1
+    evoscan_smoke_status=$?
+    set -e
+    if [[ $evoscan_smoke_status -ne 124 ]]; then
+        fail "EvoScan failed its experimental startup test (status $evoscan_smoke_status)."
+        echo "Diagnostic log: $evoscan_smoke_log" >&2
+        exit 1
+    fi
+    ok "EvoScan remained running for the complete experimental startup test."
+fi
+
+section "Installation complete"
+ok "Installed user tools successfully."
+if [[ -f "$ecuflash_prefix/drive_c/Program Files (x86)/OpenECU/EcuFlash/ecuflash.exe" ]]; then
+    section "EcuFlash shortcut"
+    ok "Open 'EcuFlash (Wine)' from the application menu."
+    warn "Use the project shortcut so USB-state checks and diagnostic logging are active."
+fi
+if [[ -f "$data_dir/evoscan-exe.path" ]]; then
+    section "EvoScan shortcut"
+    warn "EvoScan Linux support is experimental and vehicle communication is not yet validated."
+    ok "Open 'EvoScan (Wine, Experimental)' from the application menu."
+fi
+create_documents_shortcuts
 echo "  Launchers: $bin_dir"
 echo "  Wine bridge: $data_dir/winedll"
 echo "  Desktop entries: $applications_dir"

@@ -1,0 +1,38 @@
+#!/bin/sh
+set -eu
+
+: "${ECUFLASH_WINE:?ECUFLASH_WINE is required}"
+: "${ECUFLASH_WINEPREFIX:?ECUFLASH_WINEPREFIX is required}"
+: "${OPENPORT_REGISTRY_DIR:?OPENPORT_REGISTRY_DIR is required}"
+: "${OPENPORT_STATE_LOG:=/dev/null}"
+: "${OPENPORT_USB_SYSFS_ROOT:=/sys/bus/usb/devices}"
+
+openport_present=false
+for vendor_file in "$OPENPORT_USB_SYSFS_ROOT"/*/idVendor; do
+    [ -f "$vendor_file" ] || continue
+    [ "$(tr '[:upper:]' '[:lower:]' <"$vendor_file")" = 0403 ] || continue
+    product_file=${vendor_file%/idVendor}/idProduct
+    [ -f "$product_file" ] || continue
+    if [ "$(tr '[:upper:]' '[:lower:]' <"$product_file")" = cc4d ]; then
+        openport_present=true
+        break
+    fi
+done
+
+if $openport_present; then
+    state=connected
+    registry_file=$OPENPORT_REGISTRY_DIR/openport2-device-present.reg
+else
+    state=disconnected
+    registry_file=$OPENPORT_REGISTRY_DIR/openport2-device-absent.reg
+fi
+
+if [ ! -f "$registry_file" ]; then
+    printf 'Missing OpenPort %s-state registry file: %s\n' "$state" "$registry_file" >&2
+    exit 1
+fi
+
+printf 'Synchronizing OpenPort Wine state: %s\n' "$state" >>"$OPENPORT_STATE_LOG"
+WINEPREFIX="$ECUFLASH_WINEPREFIX" WINEDEBUG=-all \
+    "$ECUFLASH_WINE" regedit /S "$registry_file" >>"$OPENPORT_STATE_LOG" 2>&1
+printf '%s\n' "$state"
