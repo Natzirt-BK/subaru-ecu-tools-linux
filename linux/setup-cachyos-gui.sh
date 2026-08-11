@@ -5,6 +5,7 @@ set -euo pipefail
 script_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 installer=${ECU_TOOLS_INSTALLER:-$script_dir/install-cachyos.sh}
 updater=${ECU_TOOLS_UPDATER:-$script_dir/update-cachyos.sh}
+music_player=${ECU_TOOLS_MUSIC_PLAYER:-$script_dir/play-installer-chiptune}
 installed_setup=${XDG_DATA_HOME:-$HOME/.local/share}/applications/subaru-ecu-tools-setup.desktop
 
 if [[ ! -x "$installer" ]]; then
@@ -62,6 +63,16 @@ confirm() {
     done
 }
 
+offer_installer_music() {
+    [[ -x "$music_player" ]] && command -v pw-play >/dev/null 2>&1 || return 0
+    if confirm 'Play an original retro installer chiptune during setup?'; then
+        "$music_player" >/dev/null 2>&1 &
+        export SUBARU_SETUP_MUSIC_PID=$!
+        printf '  %b♪%b Chiptune enabled at low volume.\n\n' \
+            "$purple$bold" "$reset"
+    fi
+}
+
 draw_menu() {
     printf '  %b1%b  %bInstall / repair%b     Recommended; installs and updates everything needed\n' "$cyan$bold" "$reset" "$bold" "$reset"
     printf '  %b2%b  %bClean reinstall%b      Fresh managed files and Wine environment\n' "$cyan$bold" "$reset" "$bold" "$reset"
@@ -102,12 +113,14 @@ done
 case "$choice" in
     1)
         confirm 'Install or repair the recommended tools?' || exit 0
+        offer_installer_music
         exec "$installer" --yes-all
         ;;
     2)
         printf '  This replaces installer-managed applications, bridge files, runtime, and cache.\n'
         printf '  Your ROMs, definitions, and logs are preserved.\n\n'
         confirm 'Continue with a clean reinstall?' || exit 0
+        offer_installer_music
         exec "$installer" --clean-install --yes
         ;;
     3) exec "$installer" --check ;;

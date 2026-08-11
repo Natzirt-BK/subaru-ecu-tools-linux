@@ -97,6 +97,7 @@ bridge_unix="$ECUFLASH_WINEDLLPATH/x86_64-unix/openport.so"
 bridge_registry="$ECU_TOOLS_DATA_DIR/registry"
 bridge_state_sync=$(dirname -- "$0")/sync-openport-device-state
 bridge_state_monitor=$(dirname -- "$0")/monitor-openport-state
+bridge_device_probe="$ECU_TOOLS_DATA_DIR/tools/openport-device-probe.exe"
 bridge_driver_dir="$ECUFLASH_WINEPREFIX/drive_c/windows/system32/drivers"
 bridge_j2534_target="$ECUFLASH_WINEPREFIX/drive_c/windows/syswow64/op20pt32.dll"
 bridge_j2534_vendor="$ECUFLASH_DIR/drivers/openport 2.0/op20pt32.dll"
@@ -121,7 +122,11 @@ if [ ! -f "$bridge_registry/openport-driver-wine.reg" ] || \
    [ ! -f "$bridge_registry/openport2-device-absent.reg" ] || \
    [ ! -x "$bridge_state_sync" ] || \
    [ ! -x "$bridge_state_monitor" ]; then
-    report_error "The OpenPort Wine registry files are missing. Run Subaru & Evo ECU Tools Update."
+    report_error "The OpenPort Wine registry files are missing. Open Setup from the Subaru & Evo ECU Tools menu and update first."
+    exit 1
+fi
+if [ ! -x "$bridge_device_probe" ]; then
+    report_error "The OpenPort service probe is missing. Open Setup from the Subaru & Evo ECU Tools menu and update first."
     exit 1
 fi
 bridge_fingerprint=$(sha256sum \
@@ -186,6 +191,18 @@ fi
 if [ -x "$wine_server" ]; then
     WINEPREFIX="$ECUFLASH_WINEPREFIX" "$wine_server" -k >/dev/null 2>&1 || true
     WINEPREFIX="$ECUFLASH_WINEPREFIX" "$wine_server" -w >/dev/null 2>&1 || true
+fi
+if [ "$openport_state" = connected ]; then
+    {
+        printf '\n=== Priming OpenPort service before EcuFlash ===\n'
+        WINEPREFIX="$ECUFLASH_WINEPREFIX" \
+        WINEDLLPATH="$ECUFLASH_WINEDLLPATH${WINEDLLPATH:+:$WINEDLLPATH}" \
+        WINEDEBUG=-all \
+            "$ECUFLASH_WINE" "$bridge_device_probe"
+    } >>"$launch_log" 2>&1 || {
+        report_error "The OpenPort service/interface could not be prepared for EcuFlash. Diagnostic log: $launch_log"
+        exit 1
+    }
 fi
 if [ "$openport_state" = disconnected ] && \
    command -v kdialog >/dev/null 2>&1 && \

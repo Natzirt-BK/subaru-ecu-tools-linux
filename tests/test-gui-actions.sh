@@ -72,6 +72,18 @@ grep -F 'Removed the redundant Update shortcut; Setup now offers updates first.'
 test ! -e "$repo_root/linux/subaru-ecu-tools-update.desktop"
 grep -F 'exec env ECU_TOOLS_SKIP_UPDATE_PROMPT=1' \
     "$repo_root/linux/update-cachyos.sh" >/dev/null
+test -x "$repo_root/linux/play-installer-chiptune"
+grep -F "confirm 'Play an original retro installer chiptune during setup?'" \
+    "$repo_root/linux/setup-cachyos-gui.sh" >/dev/null
+grep -F 'export SUBARU_SETUP_MUSIC_PID=$!' \
+    "$repo_root/linux/setup-cachyos-gui.sh" >/dev/null
+grep -q '^stop_setup_music()' "$engine"
+grep -F 'pw-play --raw --rate 11025' \
+    "$repo_root/linux/play-installer-chiptune" >/dev/null
+grep -F 'SETUP COMPLETE  ✓' "$engine" >/dev/null
+test "$(grep -c -- '--progress-bar' "$engine")" -eq 4
+grep -F -- '--progress-bar' "$repo_root/linux/install-romraider-definitions" >/dev/null
+! grep -F 'echo "  Launchers: $bin_dir"' "$engine" >/dev/null
 grep -Fx 'Name=Setup' "$repo_root/linux/subaru-ecu-tools-setup.desktop" >/dev/null
 grep -Fx 'Name=EcuFlash' "$repo_root/linux/ecuflash.desktop" >/dev/null
 grep -Fx 'Name=EvoScan' "$repo_root/linux/evoscan.desktop" >/dev/null
@@ -119,6 +131,15 @@ grep -F 'X-Subaru-Evo-ECU-Tools' "$repo_root/linux/subaru-ecu-tools.menu" >/dev/
 ! grep -F 'WINEDLLOVERRIDES="op20pt32,j2534=b' "$repo_root/linux/launch-ecuflash" >/dev/null
 grep -F 'start /wait /unix' "$repo_root/linux/launch-ecuflash" >/dev/null
 grep -F 'monitor-openport-state' "$repo_root/linux/launch-ecuflash" >/dev/null
+grep -F 'bridge_device_probe="$ECU_TOOLS_DATA_DIR/tools/openport-device-probe.exe"' \
+    "$repo_root/linux/launch-ecuflash" >/dev/null
+grep -F '=== Priming OpenPort service before EcuFlash ===' \
+    "$repo_root/linux/launch-ecuflash" >/dev/null
+prime_line=$(grep -n '"$ECUFLASH_WINE" "$bridge_device_probe"' \
+    "$repo_root/linux/launch-ecuflash" | cut -d: -f1)
+launch_line=$(grep -n 'start /wait /unix' \
+    "$repo_root/linux/launch-ecuflash" | cut -d: -f1)
+test "$prime_line" -lt "$launch_line"
 grep -F '"$wine_server" -w' "$repo_root/linux/launch-ecuflash" >/dev/null
 grep -F 'ECUFLASH_TEST_STOP_MARKER' "$repo_root/linux/launch-ecuflash" >/dev/null
 grep -F 'ECUFLASH_LOG_NOT_OLDER_THAN' "$repo_root/tests/vm/verify-installed.sh" >/dev/null

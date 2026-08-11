@@ -70,7 +70,7 @@ download_verified() {
     local url=$1 output=$2 checksum=$3 label=$4
     if [[ ! -f "$output" ]] || ! printf '%s  %s\n' "$checksum" "$output" | sha256sum -c - >/dev/null 2>&1; then
         echo "  -> Downloading $label"
-        curl --fail --location --output "$output" "$url"
+        curl --fail --location --progress-bar --output "$output" "$url"
     fi
     printf '%s  %s\n' "$checksum" "$output" | sha256sum -c - >/dev/null
 }

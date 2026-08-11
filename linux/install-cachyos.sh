@@ -49,6 +49,16 @@ step() { printf '%b  -> %s%b\n' "$color_blue" "$*" "$color_reset"; }
 ok() { printf '%b  OK %b%s\n' "$color_green" "$color_reset" "$*"; }
 warn() { printf '%b  WARNING %b%s\n' "$color_yellow" "$color_reset" "$*" >&2; }
 fail() { printf '%b  ERROR %b%s\n' "$color_red" "$color_reset" "$*" >&2; }
+summary_row() { printf '  %b%-16s%b %s\n' "$color_cyan$color_bold" "$1" "$color_reset" "$2"; }
+completion_banner() {
+    printf '\n%b' "$color_green$color_bold"
+    cat <<'EOF'
+       ╭────────────────────────────────────────────╮
+       │          SETUP COMPLETE  ✓                 │
+       ╰────────────────────────────────────────────╯
+EOF
+    printf '%b\n' "$color_reset"
+}
 
 # Read confirmations immediately, without requiring Enter. Noninteractive callers
 # continue to use --yes/--yes-all and never reach this helper.
@@ -704,18 +714,29 @@ confirm_success() {
 }
 wait_before_close() {
     [[ "$setup_interactive" == true && "${SUBARU_SETUP_NO_PAUSE:-0}" != 1 ]] || return 0
-    read -r -p "Press Enter to close this setup terminal..." _ </dev/tty || true
+    printf '%b  Press Enter to close this setup terminal...%b' \
+        "$color_cyan" "$color_reset"
+    read -r _ </dev/tty || true
+}
+stop_setup_music() {
+    local music_pid=${SUBARU_SETUP_MUSIC_PID:-}
+    [[ "$music_pid" =~ ^[0-9]+$ ]] || return 0
+    if kill -0 "$music_pid" 2>/dev/null; then
+        kill "$music_pid" 2>/dev/null || true
+        wait "$music_pid" 2>/dev/null || true
+    fi
 }
 log_result() {
     local status=$?
     trap - EXIT
+    stop_setup_music
     if ((status)); then
         echo
         fail "Subaru & Evo ECU Tools stopped with status $status."
         echo "Share this diagnostic log when requesting help: $log_file"
         offer_error_report
     else
-        echo "Diagnostic log: $log_file"
+        ok "Run log saved: $log_file"
         confirm_success
     fi
     wait_before_close
@@ -924,7 +945,8 @@ install_ecuflash_runtime() {
        ! printf '%s  %s\n' "$ecuflash_runtime_sha256" "$ecuflash_runtime_archive" | \
            sha256sum -c - >/dev/null 2>&1; then
         step "Downloading the validated WineGDK 11.1 runtime"
-        curl --fail --location --output "$ecuflash_runtime_archive" "$ecuflash_runtime_url"
+        curl --fail --location --progress-bar \
+            --output "$ecuflash_runtime_archive" "$ecuflash_runtime_url"
     fi
     printf '%s  %s\n' "$ecuflash_runtime_sha256" "$ecuflash_runtime_archive" | sha256sum -c - >/dev/null
     if [[ ! -x "$ecuflash_runtime_dir/files/bin/wine" ]] || \
@@ -1404,14 +1426,16 @@ if $install_romraider; then
     if [[ ! -f "$romraider_archive" ]] || \
        ! printf '%s  %s\n' "$romraider_sha256" "$romraider_archive" | sha256sum -c - >/dev/null 2>&1; then
         step "Downloading RomRaider DimeMod DM20 for Linux"
-        curl --fail --location --output "$romraider_archive" "$romraider_url"
+        curl --fail --location --progress-bar \
+            --output "$romraider_archive" "$romraider_url"
     fi
     printf '%s  %s\n' "$romraider_sha256" "$romraider_archive" | sha256sum -c -
 
     if [[ ! -f "$java_archive" ]] || \
        ! printf '%s  %s\n' "$java_sha256" "$java_archive" | sha256sum -c - >/dev/null 2>&1; then
         step "Downloading Azul Zulu Java 8 (32-bit) for the RomRaider Logger"
-        curl --fail --location --output "$java_archive" "$java_url"
+        curl --fail --location --progress-bar \
+            --output "$java_archive" "$java_url"
     fi
     printf '%s  %s\n' "$java_sha256" "$java_archive" | sha256sum -c -
 
@@ -1474,7 +1498,8 @@ if $install_ecuflash; then
     if [[ ! -f "$ecuflash_installer" ]] || \
        ! printf '%s  %s\n' "$ecuflash_sha256" "$ecuflash_installer" | sha256sum -c - >/dev/null 2>&1; then
         step "Downloading the complete, unmodified EcuFlash 1.44.4870 installer from Tactrix"
-        curl --fail --location --output "$ecuflash_installer" "$ecuflash_url"
+        curl --fail --location --progress-bar \
+            --output "$ecuflash_installer" "$ecuflash_url"
     fi
     printf '%s  %s\n' "$ecuflash_sha256" "$ecuflash_installer" | sha256sum -c -
 
@@ -1714,27 +1739,31 @@ if $install_evoscan; then
     ok "EvoScan remained running for the complete experimental startup test."
 fi
 
-section "Installation complete"
-ok "Installed user tools successfully."
-if [[ -f "$ecuflash_prefix/drive_c/Program Files (x86)/OpenECU/EcuFlash/ecuflash.exe" ]]; then
-    section "EcuFlash shortcut"
-    ok "Open 'EcuFlash' from the application menu."
-    warn "Use the project shortcut so USB-state checks and diagnostic logging are active."
-fi
-if [[ -f "$data_dir/evoscan-exe.path" ]]; then
-    section "EvoScan shortcut"
-    warn "EvoScan Linux support is experimental and vehicle communication is not yet validated."
-    ok "Open 'EvoScan' from the application menu."
-fi
 create_documents_shortcuts
-echo "  Launchers: $bin_dir"
-echo "  Wine bridge: $data_dir/winedll"
-echo "  Desktop entries: $applications_dir"
+completion_banner
+installed_apps=()
+[[ -f "$ecuflash_prefix/drive_c/Program Files (x86)/OpenECU/EcuFlash/ecuflash.exe" ]] && \
+    installed_apps+=(EcuFlash)
+[[ -f "$romraider_home/RomRaider.jar" ]] && \
+    installed_apps+=("RomRaider Editor" "RomRaider Logger")
+[[ -f "$data_dir/evoscan-exe.path" ]] && installed_apps+=(EvoScan)
+if ((${#installed_apps[@]})); then
+    printf -v installed_apps_text '%s, ' "${installed_apps[@]}"
+    summary_row "Applications" "${installed_apps_text%, }"
+fi
+summary_row "App menu" "Subaru & Evo ECU Tools"
+summary_row "Launchers" "$bin_dir"
+summary_row "Wine bridge" "$data_dir/winedll"
+summary_row "Desktop files" "$applications_dir"
 if ! $install_udev; then
-    echo "OpenPort permissions were not changed. Re-run with --install-udev if needed."
+    warn "OpenPort permissions were not changed. Select USB permissions in Setup if needed."
 fi
 if [[ ":$PATH:" != *":$bin_dir:"* ]]; then
-    echo "Add $bin_dir to PATH before launching from a terminal."
+    warn "Add $bin_dir to PATH only when launching tools from a terminal."
 fi
-echo "Set ECUFLASH_WINEPREFIX/ECUFLASH_WINE and ROMRAIDER_HOME when defaults differ."
-echo "Start with cable discovery and a supervised read-only ECU test."
+if [[ -f "$data_dir/evoscan-exe.path" ]]; then
+    warn "EvoScan Linux support remains experimental."
+fi
+printf '\n'
+ok "Open applications from the Subaru & Evo ECU Tools menu."
+step "Begin with cable discovery and a supervised read-only ECU test."
