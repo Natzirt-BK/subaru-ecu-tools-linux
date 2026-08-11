@@ -32,8 +32,9 @@ Applications appear together under **Subaru & Evo ECU Tools** in the application
 menu with short names such as **Setup**, **EcuFlash**, and **RomRaider Logger**.
 After installation, **Setup** offers to update the project before showing its
 menu; skipping that update is supported but not recommended. Setup prepares the
-computer only; it never reads or writes an ECU. Install and Clean Reinstall can
-optionally play a low-volume original retro chiptune while work is underway.
+computer only; it never reads or writes an ECU. Install and Clean Reinstall play
+a low-volume original retro chiptune while work is underway; press **M** in the
+Setup terminal at any time to mute it.
 
 ## OpenPort validation
 

@@ -63,14 +63,12 @@ confirm() {
     done
 }
 
-offer_installer_music() {
+start_installer_music() {
     [[ -x "$music_player" ]] && command -v pw-play >/dev/null 2>&1 || return 0
-    if confirm 'Play an original retro installer chiptune during setup?'; then
-        "$music_player" >/dev/null 2>&1 &
-        export SUBARU_SETUP_MUSIC_PID=$!
-        printf '  %b♪%b Chiptune enabled at low volume.\n\n' \
-            "$purple$bold" "$reset"
-    fi
+    "$music_player" >/dev/null 2>&1 &
+    export SUBARU_SETUP_MUSIC_PID=$!
+    printf '  %b♪ Installer music is playing.%b Press %bM%b at any time to mute.\n\n' \
+        "$purple$bold" "$reset" "$yellow$bold" "$reset"
 }
 
 draw_menu() {
@@ -113,14 +111,14 @@ done
 case "$choice" in
     1)
         confirm 'Install or repair the recommended tools?' || exit 0
-        offer_installer_music
+        start_installer_music
         exec "$installer" --yes-all
         ;;
     2)
         printf '  This replaces installer-managed applications, bridge files, runtime, and cache.\n'
         printf '  Your ROMs, definitions, and logs are preserved.\n\n'
         confirm 'Continue with a clean reinstall?' || exit 0
-        offer_installer_music
+        start_installer_music
         exec "$installer" --clean-install --yes
         ;;
     3) exec "$installer" --check ;;

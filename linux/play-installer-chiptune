@@ -15,17 +15,17 @@ trap cleanup EXIT HUP INT TERM
 generate_loop() {
     LC_ALL=C awk 'BEGIN {
         rate = 11025
-        step = 0.14
-        split("76 79 83 88 83 79 74 79 81 84 88 91 88 84 72 76 79 84 79 76 71 74 79 83 86 83 79 74 76 79 83 88", melody)
-        split("40 40 43 43 45 45 35 35", bass)
-        for (i = 1; i <= 32; i++) {
-            mf = 440 * exp(log(2) * (melody[i] - 69) / 12)
-            bf = 440 * exp(log(2) * (bass[1 + int((i - 1) / 4) % 8] - 69) / 12)
+        step = 0.25
+        split("64 67 71 76 71 67 64 67 62 66 69 74 69 66 62 66 60 64 67 72 67 64 60 64 59 62 67 71 67 62 59 62 64 67 71 76 74 71 67 64 62 66 69 74 72 69 66 62 60 64 67 72 71 67 64 60 59 62 64 67 64 64 0 0", melody)
+        split("40 38 36 35 40 38 36 0", bass)
+        for (i = 1; i <= 64; i++) {
+            mf = melody[i] ? 440 * exp(log(2) * (melody[i] - 69) / 12) : 0
+            bf = bass[1 + int((i - 1) / 8)] ? 440 * exp(log(2) * (bass[1 + int((i - 1) / 8)] - 69) / 12) : 0
             count = int(rate * step)
             for (sample = 0; sample < count; sample++) {
-                lead = (int(sample * mf * 2 / rate) % 2) ? 1 : -1
-                low = (int(sample * bf * 2 / rate) % 2) ? 1 : -1
-                tick = (i % 2 == 1 && sample < 90) ? (1 - sample / 90) : 0
+                lead = mf ? ((int(sample * mf * 2 / rate) % 2) ? 1 : -1) : 0
+                low = bf ? ((int(sample * bf * 2 / rate) % 2) ? 1 : -1) : 0
+                tick = (melody[i] && i % 2 == 1 && sample < 90) ? (1 - sample / 90) : 0
                 edge = sample < 80 ? sample / 80 : ((count - sample) < 100 ? (count - sample) / 100 : 1)
                 value = int(128 + edge * (25 * lead + 13 * low) + 10 * tick)
                 if (value < 0) value = 0

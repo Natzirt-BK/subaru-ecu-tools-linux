@@ -20,6 +20,7 @@ run_choice() {
     output=$test_root/$name.output
     printf '%s' "$keys" | TERM=dumb SUBARU_SETUP_INPUT_DEVICE=/dev/stdin \
         ECU_TOOLS_INSTALLER="$installer" ECU_TOOLS_SKIP_UPDATE_PROMPT=1 \
+        ECU_TOOLS_MUSIC_PLAYER="$test_root/no-music" \
         TEST_TRACE="$trace" \
         "$repo_root/linux/setup-cachyos-gui.sh" >"$output" 2>&1
     grep -F -- "$expected" "$trace" >/dev/null
@@ -33,6 +34,7 @@ run_choice uninstall '4y' '--uninstall --yes'
 
 printf '1n' | TERM=dumb SUBARU_SETUP_INPUT_DEVICE=/dev/stdin \
     ECU_TOOLS_INSTALLER="$installer" ECU_TOOLS_SKIP_UPDATE_PROMPT=1 \
+    ECU_TOOLS_MUSIC_PLAYER="$test_root/no-music" \
     TEST_TRACE="$test_root/cancel.trace" \
     "$repo_root/linux/setup-cachyos-gui.sh" >/dev/null
 test ! -e "$test_root/cancel.trace"
@@ -65,6 +67,25 @@ grep -Fx -- '--check' "$test_root/no-update.trace" >/dev/null
 grep -F 'Continuing without updating is not recommended.' \
     "$test_root/no-update.output" >/dev/null
 
+music_player=$test_root/music-player
+cat >"$music_player" <<'EOF'
+#!/bin/sh
+printf 'started\n' >"$TEST_MUSIC_TRACE"
+EOF
+cat >"$test_root/pw-play" <<'EOF'
+#!/bin/sh
+exit 0
+EOF
+chmod +x "$music_player" "$test_root/pw-play"
+printf '1y' | PATH="$test_root:$PATH" TERM=dumb \
+    SUBARU_SETUP_INPUT_DEVICE=/dev/stdin ECU_TOOLS_INSTALLER="$installer" \
+    ECU_TOOLS_MUSIC_PLAYER="$music_player" ECU_TOOLS_SKIP_UPDATE_PROMPT=1 \
+    TEST_TRACE="$test_root/music-install.trace" \
+    TEST_MUSIC_TRACE="$test_root/music.trace" \
+    "$repo_root/linux/setup-cachyos-gui.sh" >"$test_root/music.output" 2>&1
+grep -Fx 'started' "$test_root/music.trace" >/dev/null
+grep -F 'Press M at any time to mute.' "$test_root/music.output" >/dev/null
+
 engine=$repo_root/linux/install-cachyos.sh
 grep -F 'Removed the redundant Update shortcut; Setup now offers updates first.' \
     "$engine" >/dev/null
@@ -73,13 +94,19 @@ test ! -e "$repo_root/linux/subaru-ecu-tools-update.desktop"
 grep -F 'exec env ECU_TOOLS_SKIP_UPDATE_PROMPT=1' \
     "$repo_root/linux/update-cachyos.sh" >/dev/null
 test -x "$repo_root/linux/play-installer-chiptune"
-grep -F "confirm 'Play an original retro installer chiptune during setup?'" \
+grep -q '^start_installer_music()' \
+    "$repo_root/linux/setup-cachyos-gui.sh" >/dev/null
+! grep -F "confirm 'Play an original retro installer chiptune during setup?'" \
     "$repo_root/linux/setup-cachyos-gui.sh" >/dev/null
 grep -F 'export SUBARU_SETUP_MUSIC_PID=$!' \
     "$repo_root/linux/setup-cachyos-gui.sh" >/dev/null
 grep -q '^stop_setup_music()' "$engine"
+grep -q '^poll_setup_music_key()' "$engine"
+grep -F 'm|M)' "$engine" >/dev/null
 grep -F 'pw-play --raw --rate 11025' \
     "$repo_root/linux/play-installer-chiptune" >/dev/null
+grep -F 'step = 0.25' "$repo_root/linux/play-installer-chiptune" >/dev/null
+grep -F '64 64 0 0' "$repo_root/linux/play-installer-chiptune" >/dev/null
 grep -F 'SETUP COMPLETE  ✓' "$engine" >/dev/null
 test "$(grep -c -- '--progress-bar' "$engine")" -eq 4
 grep -F -- '--progress-bar' "$repo_root/linux/install-romraider-definitions" >/dev/null
@@ -142,6 +169,7 @@ launch_line=$(grep -n 'start /wait /unix' \
 test "$prime_line" -lt "$launch_line"
 grep -F '"$wine_server" -w' "$repo_root/linux/launch-ecuflash" >/dev/null
 grep -F 'ECUFLASH_TEST_STOP_MARKER' "$repo_root/linux/launch-ecuflash" >/dev/null
+grep -F 'ECUFLASH_TEST_STOP_MARKER="$post_probe_marker"' "$engine" >/dev/null
 grep -F 'ECUFLASH_LOG_NOT_OLDER_THAN' "$repo_root/tests/vm/verify-installed.sh" >/dev/null
 grep -F '"$data_dir/winedll/i386-windows/op20pt32.dll"' "$engine" >/dev/null
 grep -F -- '-print 2>/dev/null | sed -n' "$engine" >/dev/null
