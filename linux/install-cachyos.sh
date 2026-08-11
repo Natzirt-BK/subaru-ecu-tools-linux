@@ -987,11 +987,13 @@ if [[ "$mode" == update ]]; then
             restore_openport_after_probe "$update_wine" "$ecuflash_prefix" \
                 "$data_dir/registry" "$update_refresh_log" true
             if ((update_probe_status)); then
-                capture_openport_device_probe "$update_wine" "$ecuflash_prefix" \
-                    "$data_dir/winedll" "$data_dir/tools/openport-device-probe.exe" \
-                    "$update_probe_log"
                 capture_verbose_openport_probe "$update_wine" "$ecuflash_prefix" \
                     "$data_dir/winedll" "$data_dir/tools/j2534-probe.exe" \
+                    "$update_probe_log"
+                # Keep the compact binding result after the verbose trace so it
+                # survives the bounded tail included in public issue reports.
+                capture_openport_device_probe "$update_wine" "$ecuflash_prefix" \
+                    "$data_dir/winedll" "$data_dir/tools/openport-device-probe.exe" \
                     "$update_probe_log"
                 restore_openport_after_probe "$update_wine" "$ecuflash_prefix" \
                     "$data_dir/registry" "$update_refresh_log" true
@@ -1485,12 +1487,14 @@ if $install_ecuflash; then
         "$data_dir/registry" "$ecuflash_bridge_log" \
         "$([[ ${#probe_args[@]} -eq 0 ]] && echo true || echo false)"
     if ((ecuflash_probe_status)); then
-        capture_openport_device_probe "$ecuflash_wine" "$ecuflash_prefix" \
-            "$data_dir/winedll" "$data_dir/tools/openport-device-probe.exe" \
-            "$ecuflash_probe_log"
         capture_verbose_openport_probe "$ecuflash_wine" "$ecuflash_prefix" \
             "$data_dir/winedll" "$data_dir/tools/j2534-probe.exe" \
             "$ecuflash_probe_log" "${probe_args[@]}"
+        # Keep the compact binding result after the verbose trace so it
+        # survives the bounded tail included in public issue reports.
+        capture_openport_device_probe "$ecuflash_wine" "$ecuflash_prefix" \
+            "$data_dir/winedll" "$data_dir/tools/openport-device-probe.exe" \
+            "$ecuflash_probe_log"
         restore_openport_after_probe "$ecuflash_wine" "$ecuflash_prefix" \
             "$data_dir/registry" "$ecuflash_bridge_log" \
             "$([[ ${#probe_args[@]} -eq 0 ]] && echo true || echo false)"

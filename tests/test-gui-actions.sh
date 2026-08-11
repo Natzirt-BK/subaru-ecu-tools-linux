@@ -63,6 +63,8 @@ grep -F 'report_bytes <= 60000' "$engine" >/dev/null
 grep -F 'head -c 28000 "$full_report"' "$engine" >/dev/null
 grep -F 'tail -c 28000 "$full_report"' "$engine" >/dev/null
 grep -F 'Failure-only Wine OpenPort driver/PnP trace' "$engine" >/dev/null
+test "$(grep -n 'capture_openport_device_probe.*update_wine' "$engine" | cut -d: -f1)" \
+    -gt "$(grep -n 'capture_verbose_openport_probe.*update_wine' "$engine" | cut -d: -f1)"
 grep -F 'ecuflash-post-probe-startup.log' "$engine" >/dev/null
 grep -F 'wait_for_stable_openport' "$engine" >/dev/null
 grep -F 'stop_wine_prefix "$ecuflash_wine" "$ecuflash_prefix"' "$engine" >/dev/null
