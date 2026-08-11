@@ -1,0 +1,30 @@
+name: Validate
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  scripts-and-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Check shell syntax
+        run: |
+          bash -n bootstrap-cachyos.sh linux/build-ecuflash-wine-runtime.sh \
+            linux/configure-romraider-definitions linux/install-cachyos.sh \
+            linux/install-romraider-definitions linux/setup-cachyos-gui.sh \
+            linux/update-cachyos.sh
+          sh -n linux/launch-ecuflash linux/launch-evoscan linux/launch-romraider \
+            linux/sync-openport-device-state wine-bridge/build-openport-driver.sh \
+            tests/*.sh
+      - name: Run tests
+        run: |
+          for test_script in tests/*.sh; do
+            "$test_script"
+          done
+      - name: Check whitespace
+        run: git diff --check

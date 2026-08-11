@@ -45,14 +45,18 @@ grep -F 'setup_interactive=false' "$engine" >/dev/null
 test "$(grep -F -c '$setup_interactive || return 0' "$engine")" -eq 1
 ! grep -F '[[ -t 0 || -t 1 ]] || return 0' "$engine" >/dev/null
 grep -F 'Briefly describe what went wrong (optional' "$engine" >/dev/null
-grep -F 'tail -c 24000' "$engine" >/dev/null
-grep -F 'tail -c 3500' "$engine" >/dev/null
+grep -F 'tail -c 18000' "$engine" >/dev/null
+grep -F '*j2534-probe.log) log_bytes=12000' "$engine" >/dev/null
+! grep -F 'WINEDEBUG=-all,+loaddll' "$engine" >/dev/null
 grep -F 'The complete ready-to-share report remains at:' "$engine" >/dev/null
 grep -F 'wait_for_stable_openport' "$engine" >/dev/null
+grep -F 'stop_wine_prefix "$ecuflash_wine" "$ecuflash_prefix"' "$engine" >/dev/null
+grep -F 'restarting Wine and retrying once' "$engine" >/dev/null
 grep -F '"$cache_root/ecuflash-j2534-probe.log"' "$engine" >/dev/null
 grep -F 'LD_LIBRARY_PATH="/usr/lib32' "$repo_root/linux/launch-romraider" >/dev/null
 grep -F "grep -q 'J2534 DLL Version: 1\\.02\\.4870'" "$engine" >/dev/null
 grep -F 'official Tactrix J2534 library' "$engine" >/dev/null
+grep -F 'WINAPI *open_fn' "$repo_root/wine-bridge/probe.c" >/dev/null
 grep -F 'subaru-ecu-tools.menu' "$engine" >/dev/null
 grep -F 'X-Subaru-Evo-ECU-Tools' "$repo_root/linux/subaru-ecu-tools.menu" >/dev/null
 ! grep -F "WINEDLLOVERRIDES='op20pt32,j2534=b'" "$engine" >/dev/null

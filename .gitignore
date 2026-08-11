@@ -16,5 +16,6 @@ x64/
 *.dll
 *.exe
 *.sys
+*.user
 build-win32/
 build-wine-bridge/

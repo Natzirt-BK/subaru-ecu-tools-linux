@@ -5,10 +5,10 @@
 
 #define J2534_ERR_DEVICE_NOT_CONNECTED 8
 
-typedef int32_t (*open_fn)(const void *, uint32_t *);
-typedef int32_t (*close_fn)(uint32_t);
-typedef int32_t (*version_fn)(uint32_t, char *, char *, char *);
-typedef int32_t (*error_fn)(char *);
+typedef int32_t (WINAPI *open_fn)(const void *, uint32_t *);
+typedef int32_t (WINAPI *close_fn)(uint32_t);
+typedef int32_t (WINAPI *version_fn)(uint32_t, char *, char *, char *);
+typedef int32_t (WINAPI *error_fn)(char *);
 
 int main(int argc, char **argv)
 {

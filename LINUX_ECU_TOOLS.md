@@ -1,194 +1,131 @@
-# Subaru & Mitsubishi Evo ECU tools on Linux
+# Technical reference
 
-This repository contains the source for an experimental Wine driver that lets
-EcuFlash discover and communicate with a Tactrix OpenPort 2.0. It also contains
-portable launchers for the RomRaider editor and logger.
-It also provides experimental purchaser-supplied EvoScan installation, a
-definition manager, and a lightweight updater.
+The normal installation is intentionally simple. This document covers manual
+and advanced operation for maintainers and troubleshooting.
 
-## Scope and safety
+## Bootstrap and command line
 
-The bridge has been validated for cable discovery and communication. That is
-not proof that writing an ECU is safe. Begin with a supervised, vehicle-connected
-read-only test. Keep a known-good recovery path and never interrupt a flash.
+Download and inspect the bootstrap:
 
-No EcuFlash binary, RomRaider binary, EvoScan installer, Tactrix firmware, or
-ROM image is committed to Git history. The installer fetches checksum-pinned
-EcuFlash, DimeMod, Java, and definition packages from documented sources or
-this project's GitHub Releases.
+```bash
+curl -fL https://raw.githubusercontent.com/Natzirt-BK/subaru-ecu-tools-linux/master/bootstrap-cachyos.sh -o /tmp/bootstrap-cachyos.sh
+less /tmp/bootstrap-cachyos.sh
+bash /tmp/bootstrap-cachyos.sh
+```
 
-## CachyOS quick start
+Useful direct commands after checkout:
 
-Download and inspect the native bootstrap before running it:
+```bash
+./linux/install-cachyos.sh --check
+./linux/install-cachyos.sh --yes-all
+./linux/install-cachyos.sh --clean-install
+./linux/update-cachyos.sh
+./linux/install-cachyos.sh --uninstall
+```
 
-    curl -fL https://raw.githubusercontent.com/Natzirt-BK/subaru-ecu-tools-linux/master/bootstrap-cachyos.sh -o /tmp/bootstrap-cachyos.sh
-    less /tmp/bootstrap-cachyos.sh
-    bash /tmp/bootstrap-cachyos.sh --check
+Run `./linux/install-cachyos.sh --help` for advanced component, definition, and
+EvoScan flags. The bootstrap checkout lives at
+`~/.local/src/subaru-ecu-tools-linux` by default.
 
-Then build and install the user-level tools. The optional flags install missing
-repository packages and the OpenPort permission rule, and download DimeMod and
-the official EcuFlash installer:
+## Managed locations
 
-    bash /tmp/bootstrap-cachyos.sh --install-deps --install-udev --install-romraider --install-ecuflash
+| Purpose | Location |
+|---|---|
+| Project data and Wine runtime | `~/.local/share/subaru-ecu-tools-linux/` |
+| EcuFlash Wine prefix | `~/.local/share/ecuflash-proton/` |
+| RomRaider DimeMod | `~/.local/share/romraider-dm20/` |
+| Definitions | `~/.local/share/subaru-evo-ecu-definitions/` |
+| Setup logs | `~/.local/state/subaru-ecu-tools-linux/` |
+| Download cache | `~/.cache/subaru-ecu-tools-linux/` |
 
-For the colorful single-key terminal installer:
+Clean reinstall removes managed applications, runtime, bridge, prefix, and
+cache. It preserves ROMs, definitions, logs, and separately installed software.
 
-    bash /tmp/bootstrap-cachyos.sh
+## EcuFlash and OpenPort
 
-The menu offers Install/repair, Clean reinstall, System check, and Uninstall.
-Selections and Y/N confirmations take one keypress without Enter. Install/repair
-also updates managed files, avoiding a redundant update choice. Clean reinstall
-removes installer-managed application/runtime state and installs fresh copies
-while preserving ROMs, definitions, and logs. The command-line equivalent for
-the recommended installation is `--yes-all`; use `--clean-install` for the
-clean path.
+EcuFlash is 32-bit. The setup uses:
 
-To refresh project-managed files without reinstalling large applications:
+- Tactrix EcuFlash 1.44.4870, checksum-pinned
+- official Tactrix `op20pt32.dll` version 1.02.4870
+- a 64-bit Wine kernel-driver bridge backed by native libusb
+- the project’s checksum-pinned WineGDK 11.1 runtime
 
-    bash ~/.local/src/subaru-ecu-tools-linux/linux/update-cachyos.sh
+The launcher synchronizes Wine’s USB registry with physical Linux USB state
+before every start. Static registry files never claim the adapter is present.
+The OpenPort 2.0 USB identity is `0403:cc4d`.
 
-To remove files owned by this setup:
+After EcuFlash startup, setup stops Wine and waits for all prefix services to
+exit before probing J2534. A transient probe startup failure is retried once
+after another complete Wine restart. Connected testing opens and closes the
+physical adapter; disconnected testing requires J2534
+`ERR_DEVICE_NOT_CONNECTED`.
 
-    bash ~/.local/src/subaru-ecu-tools-linux/linux/install-cachyos.sh --uninstall
+The udev rule grants OpenPort access through the `uucp` group. A new group
+membership may require logging out and back in.
 
-Removal includes the launchers, desktop entries, bridge/runtime data, EcuFlash
-prefix and cache, USB rule, default source checkout, and installer-managed
-DimeMod package. It preserves separately obtained RomRaider packages, ROMs,
-definition packs in `$HOME/.local/share/subaru-evo-ecu-definitions`,
-application logs, and shared system packages.
+## RomRaider definitions
 
-## Diagnostic logs
+Recommended setup installs the official RomRaider Editor 0.8.3.1b and Logger
+v370 definitions in metric units. Editor selection must be verified by exact ROM
+ID, not model year alone.
 
-Every setup run records its terminal output in:
+Community stable, beta, alpha, alternative units, and custom XML imports remain
+available through advanced installer flags. Experimental definitions can contain
+incorrect addresses; verify them independently.
 
-    $HOME/.local/state/subaru-ecu-tools-linux/
+## EvoScan
 
-`latest.log` points to the newest run. Setup prints the exact file to share if
-an error occurs. The uninstaller removes the saved setup logs and writes its own
-final log to `/tmp/subaru-ecu-tools-uninstall-<timestamp>.log`.
+EvoScan is paid software and is never redistributed. Advanced setup can install
+a purchaser-supplied EXE or MSI:
 
-On failure, the terminal asks whether to submit the log as a public GitHub
-issue. If the user answers yes and the GitHub CLI is already authenticated
-(`gh auth login`), the installer creates an issue in the project repository
-containing setup output and recent application logs when available. It never
-requests or saves a GitHub token,
-and it does not upload anything unless the user confirms.
-The generated report is bounded to fit a GitHub issue. If upload fails, setup
-prints the underlying error and preserves the ready-to-attach Markdown report
-in the setup-log directory for manual submission.
-If the user reports that an otherwise successful run did not work, setup first
-accepts an optional one-line description and places it near the top of the
-diagnostic issue.
+```bash
+./linux/install-cachyos.sh --evoscan-installer /path/to/installer.exe
+```
 
-The optional EcuFlash step downloads checksum-pinned version 1.44.4870 directly
-from Tactrix. After the vendor installer closes, setup starts EcuFlash for 12
-seconds and fails if it crashes or exits early. Setup uses the project's
-checksum-verified WineGDK 11.1 runtime, including its licenses and full build
-provenance;
-set `ECUFLASH_WINE` to test another general-purpose runner. No runtime from an
-unrelated application is downloaded or reused. Compatibility is established
-only by the startup test on the user's computer.
-Setup does not silently accept the Tactrix license and never downloads ROM
-images or firmware. Run it from a normal user account; it
-invokes `sudo` only for the explicit dependency and udev options.
-
-Use the **EcuFlash (Wine)** application-menu shortcut installed by this
-project. Setup removes the vendor-generated shortcut named only **EcuFlash**,
-which bypasses USB-state synchronization and diagnostic logging.
-
-At each launch, the project synchronizes EcuFlash's Wine device enumeration
-with the physical USB state reported by Linux sysfs. With no `0403:cc4d` cable
-attached, the OpenPort device-interface keys are removed so EcuFlash cannot
-mistake an installed bridge for connected hardware. Physical presence and a
-successful read-only J2534 probe are separate checks.
-
-The bridge asks libusb to detach and automatically reattach the kernel driver
-when a J2534 session closes. After setup runs its probe, it also restarts the
-selected Wine server and republishes the actual USB state before launching
-EcuFlash. A new EcuFlash log containing `J2534 error [no devices available]`
-causes setup to fail instead of reporting a false success.
-Setup also waits for a connected OpenPort's sysfs device number to settle after
-the probe, since the adapter can briefly disconnect and re-enumerate on reset.
-The installer checksum-verifies and retains Tactrix's official J2534 DLL rather
-than replacing its ECU protocol implementation. The project Wine kernel bridge
-provides Linux USB access beneath it. The post-test requires EcuFlash's own new
-log to identify vendor DLL version 1.02.4870 and a device serial number.
-
-## EvoScan (experimental)
-
-EvoScan is paid, account/serial-bound software and is not redistributed here.
-Select it in the GUI or pass `--evoscan-installer /path/to/installer.exe` to
-install a purchaser-supplied EXE/MSI in the tested shared Wine/OpenPort
-environment. Activation remains between the user and EvoScan and is never
-included in project logs. Launch it with **EvoScan (Wine, Experimental)**.
-Application startup is tested, but Linux vehicle communication is not yet
+Startup support is experimental. Vehicle communication on Linux is not
 validated.
 
-## OpenPort permissions
+## Diagnostics
 
-Copy `linux/99-openport2.rules` to `/etc/udev/rules.d/`, add your user to the
-`uucp` group, reload the udev rules, and reconnect the cable. Log out and back
-in after changing group membership. The installer's `--install-udev` option
-performs these steps on CachyOS/Arch.
+Every run updates:
 
-The OpenPort 2.0 USB ID is `0403:cc4d`. Verify it with `lsusb`.
+```text
+~/.local/state/subaru-ecu-tools-linux/latest.log
+```
 
-## EcuFlash
+Failure reports include recent setup and application logs, source revision, and
+checksums for the installed launcher and J2534 DLL. Upload uses the authenticated
+GitHub CLI and requires explicit user confirmation. If upload fails, the complete
+Markdown report remains beside the setup logs.
 
-1. Install EcuFlash into a Wine or Proton prefix.
-2. Install build dependencies: LLVM-MinGW, Wine development headers, libusb
-   development headers, a C compiler, and Wine's `winebuild`.
-3. If needed, set `LLVM_MINGW_ROOT` and `WINEBUILD` for your distribution.
-4. Run `sh wine-bridge/build-openport-driver.sh`.
-5. Put `linux/launch-ecuflash` on your `PATH` and make it executable.
-6. Set `ECUFLASH_WINE` if the required Wine/Proton runner is not named `wine`.
+Common checks:
 
-The launcher sets `WINEDLLPATH` to the split driver layout generated by the
-build script. `ECUFLASH_WINEPREFIX`, `ECUFLASH_DIR`, and
-`ECUFLASH_WINEDLLPATH` may also be overridden.
+```bash
+lsusb | grep -i '0403:cc4d'
+id -nG | tr ' ' '\n' | grep -x uucp
+sha256sum ~/.local/share/ecuflash-proton/drive_c/windows/syswow64/op20pt32.dll
+```
 
-See `wine-bridge/README-linux-driver.md` for the USB endpoint and Wine-driver
-details that made EcuFlash discovery work.
+Expected official J2534 SHA-256:
 
-## RomRaider editor and logger
+```text
+f432084801762d919a3c31974616e097562424470003edc4f4fb843df34103cf
+```
 
-1. Run setup with `--install-romraider` (included by `--yes-all`) to install the
-   checksum-pinned DimeMod DM20 Linux package and Azul Zulu 32-bit JRE at
-   `$HOME/.local/share/romraider-dm20`. A complete existing package is kept.
-2. Put `linux/launch-romraider` on your `PATH` and make it executable.
-3. Run `ROMRAIDER_MODE=editor launch-romraider` for the editor.
-4. Run `ROMRAIDER_MODE=logger launch-romraider` for the logger.
+## Build and test
 
-Use `--install-definitions official` for the official RomRaider Editor
-0.8.3.1b and Logger v370 definitions. `stable`, `beta`, and `alpha` select the
-corresponding community Subaru Editor channel; Beta and Alpha are experimental.
-The GUI also supports custom Mitsubishi Editor/Logger XML import. Vehicle
-make/year/model is recorded for support, but Editor matching uses the exact ROM
-ID. Existing user-configured Editor definitions are preserved.
+Build the Wine bridge:
 
-For easier browsing, setup creates
-`$HOME/Documents/Subaru & Evo ECU Tools/` (or the desktop's configured
-Documents directory). It contains separate RomRaider Editor, RomRaider Logger,
-EcuFlash, EvoScan, and Diagnostic Logs folders with links to the files actually
-used by each application. These are live links rather than duplicate files.
+```bash
+./wine-bridge/build-openport-driver.sh
+```
 
-The launcher requires RomRaider's bundled 32-bit JRE by default because its
-Linux logger libraries are 32-bit. Set `ROMRAIDER_JAVA` to override it only
-with a compatible 32-bit runtime. The CachyOS Logger launcher enters the
-`uucp` group before starting RomRaider. Missing membership, package, Java, and
-Java-exit errors appear in a graphical dialog. Terminal output is saved in
-`$HOME/.RomRaider/romraider_sout.log` and rotates at 10 MB.
+Run the repository tests:
 
-Desktop-entry templates are provided in `linux/`. Install the launchers on your
-`PATH` before using them.
+```bash
+for test_script in tests/*.sh; do "$test_script"; done
+```
 
-## Troubleshooting
-
-- `J2534 error [no devices available]`: check USB permissions, cable USB ID,
-  `WINEDLLPATH`, and whether stale bridge artifacts are being loaded.
-- Writes succeed but reads time out: confirm the driver claims USB interface 1
-  and uses bulk endpoints OUT `0x02` and IN `0x82`.
-- EcuFlash loads the wrong probe: do not advertise the legacy OpenPort 1.x/FTDI
-  interface GUID. The OpenPort 2.0 GUID is documented in the driver notes.
-- RomRaider logger does not open: inspect `$HOME/.RomRaider/romraider_sout.log`
-  and verify the selected Java architecture matches the bundled native library.
+The build requires CachyOS/Arch packages listed by the installer, including
+LLVM-MinGW, Wine development files, and libusb development files. Driver design
+details are in [wine-bridge/README-linux-driver.md](wine-bridge/README-linux-driver.md).

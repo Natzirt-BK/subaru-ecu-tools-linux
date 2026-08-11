@@ -71,6 +71,16 @@ read_yes_no() {
     done
 }
 
+stop_wine_prefix() {
+    local wine_runner=$1 prefix=$2 log_target=${3:-/dev/null}
+    local runtime_bin wineserver
+    runtime_bin=$(dirname -- "$(command -v "$wine_runner" 2>/dev/null || printf '%s' "$wine_runner")")
+    wineserver="$runtime_bin/wineserver"
+    [[ -x "$wineserver" ]] || return 0
+    WINEPREFIX="$prefix" "$wineserver" -k >>"$log_target" 2>&1 || true
+    WINEPREFIX="$prefix" "$wineserver" -w >>"$log_target" 2>&1 || true
+}
+
 openport_usb_present() {
     local sysfs_root=${OPENPORT_USB_SYSFS_ROOT:-/sys/bus/usb/devices}
     local vendor_file product_file vendor product
@@ -216,7 +226,7 @@ github_repo=Natzirt-BK/subaru-ecu-tools-linux
 ecuflash_vendor_j2534_sha256=f432084801762d919a3c31974616e097562424470003edc4f4fb843df34103cf
 offer_error_report() {
     local user_description=${1:-}
-    local report_file upload_error issue_url extra_log
+    local report_file upload_error issue_url extra_log log_bytes
 
     $setup_interactive || return 0
     read_yes_no "Upload this error log in a public GitHub issue so the maintainer can investigate?" no || return 0
@@ -241,9 +251,9 @@ offer_error_report() {
             printf '%s\n' "$user_description" | sed 's/^/> /'
             echo
         fi
-        echo "Installer log (last 24,000 bytes):"
+        echo "Installer log (last 18,000 bytes):"
         echo '```text'
-        tail -c 24000 "$log_file"
+        tail -c 18000 "$log_file"
         echo
         echo '```'
         echo "Source revision: $(git -C "$repo_root" rev-parse --short HEAD 2>/dev/null || echo unknown)"
@@ -261,10 +271,14 @@ offer_error_report() {
             "$state_dir/romraider-launch.log" \
             "$HOME/.RomRaider/romraider_sout.log"; do
             [[ -s "$extra_log" ]] || continue
+            case "$extra_log" in
+                *j2534-probe.log) log_bytes=12000 ;;
+                *) log_bytes=2500 ;;
+            esac
             echo
-            echo "Application log: $extra_log (last 3,500 bytes)"
+            echo "Application log: $extra_log (last $log_bytes bytes)"
             echo '```text'
-            tail -c 3500 "$extra_log"
+            tail -c "$log_bytes" "$extra_log"
             echo
             echo '```'
         done
@@ -542,14 +556,7 @@ install_ecuflash_runtime() {
 
 restore_openport_after_probe() {
     local wine_runner=$1 prefix=$2 registry_dir=$3 restore_log=$4 expect_present=${5:-false}
-    local runtime_bin wineserver
-
-    runtime_bin=$(dirname -- "$(command -v "$wine_runner" 2>/dev/null || printf '%s' "$wine_runner")")
-    wineserver="$runtime_bin/wineserver"
-    if [[ -x "$wineserver" ]]; then
-        WINEPREFIX="$prefix" "$wineserver" -k >>"$restore_log" 2>&1 || true
-        WINEPREFIX="$prefix" "$wineserver" -w >>"$restore_log" 2>&1 || true
-    fi
+    stop_wine_prefix "$wine_runner" "$prefix" "$restore_log"
     if [[ "$expect_present" == true ]] && ! wait_for_stable_openport; then
         warn "OpenPort did not remain stable after the communication probe."
     fi
@@ -653,7 +660,7 @@ if [[ "$mode" == update ]]; then
             set +e
             WINEPREFIX="$ecuflash_prefix" \
                 WINEDLLPATH="$data_dir/winedll" \
-                WINEDEBUG=-all,+loaddll LOG_ENABLE="$state_dir/ecuflash-j2534.log" \
+                WINEDEBUG=-all,+seh LOG_ENABLE="$state_dir/ecuflash-j2534.log" \
                 "$update_wine" "$data_dir/tools/j2534-probe.exe" \
                 >"$update_probe_log" 2>&1
             update_probe_status=$?
@@ -671,7 +678,7 @@ if [[ "$mode" == update ]]; then
             set +e
             WINEPREFIX="$ecuflash_prefix" \
                 WINEDLLPATH="$data_dir/winedll" \
-                WINEDEBUG=-all,+loaddll LOG_ENABLE="$state_dir/ecuflash-j2534.log" \
+                WINEDEBUG=-all,+seh LOG_ENABLE="$state_dir/ecuflash-j2534.log" \
                 "$update_wine" "$data_dir/tools/j2534-probe.exe" --expect-absent \
                 >"$update_probe_log" 2>&1
             update_probe_status=$?
@@ -1100,9 +1107,7 @@ if $install_ecuflash; then
     ) >"$smoke_log" 2>&1
     smoke_status=$?
     set -e
-    ecuflash_wineserver="$(dirname -- "$(command -v "$ecuflash_wine" 2>/dev/null || printf '%s' "$ecuflash_wine")")/wineserver"
-    [[ -x "$ecuflash_wineserver" ]] && \
-        WINEPREFIX="$ecuflash_prefix" "$ecuflash_wineserver" -k >/dev/null 2>&1 || true
+    stop_wine_prefix "$ecuflash_wine" "$ecuflash_prefix"
     if [[ $smoke_status -ne 124 ]]; then
         fail "EcuFlash failed its startup test (status $smoke_status)."
         echo "Diagnostic log: $smoke_log" >&2
@@ -1121,11 +1126,23 @@ if $install_ecuflash; then
     set +e
     WINEPREFIX="$ecuflash_prefix" \
         WINEDLLPATH="$data_dir/winedll" \
-        WINEDEBUG=-all,+loaddll LOG_ENABLE="$state_dir/ecuflash-j2534.log" \
+        WINEDEBUG=-all,+seh LOG_ENABLE="$state_dir/ecuflash-j2534.log" \
         "$ecuflash_wine" "$data_dir/tools/j2534-probe.exe" "${probe_args[@]}" \
         >"$ecuflash_probe_log" 2>&1
     ecuflash_probe_status=$?
     set -e
+    if ((ecuflash_probe_status)); then
+        warn "The first J2534 probe did not complete; restarting Wine and retrying once."
+        stop_wine_prefix "$ecuflash_wine" "$ecuflash_prefix" "$ecuflash_probe_log"
+        set +e
+        WINEPREFIX="$ecuflash_prefix" \
+            WINEDLLPATH="$data_dir/winedll" \
+            WINEDEBUG=-all,+seh LOG_ENABLE="$state_dir/ecuflash-j2534.log" \
+            "$ecuflash_wine" "$data_dir/tools/j2534-probe.exe" "${probe_args[@]}" \
+            >>"$ecuflash_probe_log" 2>&1
+        ecuflash_probe_status=$?
+        set -e
+    fi
     restore_openport_after_probe "$ecuflash_wine" "$ecuflash_prefix" \
         "$data_dir/registry" "$ecuflash_bridge_log" \
         "$([[ ${#probe_args[@]} -eq 0 ]] && echo true || echo false)"
@@ -1152,8 +1169,7 @@ if $install_ecuflash; then
             "$bin_dir/launch-ecuflash" >"$post_probe_log" 2>&1
         post_probe_status=$?
         set -e
-        [[ -x "$ecuflash_wineserver" ]] && \
-            WINEPREFIX="$ecuflash_prefix" "$ecuflash_wineserver" -k >/dev/null 2>&1 || true
+        stop_wine_prefix "$ecuflash_wine" "$ecuflash_prefix"
         if [[ $post_probe_status -ne 124 ]]; then
             fail "EcuFlash failed its post-probe startup test (status $post_probe_status)."
             echo "Diagnostic log: $post_probe_log" >&2
