@@ -100,6 +100,23 @@ run_with_openport_access() {
     newgrp uucp -c "exec${group_command}"
 }
 
+capture_verbose_openport_probe() {
+    local wine_runner=$1 prefix=$2 winedll_path=$3 probe=$4 trace_log=$5
+    shift 5
+    {
+        echo
+        echo '=== Failure-only Wine OpenPort driver/PnP trace ==='
+    } >>"$trace_log"
+    stop_wine_prefix "$wine_runner" "$prefix" "$trace_log"
+    set +e
+    run_with_openport_access env WINEPREFIX="$prefix" \
+        WINEDLLPATH="$winedll_path" \
+        WINEDEBUG=-all,+loaddll,+plugplay,+service,+setupapi,+module \
+        "$wine_runner" "$probe" "$@" >>"$trace_log" 2>&1
+    set -e
+    stop_wine_prefix "$wine_runner" "$prefix" "$trace_log"
+}
+
 openport_usb_present() {
     local sysfs_root=${OPENPORT_USB_SYSFS_ROOT:-/sys/bus/usb/devices}
     local vendor_file product_file vendor product
@@ -348,7 +365,7 @@ github_repo=Natzirt-BK/subaru-ecu-tools-linux
 ecuflash_vendor_j2534_sha256=f432084801762d919a3c31974616e097562424470003edc4f4fb843df34103cf
 offer_error_report() {
     local user_description=${1:-}
-    local report_file upload_error issue_url extra_log log_bytes usb_report
+    local report_file upload_error issue_url extra_log log_bytes usb_report latest_ecuflash_log
 
     $setup_interactive || return 0
     warn "The public report includes OpenPort USB descriptors, permissions, udev data, and recent filtered USB events. It may include the adapter serial and host USB details; review the report before sharing."
@@ -393,9 +410,15 @@ offer_error_report() {
         echo
         echo '```'
         echo
+        latest_ecuflash_log=$(find "$ecuflash_prefix/drive_c/users" -type f \
+            -path '*/OpenECU/EcuFlash/logs/*' -printf '%T@ %p\n' 2>/dev/null | \
+            sort -nr | head -1 | cut -d' ' -f2- || true)
         for extra_log in \
             "$cache_root/ecuflash-j2534-probe.log" \
             "$state_dir/ecuflash-j2534-probe.log" \
+            "$cache_root/ecuflash-startup.log" \
+            "$cache_root/ecuflash-post-probe-startup.log" \
+            "$latest_ecuflash_log" \
             "$state_dir/ecuflash-force-refresh.log" \
             "$state_dir/ecuflash-j2534.log" \
             "$state_dir/ecuflash-launch.log" \
@@ -406,6 +429,7 @@ offer_error_report() {
             [[ -s "$extra_log" ]] || continue
             case "$extra_log" in
                 *j2534-probe.log) log_bytes=12000 ;;
+                *ecuflash_log_*) log_bytes=6000 ;;
                 *) log_bytes=2500 ;;
             esac
             echo
@@ -806,6 +830,11 @@ if [[ "$mode" == update ]]; then
             restore_openport_after_probe "$update_wine" "$ecuflash_prefix" \
                 "$data_dir/registry" "$update_refresh_log" true
             if ((update_probe_status)); then
+                capture_verbose_openport_probe "$update_wine" "$ecuflash_prefix" \
+                    "$data_dir/winedll" "$data_dir/tools/j2534-probe.exe" \
+                    "$update_probe_log"
+                restore_openport_after_probe "$update_wine" "$ecuflash_prefix" \
+                    "$data_dir/registry" "$update_refresh_log" true
                 fail "The read-only OpenPort J2534 probe failed with status $update_probe_status."
                 echo "Diagnostic log: $update_probe_log" >&2
                 tail -50 "$update_probe_log" >&2 || true
@@ -1294,6 +1323,12 @@ if $install_ecuflash; then
         "$data_dir/registry" "$ecuflash_bridge_log" \
         "$([[ ${#probe_args[@]} -eq 0 ]] && echo true || echo false)"
     if ((ecuflash_probe_status)); then
+        capture_verbose_openport_probe "$ecuflash_wine" "$ecuflash_prefix" \
+            "$data_dir/winedll" "$data_dir/tools/j2534-probe.exe" \
+            "$ecuflash_probe_log" "${probe_args[@]}"
+        restore_openport_after_probe "$ecuflash_wine" "$ecuflash_prefix" \
+            "$data_dir/registry" "$ecuflash_bridge_log" \
+            "$([[ ${#probe_args[@]} -eq 0 ]] && echo true || echo false)"
         fail "The OpenPort J2534 state probe failed with status $ecuflash_probe_status."
         echo "Diagnostic log: $ecuflash_probe_log" >&2
         tail -50 "$ecuflash_probe_log" >&2 || true
