@@ -123,6 +123,11 @@ The launcher checks Linux USB sysfs for the OpenPort 2.0 hardware ID
 while the cable is physically present and removes stale enumeration when it is
 unplugged. An installed J2534 provider or an EcuFlash status-bar label is not,
 by itself, proof of cable communication; use the read-only J2534 probe for that.
+After a connected-cable probe, setup shuts down the probe's Wine server,
+republishes the physical USB state, and starts EcuFlash through the installed
+launcher. Setup fails if that fresh EcuFlash session reports `J2534 error [no
+devices available]`, preventing a successful probe from masking a device that
+was not released for EcuFlash.
 
 Setup can now download and install the checksum-pinned RomRaider DimeMod DM20
 Linux package and its required Azul Zulu 32-bit Java runtime automatically at

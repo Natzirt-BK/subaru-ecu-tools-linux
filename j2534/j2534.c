@@ -55,6 +55,7 @@ typedef struct _connection
 	struct libusb_context *ctx;
 	struct libusb_device_handle *dev_handle;
 	int kernel_driver_detached;
+	int auto_detach_enabled;
 } connection_t;
 
 typedef struct _endpoint
@@ -664,9 +665,17 @@ int32_t PassThruOpen(const void *pName, unsigned long *pDeviceID)
 		}
 	}
 
-	//find out if kernel driver is attached
+	/* Prefer libusb's automatic detach/reattach lifecycle. A manual detach can
+	   leave Wine's USB interface unavailable after a diagnostic probe. */
 	con->kernel_driver_detached = FALSE;
-	if (libusb_kernel_driver_active(con->dev_handle, endpoint->intf_num) == 1)
+	con->auto_detach_enabled =
+		libusb_set_auto_detach_kernel_driver(con->dev_handle, 1) == LIBUSB_SUCCESS;
+	if (con->auto_detach_enabled)
+	{
+		if (write_log)
+			writelog("\tAutomatic Kernel Driver Reattach Enabled\n");
+	}
+	else if (libusb_kernel_driver_active(con->dev_handle, endpoint->intf_num) == 1)
 	{
 		if (write_log)
 			writelog("\tKernel Driver Active\n");
@@ -739,15 +748,17 @@ int32_t PassThruClose(const unsigned long DeviceID)
 		strcpy(data, "atz\r\n");
 		r = usb_send_expect(data, strlen(data), MAX_LEN, 2000, NULL);
 		r = libusb_release_interface(con->dev_handle, endpoint->intf_num);
-		/* Always offer the interface back. This also repairs an interface left
-		   detached by an older bridge or an interrupted diagnostic probe. */
-		int attach_result = libusb_attach_kernel_driver(con->dev_handle, endpoint->intf_num);
-		if (write_log)
+		if (!con->auto_detach_enabled && con->kernel_driver_detached)
 		{
-			writelog(attach_result == LIBUSB_SUCCESS ?
-				"Kernel Driver Reattached\n" : "No Kernel Driver Reattached\n");
+			int attach_result = libusb_attach_kernel_driver(con->dev_handle, endpoint->intf_num);
+			if (write_log)
+				writelog(attach_result == LIBUSB_SUCCESS ?
+					"Kernel Driver Reattached\n" : "Kernel Driver Reattach Failed\n");
 		}
+		else if (write_log && con->auto_detach_enabled)
+			writelog("Automatic Kernel Driver Reattach Requested\n");
 		con->kernel_driver_detached = FALSE;
+		con->auto_detach_enabled = FALSE;
 		libusb_close(con->dev_handle);
 		libusb_exit(con->ctx);
 		con->dev_handle = NULL;

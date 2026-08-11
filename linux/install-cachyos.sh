@@ -466,6 +466,23 @@ install_ecuflash_runtime() {
     ok "Project-built Wine 11.1 runtime verified."
 }
 
+restore_openport_after_probe() {
+    local wine_runner=$1 prefix=$2 registry_dir=$3 restore_log=$4
+    local runtime_bin wineserver
+
+    runtime_bin=$(dirname -- "$(command -v "$wine_runner" 2>/dev/null || printf '%s' "$wine_runner")")
+    wineserver="$runtime_bin/wineserver"
+    if [[ -x "$wineserver" ]]; then
+        WINEPREFIX="$prefix" "$wineserver" -k >>"$restore_log" 2>&1 || true
+        WINEPREFIX="$prefix" "$wineserver" -w >>"$restore_log" 2>&1 || true
+    fi
+    OPENPORT_REGISTRY_DIR="$registry_dir" \
+    OPENPORT_STATE_LOG="$restore_log" \
+    ECUFLASH_WINE="$wine_runner" \
+    ECUFLASH_WINEPREFIX="$prefix" \
+        "$bin_dir/sync-openport-device-state" >/dev/null
+}
+
 if [[ "$mode" == update ]]; then
     section "Auditing installed files against the latest release"
     if ! pacman -Q lib32-libusb &>/dev/null; then
@@ -568,6 +585,8 @@ if [[ "$mode" == update ]]; then
                 >"$update_probe_log" 2>&1
             update_probe_status=$?
             set -e
+            restore_openport_after_probe "$update_wine" "$ecuflash_prefix" \
+                "$data_dir/registry" "$update_refresh_log"
             if ((update_probe_status)); then
                 fail "The read-only OpenPort J2534 probe failed with status $update_probe_status."
                 echo "Diagnostic log: $update_probe_log" >&2
@@ -585,6 +604,8 @@ if [[ "$mode" == update ]]; then
                 >"$update_probe_log" 2>&1
             update_probe_status=$?
             set -e
+            restore_openport_after_probe "$update_wine" "$ecuflash_prefix" \
+                "$data_dir/registry" "$update_refresh_log"
             if ((update_probe_status)); then
                 fail "The unplugged OpenPort probe did not report device-not-connected."
                 echo "Diagnostic log: $update_probe_log" >&2
@@ -1035,6 +1056,8 @@ if $install_ecuflash; then
         >"$ecuflash_probe_log" 2>&1
     ecuflash_probe_status=$?
     set -e
+    restore_openport_after_probe "$ecuflash_wine" "$ecuflash_prefix" \
+        "$data_dir/registry" "$ecuflash_bridge_log"
     if ((ecuflash_probe_status)); then
         fail "The OpenPort J2534 state probe failed with status $ecuflash_probe_status."
         echo "Diagnostic log: $ecuflash_probe_log" >&2
@@ -1045,6 +1068,37 @@ if $install_ecuflash; then
         ok "Unplugged OpenPort probe correctly reported device-not-connected."
     else
         ok "Physical OpenPort communication probe passed."
+
+        step "Verifying EcuFlash after the communication probe"
+        post_probe_marker=$(mktemp "$cache_root/ecuflash-post-probe.XXXXXX")
+        post_probe_log="$cache_root/ecuflash-post-probe-startup.log"
+        set +e
+        timeout 12s env \
+            XDG_DATA_HOME="$data_root" \
+            XDG_STATE_HOME="${XDG_STATE_HOME:-$HOME/.local/state}" \
+            ECUFLASH_WINE="$ecuflash_wine" \
+            ECUFLASH_WINEPREFIX="$ecuflash_prefix" \
+            "$bin_dir/launch-ecuflash" >"$post_probe_log" 2>&1
+        post_probe_status=$?
+        set -e
+        [[ -x "$ecuflash_wineserver" ]] && \
+            WINEPREFIX="$ecuflash_prefix" "$ecuflash_wineserver" -k >/dev/null 2>&1 || true
+        if [[ $post_probe_status -ne 124 ]]; then
+            fail "EcuFlash failed its post-probe startup test (status $post_probe_status)."
+            echo "Diagnostic log: $post_probe_log" >&2
+            exit 1
+        fi
+        post_probe_error_log=$(find "$ecuflash_prefix/drive_c/users" -type f \
+            -path '*/OpenECU/EcuFlash/logs/*' -newer "$post_probe_marker" \
+            -exec grep -il 'J2534 error.*no devices available' {} + 2>/dev/null | \
+            sed -n '1p' || true)
+        rm -f -- "$post_probe_marker"
+        if [[ -n "$post_probe_error_log" ]]; then
+            fail "EcuFlash could not access the connected OpenPort after validation."
+            echo "EcuFlash log: $post_probe_error_log" >&2
+            exit 1
+        fi
+        ok "EcuFlash remained running after the probe without a no-devices error."
     fi
 fi
 

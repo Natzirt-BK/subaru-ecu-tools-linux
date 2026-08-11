@@ -97,6 +97,12 @@ attached, the OpenPort device-interface keys are removed so EcuFlash cannot
 mistake an installed bridge for connected hardware. Physical presence and a
 successful read-only J2534 probe are separate checks.
 
+The bridge asks libusb to detach and automatically reattach the kernel driver
+when a J2534 session closes. After setup runs its probe, it also restarts the
+selected Wine server and republishes the actual USB state before launching
+EcuFlash. A new EcuFlash log containing `J2534 error [no devices available]`
+causes setup to fail instead of reporting a false success.
+
 ## EvoScan (experimental)
 
 EvoScan is paid, account/serial-bound software and is not redistributed here.
