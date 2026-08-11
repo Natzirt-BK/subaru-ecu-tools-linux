@@ -148,6 +148,76 @@ wait_for_stable_openport() {
     return 1
 }
 
+write_openport_usb_diagnostics() {
+    local sysfs_root=${OPENPORT_USB_SYSFS_ROOT:-/sys/bus/usb/devices}
+    local vendor_file product_file device_dir vendor product busnum devnum node value
+    local found=false
+
+    printf 'Captured: %s\n' "$(date --iso-8601=seconds 2>/dev/null || date)"
+    printf 'User and groups: %s\n' "$(id)"
+    printf 'OpenPort lsusb: '
+    if command -v lsusb >/dev/null 2>&1; then
+        lsusb -d 0403:cc4d 2>&1 || true
+    else
+        echo 'lsusb is unavailable'
+    fi
+
+    for vendor_file in "$sysfs_root"/*/idVendor; do
+        [[ -f "$vendor_file" ]] || continue
+        read -r vendor <"$vendor_file" || continue
+        [[ "${vendor,,}" == 0403 ]] || continue
+        device_dir=${vendor_file%/idVendor}
+        product_file=$device_dir/idProduct
+        [[ -f "$product_file" ]] || continue
+        read -r product <"$product_file" || continue
+        [[ "${product,,}" == cc4d ]] || continue
+        found=true
+        printf 'Sysfs device: %s\n' "${device_dir##*/}"
+        for value in busnum devnum authorized; do
+            if [[ -r "$device_dir/$value" ]]; then
+                printf '  %s: ' "$value"
+                sed -n '1p' "$device_dir/$value"
+            fi
+        done
+        if [[ -L "$device_dir/driver" ]]; then
+            printf '  kernel driver: %s\n' "$(basename -- "$(readlink -f "$device_dir/driver")")"
+        else
+            echo '  kernel driver: none'
+        fi
+        read -r busnum <"$device_dir/busnum" || busnum=
+        read -r devnum <"$device_dir/devnum" || devnum=
+        if [[ "$busnum" =~ ^[0-9]+$ && "$devnum" =~ ^[0-9]+$ ]]; then
+            printf -v node '/dev/bus/usb/%03d/%03d' "$busnum" "$devnum"
+            if [[ -e "$node" ]]; then
+                stat -c '  device node: %A %U:%G (%a) %n' "$node" 2>&1 || true
+                if run_with_openport_access test -r "$node"; then
+                    echo '  effective read access: yes'
+                else
+                    echo '  effective read access: no'
+                fi
+                if run_with_openport_access test -w "$node"; then
+                    echo '  effective write access: yes'
+                else
+                    echo '  effective write access: no'
+                fi
+                if command -v fuser >/dev/null 2>&1; then
+                    printf '  processes using node: '
+                    fuser "$node" 2>&1 || echo 'none detected'
+                fi
+            else
+                printf '  device node: missing (%s)\n' "$node"
+            fi
+        fi
+        if command -v udevadm >/dev/null 2>&1; then
+            echo '  selected udev properties:'
+            udevadm info --query=property --path="$device_dir" 2>/dev/null | \
+                grep -E '^(DEVPATH|DEVNAME|DRIVER|ID_VENDOR_ID|ID_MODEL_ID|TAGS|CURRENT_TAGS)=' | \
+                sed 's/^/    /' || true
+        fi
+    done
+    $found || echo 'Sysfs OpenPort match: none'
+}
+
 usage() {
     cat <<'EOF'
 Usage: linux/install-cachyos.sh [options]
@@ -278,6 +348,11 @@ offer_error_report() {
         echo "Source revision: $(git -C "$repo_root" rev-parse --short HEAD 2>/dev/null || echo unknown)"
         echo "Installed launcher: $(sha256sum "$bin_dir/launch-ecuflash" 2>/dev/null || echo missing)"
         echo "Installed J2534 DLL: $(sha256sum "$ecuflash_prefix/drive_c/windows/syswow64/op20pt32.dll" 2>/dev/null || echo missing)"
+        echo
+        echo 'OpenPort USB access diagnostics:'
+        echo '```text'
+        write_openport_usb_diagnostics
+        echo '```'
         echo
         for extra_log in \
             "$cache_root/ecuflash-j2534-probe.log" \
