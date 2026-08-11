@@ -57,23 +57,23 @@ fi
 
 bridge_windows="$ECUFLASH_WINEDLLPATH/x86_64-windows/openport.sys"
 bridge_unix="$ECUFLASH_WINEDLLPATH/x86_64-unix/openport.so"
-bridge_j2534_windows="$ECUFLASH_WINEDLLPATH/i386-windows/op20pt32.dll"
-bridge_j2534_unix="$ECUFLASH_WINEDLLPATH/x86_64-unix/op20pt32.so"
 bridge_registry="$ECU_TOOLS_DATA_DIR/registry"
 bridge_state_sync=$(dirname -- "$0")/sync-openport-device-state
 bridge_driver_dir="$ECUFLASH_WINEPREFIX/drive_c/windows/system32/drivers"
 bridge_j2534_target="$ECUFLASH_WINEPREFIX/drive_c/windows/syswow64/op20pt32.dll"
-bridge_j2534_vendor_backup="$ECUFLASH_WINEPREFIX/drive_c/windows/syswow64/op20pt32.vendor.dll"
+bridge_j2534_vendor="$ECUFLASH_DIR/drivers/openport 2.0/op20pt32.dll"
+bridge_j2534_vendor_sha256=f432084801762d919a3c31974616e097562424470003edc4f4fb843df34103cf
 bridge_marker="$ECUFLASH_WINEPREFIX/.openport-bridge-registered-v3"
 bridge_log="${XDG_STATE_HOME:-$HOME/.local/state}/subaru-ecu-tools-linux/ecuflash-openport-registration.log"
 state_dir=$(dirname -- "$bridge_log")
 launch_log="$state_dir/ecuflash-launch.log"
 launch_lock="$state_dir/ecuflash-launch.lock"
-LOG_ENABLE="$state_dir/ecuflash-j2534.log"
-export LOG_ENABLE
-if [ ! -f "$bridge_windows" ] || [ ! -f "$bridge_unix" ] || \
-   [ ! -f "$bridge_j2534_windows" ] || [ ! -f "$bridge_j2534_unix" ]; then
+if [ ! -f "$bridge_windows" ] || [ ! -f "$bridge_unix" ]; then
     report_error "The OpenPort Wine bridge is missing. Run Subaru & Evo ECU Tools Setup or Update."
+    exit 1
+fi
+if ! printf '%s  %s\n' "$bridge_j2534_vendor_sha256" "$bridge_j2534_vendor" | sha256sum -c - >/dev/null 2>&1; then
+    report_error "The official Tactrix J2534 DLL is missing or altered. Run a Clean reinstall."
     exit 1
 fi
 if [ ! -f "$bridge_registry/openport-driver-wine.reg" ] || \
@@ -86,7 +86,7 @@ if [ ! -f "$bridge_registry/openport-driver-wine.reg" ] || \
 fi
 bridge_fingerprint=$(sha256sum \
     "$bridge_windows" "$bridge_unix" \
-    "$bridge_j2534_windows" "$bridge_j2534_unix" \
+    "$bridge_j2534_vendor" \
     "$bridge_registry/openport2-wine.reg" \
     "$bridge_registry/openport-driver-wine.reg" \
     "$bridge_registry/openport2-device-present.reg" \
@@ -96,7 +96,7 @@ installed_fingerprint=$(cat "$bridge_marker" 2>/dev/null || true)
 if [ "$installed_fingerprint" != "$bridge_fingerprint" ] || \
    ! cmp -s "$bridge_windows" "$bridge_driver_dir/openport.sys" || \
    ! cmp -s "$bridge_unix" "$bridge_driver_dir/openport.so" || \
-   ! cmp -s "$bridge_j2534_windows" "$bridge_j2534_target"; then
+   ! cmp -s "$bridge_j2534_vendor" "$bridge_j2534_target"; then
     mkdir -p "$bridge_driver_dir" "$(dirname -- "$bridge_j2534_target")" \
         "$(dirname -- "$bridge_log")"
     wine_server="$(dirname -- "$ECUFLASH_WINE")/wineserver"
@@ -104,14 +104,9 @@ if [ "$installed_fingerprint" != "$bridge_fingerprint" ] || \
         WINEPREFIX="$ECUFLASH_WINEPREFIX" "$wine_server" -k >/dev/null 2>&1 || true
         WINEPREFIX="$ECUFLASH_WINEPREFIX" "$wine_server" -w >/dev/null 2>&1 || true
     fi
-    if [ -f "$bridge_j2534_target" ] && \
-       ! cmp -s "$bridge_j2534_windows" "$bridge_j2534_target" && \
-       [ ! -e "$bridge_j2534_vendor_backup" ]; then
-        cp -p -- "$bridge_j2534_target" "$bridge_j2534_vendor_backup"
-    fi
     install -m 0644 "$bridge_windows" "$bridge_driver_dir/openport.sys"
     install -m 0755 "$bridge_unix" "$bridge_driver_dir/openport.so"
-    install -m 0644 "$bridge_j2534_windows" "$bridge_j2534_target"
+    install -m 0644 "$bridge_j2534_vendor" "$bridge_j2534_target"
     if WINEPREFIX="$ECUFLASH_WINEPREFIX" WINEDEBUG=-all \
        "$ECUFLASH_WINE" regedit /S "$bridge_registry/openport2-wine.reg" \
        >"$bridge_log" 2>&1 && \
@@ -127,8 +122,6 @@ fi
 
 export WINEPREFIX="$ECUFLASH_WINEPREFIX"
 export WINEDLLPATH="$ECUFLASH_WINEDLLPATH${WINEDLLPATH:+:$WINEDLLPATH}"
-WINEDLLOVERRIDES="op20pt32,j2534=b${WINEDLLOVERRIDES:+;$WINEDLLOVERRIDES}"
-export WINEDLLOVERRIDES
 : "${WINEDEBUG:=-all,+loaddll}"
 export WINEDEBUG
 

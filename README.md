@@ -131,9 +131,11 @@ was not released for EcuFlash.
 Because an OpenPort reset can briefly re-enumerate it under a new Linux USB
 device number, setup waits for the replacement device to remain stable before
 starting EcuFlash.
-The post-test evaluates the complete J2534 sequence: an early transient
-no-device message is accepted only when EcuFlash subsequently opens the
-physical OpenPort through the installed bridge.
+Setup preserves and checksum-verifies Tactrix's official J2534 DLL, matching
+the configuration that completed real ECU reads and flashes. The project Wine
+kernel bridge supplies Linux USB access underneath that vendor implementation.
+The post-test requires EcuFlash itself to report vendor DLL version 1.02.4870
+and the connected adapter's serial number.
 
 Setup can now download and install the checksum-pinned RomRaider DimeMod DM20
 Linux package and its required Azul Zulu 32-bit Java runtime automatically at

@@ -107,8 +107,10 @@ EcuFlash. A new EcuFlash log containing `J2534 error [no devices available]`
 causes setup to fail instead of reporting a false success.
 Setup also waits for a connected OpenPort's sysfs device number to settle after
 the probe, since the adapter can briefly disconnect and re-enumerate on reset.
-An early no-device message is treated as a recovered transient only if the new
-J2534 log segment proves EcuFlash subsequently opened the physical adapter.
+The installer checksum-verifies and retains Tactrix's official J2534 DLL rather
+than replacing its ECU protocol implementation. The project Wine kernel bridge
+provides Linux USB access beneath it. The post-test requires EcuFlash's own new
+log to identify vendor DLL version 1.02.4870 and a device serial number.
 
 ## EvoScan (experimental)
 

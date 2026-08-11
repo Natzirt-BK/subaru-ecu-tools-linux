@@ -188,6 +188,7 @@ else
     exec > >(tee -a "$log_file") 2>&1
 fi
 github_repo=Natzirt-BK/subaru-ecu-tools-linux
+ecuflash_vendor_j2534_sha256=f432084801762d919a3c31974616e097562424470003edc4f4fb843df34103cf
 offer_error_report() {
     local user_description=${1:-}
     local answer report_file upload_error issue_url extra_log
@@ -223,7 +224,7 @@ offer_error_report() {
         echo '```'
         echo "Source revision: $(git -C "$repo_root" rev-parse --short HEAD 2>/dev/null || echo unknown)"
         echo "Installed launcher: $(sha256sum "$bin_dir/launch-ecuflash" 2>/dev/null || echo missing)"
-        echo "Installed J2534 DLL: $(sha256sum "$data_dir/winedll/i386-windows/op20pt32.dll" 2>/dev/null || echo missing)"
+        echo "Installed J2534 DLL: $(sha256sum "$ecuflash_prefix/drive_c/windows/syswow64/op20pt32.dll" 2>/dev/null || echo missing)"
         echo
         for extra_log in \
             "$cache_root/ecuflash-j2534-probe.log" \
@@ -538,22 +539,19 @@ if [[ "$mode" == update ]]; then
         bridge_build_log="$cache_root/openport-bridge-build.log"
         if LLVM_MINGW_ROOT=/opt/llvm-mingw WINEBUILD=$(command -v winebuild) \
             "$repo_root/wine-bridge/build-openport-driver.sh" >"$bridge_build_log" 2>&1; then
-            install -d "$data_dir/winedll/i386-windows" \
-                "$data_dir/winedll/x86_64-windows" "$data_dir/winedll/x86_64-unix"
+            install -d "$data_dir/winedll/x86_64-windows" "$data_dir/winedll/x86_64-unix"
             install -m 0644 "$repo_root/build-wine-bridge/winedll/x86_64-windows/openport.sys" \
                 "$data_dir/winedll/x86_64-windows/openport.sys"
             install -m 0755 "$repo_root/build-wine-bridge/winedll/x86_64-unix/openport.so" \
                 "$data_dir/winedll/x86_64-unix/openport.so"
-            for bridge_name in op20pt32 j2534; do
-                install -m 0644 "$repo_root/build-wine-bridge/winedll/i386-windows/$bridge_name.dll" \
-                    "$data_dir/winedll/i386-windows/$bridge_name.dll"
-                install -m 0755 "$repo_root/build-wine-bridge/winedll/x86_64-unix/$bridge_name.so" \
-                    "$data_dir/winedll/x86_64-unix/$bridge_name.so"
-            done
+            rm -f -- "$data_dir/winedll/i386-windows/op20pt32.dll" \
+                "$data_dir/winedll/i386-windows/j2534.dll" \
+                "$data_dir/winedll/x86_64-unix/op20pt32.so" \
+                "$data_dir/winedll/x86_64-unix/j2534.so"
             install -d "$data_dir/tools"
             install -m 0755 "$repo_root/build-wine-bridge/j2534-probe.exe" \
                 "$data_dir/tools/j2534-probe.exe"
-            ok "OpenPort kernel and direct J2534 bridge files are current."
+            ok "OpenPort kernel bridge and diagnostic files are current."
         else
             fail "OpenPort bridge update failed. Diagnostic log: $bridge_build_log"
             tail -50 "$bridge_build_log" >&2 || true
@@ -571,7 +569,7 @@ if [[ "$mode" == update ]]; then
         update_wineserver="$update_runtime_bin/wineserver"
         update_driver_dir="$ecuflash_prefix/drive_c/windows/system32/drivers"
         update_j2534_target="$ecuflash_prefix/drive_c/windows/syswow64/op20pt32.dll"
-        update_j2534_backup="$ecuflash_prefix/drive_c/windows/syswow64/op20pt32.vendor.dll"
+        update_j2534_vendor="$ecuflash_prefix/drive_c/Program Files (x86)/OpenECU/EcuFlash/drivers/openport 2.0/op20pt32.dll"
         update_refresh_log="$state_dir/ecuflash-force-refresh.log"
         update_probe_log="$state_dir/ecuflash-j2534-probe.log"
         install -d "$update_driver_dir" "$(dirname -- "$update_j2534_target")" "$state_dir"
@@ -583,12 +581,12 @@ if [[ "$mode" == update ]]; then
             "$ecuflash_prefix/.openport-bridge-registered-v3"
         WINEPREFIX="$ecuflash_prefix" WINEDEBUG=-all \
             "$update_wine" wineboot -u >"$update_refresh_log" 2>&1
-        if [[ -f "$update_j2534_target" ]] && \
-           ! cmp -s "$data_dir/winedll/i386-windows/op20pt32.dll" "$update_j2534_target" && \
-           [[ ! -e "$update_j2534_backup" ]]; then
-            cp -p -- "$update_j2534_target" "$update_j2534_backup"
-        fi
-        install -m 0644 "$data_dir/winedll/i386-windows/op20pt32.dll" \
+        printf '%s  %s\n' "$ecuflash_vendor_j2534_sha256" "$update_j2534_vendor" | \
+            sha256sum -c - >/dev/null 2>&1 || {
+            fail "The official Tactrix J2534 DLL is missing or altered; run a Clean reinstall."
+            exit 1
+        }
+        install -m 0644 "$update_j2534_vendor" \
             "$update_j2534_target"
         install -m 0644 "$data_dir/winedll/x86_64-windows/openport.sys" \
             "$update_driver_dir/openport.sys"
@@ -605,7 +603,7 @@ if [[ "$mode" == update ]]; then
         ECUFLASH_WINE="$update_wine" \
         ECUFLASH_WINEPREFIX="$ecuflash_prefix" \
             "$bin_dir/sync-openport-device-state" >/dev/null
-        cmp -s "$data_dir/winedll/i386-windows/op20pt32.dll" "$update_j2534_target" || {
+        cmp -s "$update_j2534_vendor" "$update_j2534_target" || {
             fail "The EcuFlash J2534 DLL failed post-update verification."
             exit 1
         }
@@ -619,7 +617,6 @@ if [[ "$mode" == update ]]; then
             set +e
             WINEPREFIX="$ecuflash_prefix" \
                 WINEDLLPATH="$data_dir/winedll" \
-                WINEDLLOVERRIDES='op20pt32,j2534=b' \
                 WINEDEBUG=-all,+loaddll LOG_ENABLE="$state_dir/ecuflash-j2534.log" \
                 "$update_wine" "$data_dir/tools/j2534-probe.exe" \
                 >"$update_probe_log" 2>&1
@@ -638,7 +635,6 @@ if [[ "$mode" == update ]]; then
             set +e
             WINEPREFIX="$ecuflash_prefix" \
                 WINEDLLPATH="$data_dir/winedll" \
-                WINEDLLOVERRIDES='op20pt32,j2534=b' \
                 WINEDEBUG=-all,+loaddll LOG_ENABLE="$state_dir/ecuflash-j2534.log" \
                 "$update_wine" "$data_dir/tools/j2534-probe.exe" --expect-absent \
                 >"$update_probe_log" 2>&1
@@ -852,20 +848,17 @@ else
     exit 1
 fi
 
-install -d "$bin_dir" "$data_dir/winedll/i386-windows" \
-    "$data_dir/winedll/x86_64-windows" \
+install -d "$bin_dir" "$data_dir/winedll/x86_64-windows" \
     "$data_dir/winedll/x86_64-unix" "$applications_dir"
 install_managed_user_files
 install -m 0644 "$repo_root/build-wine-bridge/winedll/x86_64-windows/openport.sys" \
     "$data_dir/winedll/x86_64-windows/openport.sys"
 install -m 0755 "$repo_root/build-wine-bridge/winedll/x86_64-unix/openport.so" \
     "$data_dir/winedll/x86_64-unix/openport.so"
-for bridge_name in op20pt32 j2534; do
-    install -m 0644 "$repo_root/build-wine-bridge/winedll/i386-windows/$bridge_name.dll" \
-        "$data_dir/winedll/i386-windows/$bridge_name.dll"
-    install -m 0755 "$repo_root/build-wine-bridge/winedll/x86_64-unix/$bridge_name.so" \
-        "$data_dir/winedll/x86_64-unix/$bridge_name.so"
-done
+rm -f -- "$data_dir/winedll/i386-windows/op20pt32.dll" \
+    "$data_dir/winedll/i386-windows/j2534.dll" \
+    "$data_dir/winedll/x86_64-unix/op20pt32.so" \
+    "$data_dir/winedll/x86_64-unix/j2534.so"
 install -d "$data_dir/tools"
 install -m 0755 "$repo_root/build-wine-bridge/j2534-probe.exe" \
     "$data_dir/tools/j2534-probe.exe"
@@ -1009,13 +1002,13 @@ if $install_ecuflash; then
     install -m 0755 "$data_dir/winedll/x86_64-unix/openport.so" \
         "$ecuflash_driver_dir/openport.so"
     ecuflash_j2534_target="$ecuflash_prefix/drive_c/windows/syswow64/op20pt32.dll"
-    ecuflash_j2534_backup="$ecuflash_prefix/drive_c/windows/syswow64/op20pt32.vendor.dll"
-    if [[ -f "$ecuflash_j2534_target" ]] && \
-       ! cmp -s "$data_dir/winedll/i386-windows/op20pt32.dll" "$ecuflash_j2534_target" && \
-       [[ ! -e "$ecuflash_j2534_backup" ]]; then
-        cp -p -- "$ecuflash_j2534_target" "$ecuflash_j2534_backup"
-    fi
-    install -m 0644 "$data_dir/winedll/i386-windows/op20pt32.dll" \
+    ecuflash_j2534_vendor="$ecuflash_dir/drivers/openport 2.0/op20pt32.dll"
+    printf '%s  %s\n' "$ecuflash_vendor_j2534_sha256" "$ecuflash_j2534_vendor" | \
+        sha256sum -c - >/dev/null 2>&1 || {
+        fail "The official Tactrix J2534 DLL is missing or altered."
+        exit 1
+    }
+    install -m 0644 "$ecuflash_j2534_vendor" \
         "$ecuflash_j2534_target"
     if WINEPREFIX="$ecuflash_prefix" WINEDEBUG=-all \
         "$ecuflash_wine" regedit /S "$data_dir/registry/openport2-wine.reg" \
@@ -1031,8 +1024,7 @@ if $install_ecuflash; then
         bridge_fingerprint=$(sha256sum \
             "$data_dir/winedll/x86_64-windows/openport.sys" \
             "$data_dir/winedll/x86_64-unix/openport.so" \
-            "$data_dir/winedll/i386-windows/op20pt32.dll" \
-            "$data_dir/winedll/x86_64-unix/op20pt32.so" \
+            "$ecuflash_j2534_vendor" \
             "$data_dir/registry/openport2-wine.reg" \
             "$data_dir/registry/openport-driver-wine.reg" \
             "$data_dir/registry/openport2-device-present.reg" \
@@ -1090,7 +1082,6 @@ if $install_ecuflash; then
     set +e
     WINEPREFIX="$ecuflash_prefix" \
         WINEDLLPATH="$data_dir/winedll" \
-        WINEDLLOVERRIDES='op20pt32,j2534=b' \
         WINEDEBUG=-all,+loaddll LOG_ENABLE="$state_dir/ecuflash-j2534.log" \
         "$ecuflash_wine" "$data_dir/tools/j2534-probe.exe" "${probe_args[@]}" \
         >"$ecuflash_probe_log" 2>&1
@@ -1113,8 +1104,6 @@ if $install_ecuflash; then
         step "Verifying EcuFlash after the communication probe"
         post_probe_marker=$(mktemp "$cache_root/ecuflash-post-probe.XXXXXX")
         post_probe_log="$cache_root/ecuflash-post-probe-startup.log"
-        j2534_log="$state_dir/ecuflash-j2534.log"
-        j2534_log_size=$(wc -c <"$j2534_log" 2>/dev/null || echo 0)
         set +e
         timeout 12s env \
             XDG_DATA_HOME="$data_root" \
@@ -1131,30 +1120,22 @@ if $install_ecuflash; then
             echo "Diagnostic log: $post_probe_log" >&2
             exit 1
         fi
-        post_probe_error_log=$(find "$ecuflash_prefix/drive_c/users" -type f \
+        post_probe_ecuflash_log=$(find "$ecuflash_prefix/drive_c/users" -type f \
             -path '*/OpenECU/EcuFlash/logs/*' -newer "$post_probe_marker" \
-            -exec grep -il 'J2534 error.*no devices available' {} + 2>/dev/null | \
             sed -n '1p' || true)
-        post_probe_j2534_log="$cache_root/ecuflash-post-probe-j2534.log"
-        if [[ -f "$j2534_log" ]]; then
-            tail -c "+$((j2534_log_size + 1))" "$j2534_log" >"$post_probe_j2534_log"
-        else
-            : >"$post_probe_j2534_log"
-        fi
         rm -f -- "$post_probe_marker"
-        if grep -q 'DeviceID [0-9][0-9]* opened' "$post_probe_j2534_log"; then
-            if [[ -n "$post_probe_error_log" ]]; then
-                warn "EcuFlash logged a transient no-devices error, then successfully opened the OpenPort."
-            fi
-            ok "EcuFlash opened the connected OpenPort through the installed bridge."
-        elif [[ -n "$post_probe_error_log" ]]; then
+        if [[ -n "$post_probe_ecuflash_log" ]] && \
+           grep -q 'J2534 DLL Version: 1\.02\.4870' "$post_probe_ecuflash_log" && \
+           grep -q 'Device Serial Number:' "$post_probe_ecuflash_log"; then
+            ok "EcuFlash identified the OpenPort through the official Tactrix J2534 library."
+        elif [[ -n "$post_probe_ecuflash_log" ]] && \
+             grep -qi 'J2534 error.*no devices available' "$post_probe_ecuflash_log"; then
             fail "EcuFlash could not access the connected OpenPort after validation."
-            echo "EcuFlash log: $post_probe_error_log" >&2
-            echo "J2534 log: $post_probe_j2534_log" >&2
+            echo "EcuFlash log: $post_probe_ecuflash_log" >&2
             exit 1
         else
-            fail "EcuFlash did not open the connected OpenPort during validation."
-            echo "J2534 log: $post_probe_j2534_log" >&2
+            fail "EcuFlash did not identify the connected OpenPort with the official Tactrix library."
+            [[ -n "$post_probe_ecuflash_log" ]] && echo "EcuFlash log: $post_probe_ecuflash_log" >&2
             exit 1
         fi
     fi
