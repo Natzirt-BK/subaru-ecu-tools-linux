@@ -63,7 +63,11 @@ grep -F 'report_bytes <= 60000' "$engine" >/dev/null
 grep -F 'head -c 28000 "$full_report"' "$engine" >/dev/null
 grep -F 'tail -c 28000 "$full_report"' "$engine" >/dev/null
 grep -F 'Failure-only Wine OpenPort driver/PnP trace' "$engine" >/dev/null
-test "$(grep -n 'capture_openport_device_probe.*update_wine' "$engine" | cut -d: -f1)" \
+grep -F 'Prime it before the official DLL attempts PassThruOpen' "$engine" >/dev/null
+update_prime_line=$(grep -n 'capture_openport_device_probe.*update_wine' "$engine" | head -1 | cut -d: -f1)
+test "$update_prime_line" -lt \
+    "$(grep -n 'j2534-probe.exe' "$engine" | awk -F: -v prime="$update_prime_line" '$1 > prime {print $1; exit}')"
+test "$(grep -n 'capture_openport_device_probe.*update_wine' "$engine" | tail -1 | cut -d: -f1)" \
     -gt "$(grep -n 'capture_verbose_openport_probe.*update_wine' "$engine" | cut -d: -f1)"
 grep -F 'ecuflash-post-probe-startup.log' "$engine" >/dev/null
 grep -F 'wait_for_stable_openport' "$engine" >/dev/null

@@ -146,7 +146,7 @@ openport_usb_present() {
     return 1
 }
 
-openport_usb_accessible() {
+openport_usb_node() {
     local sysfs_root=${OPENPORT_USB_SYSFS_ROOT:-/sys/bus/usb/devices}
     local dev_root=${OPENPORT_USB_DEV_ROOT:-/dev/bus/usb}
     local vendor_file device_dir product_file vendor product busnum devnum node
@@ -164,8 +164,32 @@ openport_usb_accessible() {
         read -r devnum <"$device_dir/devnum" || continue
         [[ "$busnum" =~ ^[0-9]+$ && "$devnum" =~ ^[0-9]+$ ]] || continue
         printf -v node '%s/%03d/%03d' "$dev_root" "$busnum" "$devnum"
-        [[ -r "$node" && -w "$node" ]] && return 0
+        [[ -e "$node" ]] || continue
+        printf '%s\n' "$node"
+        return 0
     done
+    return 1
+}
+
+openport_usb_accessible() {
+    local node
+    node=$(openport_usb_node) || return 1
+    [[ -r "$node" && -w "$node" ]]
+}
+
+verify_openport_usb_access() {
+    local node
+    node=$(openport_usb_node) || {
+        fail "The OpenPort is detected, but its USB device node was not created."
+        return 1
+    }
+    if run_with_openport_access test -r "$node" && \
+       run_with_openport_access test -w "$node"; then
+        ok "udev grants effective read/write access to the connected OpenPort ($node)."
+        return 0
+    fi
+    stat -c 'OpenPort node: %A %U:%G (%a) %n' "$node" 2>/dev/null || true
+    fail "The OpenPort USB node is not readable and writable after applying the udev rule."
     return 1
 }
 
@@ -199,6 +223,34 @@ wait_for_stable_openport() {
         sleep 0.5
     done
     return 1
+}
+
+wait_for_openport_state() {
+    local expected=$1 instruction=$2 attempt
+    printf '\n%s\n' "$instruction"
+    for attempt in {1..120}; do
+        if [[ "$expected" == present ]]; then
+            openport_usb_present && wait_for_stable_openport && return 0
+        else
+            ! openport_usb_present && return 0
+        fi
+        sleep 0.5
+    done
+    fail "Timed out waiting for the OpenPort to become $expected."
+    return 1
+}
+
+verify_openport_hotplug_cycle() {
+    wait_for_openport_state absent \
+        "Unplug the OpenPort 2.0 USB cable. Detection will continue automatically." || return 1
+    ok "OpenPort removal detected."
+    wait_for_openport_state present \
+        "Plug the OpenPort 2.0 into USB. Detection will continue automatically." || return 1
+    ok "OpenPort connection detected and stable."
+    verify_openport_usb_access || return 1
+    wait_for_openport_state absent \
+        "Unplug the OpenPort once more to verify clean removal." || return 1
+    ok "OpenPort plug/unplug detection passed."
 }
 
 write_openport_usb_diagnostics() {
@@ -999,12 +1051,18 @@ if [[ "$mode" == update ]]; then
         }
         ok "Wine stopped, dependencies refreshed, bridge reloaded, and hashes verified."
         if openport_usb_present; then
+            : >"$update_probe_log"
+            # Starting the kernel service creates the standalone Wine device
+            # link.  Prime it before the official DLL attempts PassThruOpen.
+            capture_openport_device_probe "$update_wine" "$ecuflash_prefix" \
+                "$data_dir/winedll" "$data_dir/tools/openport-device-probe.exe" \
+                "$update_probe_log"
             set +e
             run_with_openport_access env WINEPREFIX="$ecuflash_prefix" \
                 WINEDLLPATH="$data_dir/winedll" \
                 WINEDEBUG=-all LOG_ENABLE="$state_dir/ecuflash-j2534.log" \
                 "$update_wine" "$data_dir/tools/j2534-probe.exe" \
-                >"$update_probe_log" 2>&1
+                >>"$update_probe_log" 2>&1
             update_probe_status=$?
             set -e
             restore_openport_after_probe "$update_wine" "$ecuflash_prefix" \
@@ -1279,10 +1337,36 @@ if $install_udev; then
     fi
     sudo install -m 0644 "$repo_root/linux/99-openport2.rules" \
         /etc/udev/rules.d/99-openport2.rules
+    sudo cmp -s "$repo_root/linux/99-openport2.rules" \
+        /etc/udev/rules.d/99-openport2.rules || {
+        fail "The installed OpenPort udev rule does not match the packaged rule."
+        exit 1
+    }
     sudo usermod -aG uucp "$USER"
     sudo udevadm control --reload-rules
     sudo udevadm trigger --subsystem-match=usb
-    echo "Added $USER to uucp. Log out and back in before using the Logger."
+    sudo udevadm settle --timeout=10 || {
+        fail "udev did not finish applying the OpenPort permission rule."
+        exit 1
+    }
+    ok "Installed and reloaded the OpenPort 2.0 udev permission rule."
+    if $setup_interactive; then
+        verify_openport_hotplug_cycle || exit 1
+        if $install_ecuflash; then
+            wait_for_openport_state present \
+                "Plug the OpenPort back in for the standalone driver and J2534 communication tests." || exit 1
+            verify_openport_usb_access || exit 1
+        fi
+    elif openport_usb_present; then
+        wait_for_stable_openport || {
+            fail "The connected OpenPort did not stabilize after applying the udev rule."
+            exit 1
+        }
+        verify_openport_usb_access || exit 1
+    else
+        echo "Connect the OpenPort to validate live USB permissions; the built-in System Check will verify them."
+    fi
+    echo "Added $USER to the uucp fallback group. A new login activates it for future sessions."
 fi
 
 if $install_romraider; then
@@ -1448,7 +1532,7 @@ if $install_ecuflash; then
     fi
 
     # Registration can start Wine before the connected-device entry is present.
-    # Restart here so the startup test gets a correctly bound OpenPort driver.
+    # Restart before the standalone driver and J2534 tests.
     stop_wine_prefix "$ecuflash_wine" "$ecuflash_prefix" "$ecuflash_bridge_log"
 
     # The vendor installer may create generic menu entries that invoke system
@@ -1462,25 +1546,6 @@ if $install_ecuflash; then
         exit 1
     fi
 
-    step "Testing EcuFlash startup for 12 seconds; leave its window open"
-    smoke_log="$cache_root/ecuflash-startup.log"
-    set +e
-    (
-        cd "$ecuflash_dir" || exit 1
-        timeout 12s env WINEPREFIX="$ecuflash_prefix" \
-            WINEDLLPATH="$data_dir/winedll" WINEDEBUG=-all \
-            "$ecuflash_wine" ecuflash.exe
-    ) >"$smoke_log" 2>&1
-    smoke_status=$?
-    set -e
-    stop_wine_prefix "$ecuflash_wine" "$ecuflash_prefix"
-    if [[ $smoke_status -ne 124 ]]; then
-        fail "EcuFlash failed its startup test (status $smoke_status)."
-        echo "Diagnostic log: $smoke_log" >&2
-        exit 1
-    fi
-    ok "EcuFlash remained running for the complete startup test."
-
     ecuflash_probe_log="$cache_root/ecuflash-j2534-probe.log"
     probe_args=()
     if openport_usb_present; then
@@ -1489,12 +1554,20 @@ if $install_ecuflash; then
         step "Verifying that the unplugged J2534 bridge reports device-not-connected"
         probe_args=(--expect-absent)
     fi
+    : >"$ecuflash_probe_log"
+    if ((${#probe_args[@]} == 0)); then
+        # Starting the kernel service creates the standalone Wine device link
+        # before the official DLL attempts PassThruOpen.
+        capture_openport_device_probe "$ecuflash_wine" "$ecuflash_prefix" \
+            "$data_dir/winedll" "$data_dir/tools/openport-device-probe.exe" \
+            "$ecuflash_probe_log"
+    fi
     set +e
     run_with_openport_access env WINEPREFIX="$ecuflash_prefix" \
         WINEDLLPATH="$data_dir/winedll" \
         WINEDEBUG=-all LOG_ENABLE="$state_dir/ecuflash-j2534.log" \
         "$ecuflash_wine" "$data_dir/tools/j2534-probe.exe" "${probe_args[@]}" \
-        >"$ecuflash_probe_log" 2>&1
+        >>"$ecuflash_probe_log" 2>&1
     ecuflash_probe_status=$?
     set -e
     if ((ecuflash_probe_status)); then

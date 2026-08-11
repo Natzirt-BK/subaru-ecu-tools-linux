@@ -111,6 +111,15 @@ grep -q '^openport_raw_access_state()' "$repo_root/linux/launch-romraider"
 grep -q 'Desktop uaccess did not grant access.*uucp fallback group' \
     "$repo_root/linux/launch-romraider"
 grep -q '^openport_usb_accessible()' "$repo_root/linux/install-cachyos.sh"
+grep -q '^openport_usb_node()' "$repo_root/linux/install-cachyos.sh"
+grep -q '^verify_openport_usb_access()' "$repo_root/linux/install-cachyos.sh"
+grep -q '^wait_for_openport_state()' "$repo_root/linux/install-cachyos.sh"
+grep -q '^verify_openport_hotplug_cycle()' "$repo_root/linux/install-cachyos.sh"
+grep -q 'OpenPort plug/unplug detection passed' "$repo_root/linux/install-cachyos.sh"
+grep -q 'sudo cmp -s.*99-openport2.rules' "$repo_root/linux/install-cachyos.sh"
+grep -q 'sudo udevadm settle --timeout=10' "$repo_root/linux/install-cachyos.sh"
+grep -q 'udev grants effective read/write access to the connected OpenPort' \
+    "$repo_root/linux/install-cachyos.sh"
 grep -q 'Current session has raw read/write OpenPort access' \
     "$repo_root/linux/install-cachyos.sh"
 if grep -q 'user is not in uucp group (required by the Logger shortcut)' \
