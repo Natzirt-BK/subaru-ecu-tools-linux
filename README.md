@@ -2,6 +2,8 @@
 
 Run EcuFlash and RomRaider on CachyOS or Arch Linux with a Tactrix OpenPort 2.0.
 
+Created and maintained by **Tristan Bukenberger**.
+
 ## Install
 
 Paste this into a terminal:
