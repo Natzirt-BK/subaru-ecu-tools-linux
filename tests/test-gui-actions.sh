@@ -18,8 +18,9 @@ run_choice() {
     expected=$3
     trace=$test_root/$name.trace
     output=$test_root/$name.output
-    printf '%s' "$keys" | TERM=dumb ECU_TOOLS_INSTALLER="$installer" TEST_TRACE="$trace" \
-        "$repo_root/linux/setup-cachyos-gui.sh" >"$output"
+    printf '%s' "$keys" | TERM=dumb SUBARU_SETUP_INPUT_DEVICE=/dev/stdin \
+        ECU_TOOLS_INSTALLER="$installer" TEST_TRACE="$trace" \
+        "$repo_root/linux/setup-cachyos-gui.sh" >"$output" 2>&1
     grep -F -- "$expected" "$trace" >/dev/null
     grep -F 'Select an option (no Enter required)' "$output" >/dev/null
 }
@@ -29,9 +30,14 @@ run_choice clean '2y' '--clean-install --yes'
 run_choice check '3' '--check'
 run_choice uninstall '4y' '--uninstall --yes'
 
-printf '1n' | TERM=dumb ECU_TOOLS_INSTALLER="$installer" TEST_TRACE="$test_root/cancel.trace" \
+printf '1n' | TERM=dumb SUBARU_SETUP_INPUT_DEVICE=/dev/stdin \
+    ECU_TOOLS_INSTALLER="$installer" TEST_TRACE="$test_root/cancel.trace" \
     "$repo_root/linux/setup-cachyos-gui.sh" >/dev/null
 test ! -e "$test_root/cancel.trace"
+
+run_choice invalid_then_check 'x3' '--check'
+grep -F 'Unknown selection. Press 1, 2, 3, 4, or Q.' \
+    "$test_root/invalid_then_check.output" >/dev/null
 
 engine=$repo_root/linux/install-cachyos.sh
 grep -F 'read -rsn1 key </dev/tty' "$engine" >/dev/null

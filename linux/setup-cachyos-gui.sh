@@ -21,6 +21,14 @@ fi
 cleanup_terminal() { printf '%b' "$reset"; }
 trap cleanup_terminal EXIT HUP INT TERM
 
+# The documented curl command feeds the bootstrap script through standard input.
+# Always take interactive keys from the controlling terminal instead of that pipe.
+input_device=${SUBARU_SETUP_INPUT_DEVICE:-/dev/tty}
+if ! exec 3<"$input_device"; then
+    printf 'Setup needs an interactive terminal for menu input.\n' >&2
+    exit 1
+fi
+
 draw_banner() {
     [[ ! -t 1 || "${TERM:-}" == dumb ]] || printf '\033[2J\033[H'
     printf '%b' "$blue$bold"
@@ -35,7 +43,7 @@ EOF
 
 read_key() {
     local key
-    IFS= read -rsn1 key || return 1
+    IFS= read -rsn1 -u 3 key || return 1
     printf '%s' "$key"
 }
 
@@ -62,9 +70,18 @@ draw_menu() {
 }
 
 draw_banner
-draw_menu
-choice=$(read_key) || exit 0
-printf '%s\n\n' "$choice"
+while true; do
+    draw_menu
+    choice=$(read_key) || exit 0
+    printf '%s\n\n' "$choice"
+    case "$choice" in
+        1|2|3|4|q|Q) break ;;
+        *)
+            printf '%b  Unknown selection.%b Press 1, 2, 3, 4, or Q.\n\n' \
+                "$red$bold" "$reset" >&2
+            ;;
+    esac
+done
 
 case "$choice" in
     1)
@@ -84,8 +101,4 @@ case "$choice" in
         exec "$installer" --uninstall --yes
         ;;
     q|Q) printf 'Setup closed.\n' ;;
-    *)
-        printf '%bUnknown selection.%b Run setup again and press 1, 2, 3, 4, or Q.\n' "$red" "$reset" >&2
-        exit 2
-        ;;
 esac
