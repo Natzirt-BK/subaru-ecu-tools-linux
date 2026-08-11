@@ -27,6 +27,11 @@ check 'official Tactrix DLL checksum' bash -c \
 check 'OpenPort visible in Linux' bash -c "lsusb -d 0403:cc4d >/dev/null"
 check 'fresh EcuFlash application log exists' test -n "$latest_ecuflash_log"
 if [[ -n "$latest_ecuflash_log" ]]; then
+    if [[ -n "${ECUFLASH_LOG_NOT_OLDER_THAN:-}" ]]; then
+        check 'EcuFlash log belongs to this test launch' bash -c \
+            "[[ \$(stat -c %Y \"\$1\") -ge \$2 ]]" _ \
+            "$latest_ecuflash_log" "$ECUFLASH_LOG_NOT_OLDER_THAN"
+    fi
     check 'EcuFlash loaded official J2534 DLL' grep -q 'J2534 DLL Version: 1\.02\.4870' "$latest_ecuflash_log"
     check 'EcuFlash read the adapter serial' grep -q 'Device Serial Number:' "$latest_ecuflash_log"
     check 'EcuFlash has no final no-device error' bash -c \

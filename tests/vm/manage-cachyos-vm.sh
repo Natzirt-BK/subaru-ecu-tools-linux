@@ -98,6 +98,11 @@ setup_vm() {
 attach_usb() {
     local xml
     vm_exists || { echo "$vm_name does not exist." >&2; exit 1; }
+    if virsh -c qemu:///system dumpxml "$vm_name" | \
+       grep -q "<vendor id='0x0403'/>"; then
+        echo 'OpenPort 2.0 is already attached to the test VM.'
+        return
+    fi
     lsusb -d 0403:cc4d >/dev/null 2>&1 || {
         echo 'OpenPort 2.0 is not connected to the host.' >&2
         exit 1
@@ -115,18 +120,48 @@ attach_usb() {
 
 detach_usb() {
     local xml
+    vm_exists || { echo "$vm_name does not exist." >&2; exit 1; }
+    if [[ "$(virsh -c qemu:///system domstate "$vm_name")" != running ]]; then
+        echo 'The test VM is not running; no live OpenPort attachment exists.'
+        return
+    fi
+    if ! virsh -c qemu:///system dumpxml "$vm_name" | \
+       grep -q "<vendor id='0x0403'/>"; then
+        echo 'OpenPort 2.0 is not attached to the test VM.'
+        return
+    fi
     xml=$(mktemp)
     trap 'rm -f -- "$xml"' RETURN
     write_openport_xml "$xml"
-    virsh -c qemu:///system detach-device "$vm_name" "$xml" --live || true
+    virsh -c qemu:///system detach-device "$vm_name" "$xml" --live
+    if virsh -c qemu:///system dumpxml "$vm_name" | \
+       grep -q "<vendor id='0x0403'/>"; then
+        echo 'OpenPort 2.0 is still attached to the test VM.' >&2
+        exit 1
+    fi
     echo 'OpenPort 2.0 has been returned to the host.'
 }
 
 eject_iso() {
     vm_exists || { echo "$vm_name does not exist." >&2; exit 1; }
-    local options=(--config)
+    local options=(--config) inactive_source live_source
     [[ "$(virsh -c qemu:///system domstate "$vm_name")" == running ]] && options+=(--live)
     virsh -c qemu:///system change-media "$vm_name" sda --eject "${options[@]}" || true
+    inactive_source=$(virsh -c qemu:///system domblklist "$vm_name" \
+        --inactive --details | awk '$3 == "sda" {print $4}')
+    if [[ -n "$inactive_source" && "$inactive_source" != - ]]; then
+        echo "Installer ISO remains attached in the saved VM definition: $inactive_source" >&2
+        exit 1
+    fi
+    if [[ "$(virsh -c qemu:///system domstate "$vm_name")" == running ]]; then
+        live_source=$(virsh -c qemu:///system domblklist "$vm_name" \
+            --details | awk '$3 == "sda" {print $4}')
+        if [[ -n "$live_source" && "$live_source" != - ]]; then
+            echo "Installer ISO remains attached to the running VM: $live_source" >&2
+            exit 1
+        fi
+    fi
+    echo 'Installer ISO is ejected.'
 }
 
 mark_clean() {

@@ -39,6 +39,7 @@ lsusb -d 0403:cc4d >/dev/null 2>&1 || {
 }
 
 rm -f -- "$stop_marker"
+launch_started=$(date +%s)
 ECUFLASH_TEST_STOP_MARKER="$stop_marker" "$launcher" \
     >"$launcher_output" 2>&1 &
 launcher_pid=$!
@@ -53,7 +54,8 @@ if ! kill -0 "$launcher_pid" 2>/dev/null; then
     exit 1
 fi
 
-"$repo_root/tests/vm/verify-installed.sh"
+ECUFLASH_LOG_NOT_OLDER_THAN="$launch_started" \
+    "$repo_root/tests/vm/verify-installed.sh"
 touch "$stop_marker"
 WINEPREFIX="$prefix" "$wineserver" -k >/dev/null 2>&1 || true
 if ! wait "$launcher_pid"; then
