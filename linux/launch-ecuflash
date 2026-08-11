@@ -195,6 +195,13 @@ kill "$monitor_pid" >/dev/null 2>&1 || true
 wait "$monitor_pid" >/dev/null 2>&1 || true
 set -e
 if [ "$wine_status" -ne 0 ]; then
-    report_error "EcuFlash exited with status $wine_status. Diagnostic log: $launch_log"
+    if [ -n "${ECUFLASH_TEST_STOP_MARKER:-}" ] && \
+       [ -f "$ECUFLASH_TEST_STOP_MARKER" ]; then
+        printf 'EcuFlash test session stopped intentionally after validation.\n' \
+            >>"$launch_log"
+        wine_status=0
+    else
+        report_error "EcuFlash exited with status $wine_status. Diagnostic log: $launch_log"
+    fi
 fi
 exit "$wine_status"

@@ -1,5 +1,9 @@
 # Disposable CachyOS release test
 
+This directory contains maintainer-only release qualification tooling. It is
+not used by the public installer and none of it is copied into a user's
+installation.
+
 This VM tests the public installer as an ordinary new user without changing the
 known-good host EcuFlash prefix.
 
@@ -32,9 +36,21 @@ Reset the VM, open its desktop, and run the qualification script inside it:
 ./tests/vm/manage-cachyos-vm.sh console
 ```
 
-Copy or type the public repository URL in the VM, then run
-`tests/vm/qualify-release.sh`. It deliberately clones GitHub into a blank home
-directory instead of using host files.
+Inside the VM, download only the qualification entry point and run it from
+temporary storage:
+
+```bash
+curl -fsSL \
+  https://raw.githubusercontent.com/Natzirt-BK/subaru-ecu-tools-linux/master/tests/vm/qualify-release.sh \
+  -o /tmp/qualify-release.sh
+chmod +x /tmp/qualify-release.sh
+/tmp/qualify-release.sh
+```
+
+The script deliberately clones GitHub into a blank home directory instead of
+using host files. Do not clone the repository to
+`~/subaru-ecu-tools-release-test` first; that path is the script's clean public
+checkout target.
 
 When the script asks for the physical adapter, connect it to the host and run:
 
@@ -42,8 +58,9 @@ When the script asks for the physical adapter, connect it to the host and run:
 ./tests/vm/manage-cachyos-vm.sh attach-usb
 ```
 
-Run `tests/vm/verify-installed.sh` inside the VM after EcuFlash has started with
-the adapter. This validates USB discovery and J2534 identity only. It never
+Run `tests/vm/run-connected-test.sh` inside the public checkout. It launches
+EcuFlash for 20 seconds, validates USB discovery and J2534 identity, and then
+closes the test session without displaying a false launcher error. It never
 reads or writes an ECU.
 
 Return the adapter afterward:
