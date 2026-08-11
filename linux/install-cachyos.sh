@@ -51,6 +51,10 @@ ui_stage=0
 ui_console_open=false
 ui_box_line() {
     local style=$1 text=$2 line
+    if [[ "$use_color" != true ]]; then
+        printf '  %s\n' "$text"
+        return 0
+    fi
     while IFS= read -r line || [[ -n "$line" ]]; do
         printf '%b║%b  %b%-66s%b%b║%b\n' \
             "$color_purple$color_bold" "$color_reset" "$style" "$line" \
