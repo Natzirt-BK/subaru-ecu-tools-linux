@@ -23,6 +23,30 @@ static pthread_mutex_t state_lock = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t read_lock = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t write_lock = PTHREAD_MUTEX_INITIALIZER;
 
+/* state_lock must be held. libusb descriptors may remain cached after unplug. */
+static int device_is_present(void)
+{
+    libusb_device **devices = NULL;
+    libusb_device *opened;
+    ssize_t count, i;
+    int present = 0;
+
+    if (!usb_context || !usb_device) return 0;
+    opened = libusb_get_device(usb_device);
+    count = libusb_get_device_list(usb_context, &devices);
+    if (count < 0) return 0;
+    for (i = 0; i < count; ++i)
+    {
+        if (devices[i] == opened)
+        {
+            present = 1;
+            break;
+        }
+    }
+    libusb_free_device_list(devices, 1);
+    return present;
+}
+
 /* state_lock must be held. */
 static void close_device(void)
 {
@@ -91,16 +115,13 @@ static NTSTATUS wrap_open(void *args)
     pthread_mutex_lock(&state_lock);
     if (open_count)
     {
-        struct libusb_device_descriptor descriptor;
-        result = usb_device ? libusb_get_device_descriptor(libusb_get_device(usb_device), &descriptor)
-                            : LIBUSB_ERROR_NO_DEVICE;
-        if (!result)
+        if (device_is_present())
         {
             ++open_count;
             fprintf(stderr, "openport: reuse handle count=%u\n", open_count);
             goto done;
         }
-        fprintf(stderr, "openport: discarding stale handle (%s)\n", libusb_error_name(result));
+        fprintf(stderr, "openport: discarding handle absent from live USB device list\n");
         close_device();
     }
     open_count = 1;

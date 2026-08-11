@@ -46,6 +46,16 @@ if grep -q '272&256' "$repo_root/wine-bridge/openport2-device-absent.reg"; then
     exit 1
 fi
 
+# Cached descriptors can survive unplug. Reuse requires membership in libusb's
+# current device list, not merely readable descriptor metadata.
+grep -q 'libusb_get_device_list' "$repo_root/wine-bridge/openport_unixlib.c"
+grep -q 'devices\[i\] == opened' "$repo_root/wine-bridge/openport_unixlib.c"
+if grep -q 'libusb_get_device_descriptor(libusb_get_device(usb_device)' \
+    "$repo_root/wine-bridge/openport_unixlib.c"; then
+    echo 'Stale-handle validation still relies on cached USB descriptor metadata.' >&2
+    exit 1
+fi
+
 echo 'OpenPort physical-device state tests passed.'
 
 # A running EcuFlash session must synchronize Wine once when physical USB state
