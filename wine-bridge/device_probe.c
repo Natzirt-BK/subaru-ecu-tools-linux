@@ -24,6 +24,60 @@ static void print_service(void)
     RegCloseKey(key);
 }
 
+static void start_service(void)
+{
+    SC_HANDLE manager, service;
+    SERVICE_STATUS_PROCESS status;
+    DWORD needed = 0, error, attempt;
+
+    ZeroMemory(&status, sizeof(status));
+    manager = OpenSCManagerA(NULL, NULL, SC_MANAGER_CONNECT);
+    if (!manager)
+    {
+        printf("SCM_OPEN=FAIL ERROR=%lu\n", (unsigned long)GetLastError());
+        return;
+    }
+    service = OpenServiceA(manager, "openport", SERVICE_QUERY_STATUS | SERVICE_START);
+    if (!service)
+    {
+        printf("SCM_SERVICE_OPEN=FAIL ERROR=%lu\n", (unsigned long)GetLastError());
+        CloseServiceHandle(manager);
+        return;
+    }
+    if (QueryServiceStatusEx(service, SC_STATUS_PROCESS_INFO, (BYTE *)&status,
+                             sizeof(status), &needed))
+        printf("SERVICE_STATE_BEFORE=%lu\n", (unsigned long)status.dwCurrentState);
+    else
+        printf("SERVICE_STATE_BEFORE_QUERY=FAIL ERROR=%lu\n",
+               (unsigned long)GetLastError());
+
+    SetLastError(ERROR_SUCCESS);
+    if (StartServiceA(service, 0, NULL))
+        printf("SERVICE_START=OK ERROR=0\n");
+    else
+    {
+        error = GetLastError();
+        printf("SERVICE_START=FAIL ERROR=%lu\n", (unsigned long)error);
+    }
+    for (attempt = 0; attempt < 20; attempt++)
+    {
+        if (!QueryServiceStatusEx(service, SC_STATUS_PROCESS_INFO, (BYTE *)&status,
+                                  sizeof(status), &needed))
+        {
+            printf("SERVICE_STATE_AFTER_QUERY=FAIL ERROR=%lu\n",
+                   (unsigned long)GetLastError());
+            break;
+        }
+        if (status.dwCurrentState != SERVICE_START_PENDING) break;
+        Sleep(100);
+    }
+    printf("SERVICE_STATE_AFTER=%lu WIN32_EXIT=%lu SERVICE_EXIT=%lu\n",
+           (unsigned long)status.dwCurrentState, (unsigned long)status.dwWin32ExitCode,
+           (unsigned long)status.dwServiceSpecificExitCode);
+    CloseServiceHandle(service);
+    CloseServiceHandle(manager);
+}
+
 int main(void)
 {
     HDEVINFO devices;
@@ -33,6 +87,7 @@ int main(void)
     HANDLE device;
 
     print_service();
+    start_service();
     devices = SetupDiGetClassDevsA(&openport_interface_guid, NULL, NULL,
                                    DIGCF_PRESENT | DIGCF_DEVICEINTERFACE);
     if (devices == INVALID_HANDLE_VALUE)
