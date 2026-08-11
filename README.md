@@ -33,9 +33,9 @@ menu with short names such as **Setup**, **EcuFlash**, and **RomRaider Logger**.
 After installation, **Setup** offers to update the project before showing its
 menu; skipping that update is supported but not recommended. Setup prepares the
 computer only; it never reads or writes an ECU. Install and Clean Reinstall play
-Eric Skiff's CC BY 4.0 chiptune “Arpanauts” at low volume in a separate music
-control window. Focus that window and press **M** to mute it. The track is
-checksum-verified, cached locally, and credited in
+Eric Skiff's CC BY 4.0 chiptune “Arpanauts” at low volume without opening an
+extra window. Press **M** in the Setup terminal to mute it. The bundled track is
+checksum-verified and credited in
 [`linux/installer-music-CREDITS.md`](linux/installer-music-CREDITS.md).
 
 ## OpenPort validation

@@ -6,7 +6,6 @@ script_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 installer=${ECU_TOOLS_INSTALLER:-$script_dir/install-cachyos.sh}
 updater=${ECU_TOOLS_UPDATER:-$script_dir/update-cachyos.sh}
 music_player=${ECU_TOOLS_MUSIC_PLAYER:-$script_dir/play-installer-chiptune}
-music_terminal=${ECU_TOOLS_MUSIC_TERMINAL:-konsole}
 installed_setup=${XDG_DATA_HOME:-$HOME/.local/share}/applications/subaru-ecu-tools-setup.desktop
 
 if [[ ! -x "$installer" ]]; then
@@ -68,15 +67,17 @@ confirm() {
 }
 
 start_installer_music() {
-    [[ -x "$music_player" ]] && command -v pw-play >/dev/null 2>&1 && \
-        command -v "$music_terminal" >/dev/null 2>&1 || return 0
-    "$music_terminal" --separate --nofork --hide-menubar --hide-tabbar \
-        -p 'tabtitle=Installer Music' -e "$music_player" >/dev/null 2>&1 &
+    local runtime_root
+    [[ -x "$music_player" ]] && command -v pw-play >/dev/null 2>&1 || return 0
+    runtime_root=${XDG_RUNTIME_DIR:-/tmp}
+    export SUBARU_SETUP_MUSIC_STATE_FILE="$runtime_root/subaru-ecu-tools-music-${BASHPID}-${RANDOM}.state"
+    ECU_TOOLS_MUSIC_STATE_FILE="$SUBARU_SETUP_MUSIC_STATE_FILE" \
+        "$music_player" >/dev/null 2>&1 &
     export SUBARU_SETUP_MUSIC_PID=$!
-    printf '  %b♪ Installer music opened in its own control window.%b\n' \
+    printf '  %b♪ Installer music is running quietly in the background.%b\n' \
         "$purple$bold" "$reset"
-    printf '  Focus %bInstaller Music%b and press %bM%b to mute it.\n\n' \
-        "$cyan$bold" "$reset" "$yellow$bold" "$reset"
+    printf '  Press %bM%b in this setup terminal at any time to mute it.\n\n' \
+        "$yellow$bold" "$reset"
 }
 
 menu_line() {

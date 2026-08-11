@@ -37,52 +37,120 @@ if [[ -t 1 && -z "${NO_COLOR:-}" && "${TERM:-}" != dumb ]]; then
     color_yellow=$'\033[33m'
     color_blue=$'\033[34m'
     color_cyan=$'\033[36m'
+    color_purple=$'\033[35m'
     use_color=true
 else
     color_reset= color_bold= color_red= color_green=
-    color_yellow= color_blue= color_cyan=
+    color_yellow= color_blue= color_cyan= color_purple=
     use_color=false
 fi
 
-section() {
-    printf '\n%b╭─ %s%b\n' "$color_bold$color_cyan" "$*" "$color_reset"
-    printf '%b╰────────────────────────────────────────────────────────%b\n' \
-        "$color_cyan" "$color_reset"
+ui_rule=$(printf '%68s' '')
+ui_rule=${ui_rule// /═}
+ui_stage=0
+ui_console_open=false
+ui_box_line() {
+    local style=$1 text=$2 line
+    while IFS= read -r line || [[ -n "$line" ]]; do
+        printf '%b║%b  %b%-66s%b%b║%b\n' \
+            "$color_purple$color_bold" "$color_reset" "$style" "$line" \
+            "$color_reset" "$color_purple$color_bold" "$color_reset"
+    done < <(printf '%s\n' "$text" | fold -s -w 66)
 }
-step() { printf '%b  ◆ %s%b\n' "$color_blue" "$*" "$color_reset"; }
-ok() { printf '%b  ✓ %b%s\n' "$color_green$color_bold" "$color_reset" "$*"; }
-warn() { printf '%b  ▲ WARNING %b%s\n' "$color_yellow$color_bold" "$color_reset" "$*" >&2; }
-fail() { printf '%b  ✕ ERROR %b%s\n' "$color_red$color_bold" "$color_reset" "$*" >&2; }
-summary_row() { printf '  %b%-16s%b %s\n' "$color_cyan$color_bold" "$1" "$color_reset" "$2"; }
+installer_banner() {
+    local mode_label=${mode^^} audio_label='AUDIO :: OFF'
+    [[ "${SUBARU_SETUP_MUSIC_PID:-}" =~ ^[0-9]+$ ]] && \
+        audio_label='AUDIO :: [M] MUTE'
+    printf '\n%b╔%s╗%b\n' "$color_purple$color_bold" "$ui_rule" "$color_reset"
+    ui_box_line "$color_cyan$color_bold" 'SUBARU // EVO :: ECU TOOLS'
+    ui_box_line "$color_green$color_bold" 'SECURE SETUP CONSOLE              [ ECU I/O :: LOCKED ]'
+    printf '%b╠%s╣%b\n' "$color_purple$color_bold" "$ui_rule" "$color_reset"
+    ui_box_line "$color_blue$color_bold" \
+        "MODE :: $mode_label     $audio_label     DIAGNOSTICS :: ACTIVE"
+    ui_console_open=true
+}
+console_footer() {
+    [[ "$ui_console_open" == true ]] || return 0
+    printf '%b╚%s╝%b\n' "$color_purple$color_bold" "$ui_rule" "$color_reset"
+    ui_console_open=false
+}
+section() {
+    ((ui_stage+=1))
+    printf '%b╠%s╣%b\n' "$color_purple$color_bold" "$ui_rule" "$color_reset"
+    ui_box_line "$color_cyan$color_bold" \
+        "NODE $(printf '%02d' "$ui_stage") // ${*^^}"
+    printf '%b╟%s╢%b\n' "$color_purple" "${ui_rule//═/─}" "$color_reset"
+}
+step() { ui_box_line "$color_blue" "[ RUN  ] $*"; }
+ok() { ui_box_line "$color_green$color_bold" "[  OK  ] $*"; }
+warn() { ui_box_line "$color_yellow$color_bold" "[ WARN ] $*" >&2; }
+fail() { ui_box_line "$color_red$color_bold" "[ FAIL ] $*" >&2; }
+summary_row() { ui_box_line "$color_cyan" "[ DATA ] $1 :: $2"; }
 completion_banner() {
-    printf '\n%b' "$color_green$color_bold"
-    cat <<'EOF'
-       ╭────────────────────────────────────────────╮
-       │          SETUP COMPLETE  ✓                 │
-       ╰────────────────────────────────────────────╯
-EOF
-    printf '%b\n' "$color_reset"
+    printf '%b╠%s╣%b\n' "$color_green$color_bold" "$ui_rule" "$color_reset"
+    ui_box_line "$color_green$color_bold" \
+        'ACCESS GRANTED // SETUP COMPLETE // ALL REQUESTED TASKS FINISHED'
+    printf '%b╠%s╣%b\n' "$color_green$color_bold" "$ui_rule" "$color_reset"
+}
+
+setup_music_process_active() {
+    local music_pid=${SUBARU_SETUP_MUSIC_PID:-}
+    [[ "$music_pid" =~ ^[0-9]+$ ]] && kill -0 "$music_pid" 2>/dev/null && \
+        [[ -r "/proc/$music_pid/cmdline" ]] && \
+        tr '\0' ' ' <"/proc/$music_pid/cmdline" | grep -q 'play-installer-chiptune'
+}
+
+pause_setup_music_keys() {
+    local state_file=${SUBARU_SETUP_MUSIC_STATE_FILE:-} attempt state=
+    setup_music_process_active || return 0
+    kill -USR1 "$SUBARU_SETUP_MUSIC_PID" 2>/dev/null || return 0
+    for ((attempt=0; attempt<30; attempt++)); do
+        [[ -r "$state_file" ]] && IFS= read -r state <"$state_file" || state=
+        [[ "$state" == paused ]] && return 0
+        setup_music_process_active || return 0
+        sleep 0.01
+    done
+}
+
+resume_setup_music_keys() {
+    setup_music_process_active || return 0
+    kill -USR2 "$SUBARU_SETUP_MUSIC_PID" 2>/dev/null || true
+}
+
+run_with_music_keys_paused() {
+    local status
+    pause_setup_music_keys
+    "$@" && status=0 || status=$?
+    resume_setup_music_keys
+    return "$status"
 }
 
 # Read confirmations immediately, without requiring Enter. Noninteractive callers
 # continue to use --yes/--yes-all and never reach this helper.
 read_yes_no() {
-    local prompt=$1 default=${2:-no} key suffix
+    local prompt=$1 default=${2:-no} key suffix result
     [[ "$default" == yes ]] && suffix='[Y/n]' || suffix='[y/N]'
+    pause_setup_music_keys
     while true; do
-        printf '%s %s ' "$prompt" "$suffix"
-        IFS= read -rsn1 key </dev/tty || return 1
+        ui_box_line "$color_yellow$color_bold" "[ INPUT ] $prompt $suffix"
+        printf '%b║%b  > ' "$color_purple$color_bold" "$color_reset"
+        if ! IFS= read -rsn1 key </dev/tty; then
+            result=1
+            break
+        fi
         if [[ -z "$key" ]]; then
             printf '\n'
-            [[ "$default" == yes ]]
-            return
+            [[ "$default" == yes ]] && result=0 || result=1
+            break
         fi
         case "$key" in
-            y|Y) printf 'Y\n'; return 0 ;;
-            n|N) printf 'N\n'; return 1 ;;
+            y|Y) printf 'Y\n'; result=0; break ;;
+            n|N) printf 'N\n'; result=1; break ;;
             *) printf '\nPress Y or N.\n' ;;
         esac
     done
+    resume_setup_music_keys
+    return "$result"
 }
 
 stop_wine_prefix() {
@@ -566,6 +634,7 @@ if $use_color; then
 else
     exec > >(tee -a "$log_file") 2>&1
 fi
+installer_banner
 github_repo=Natzirt-BK/subaru-ecu-tools-linux
 ecuflash_vendor_j2534_sha256=f432084801762d919a3c31974616e097562424470003edc4f4fb843df34103cf
 offer_error_report() {
@@ -718,16 +787,20 @@ confirm_success() {
 }
 wait_before_close() {
     [[ "$setup_interactive" == true && "${SUBARU_SETUP_NO_PAUSE:-0}" != 1 ]] || return 0
-    printf '%b  Press Enter to close this setup terminal...%b' \
-        "$color_cyan" "$color_reset"
+    ui_box_line "$color_cyan" '[ INPUT ] Press Enter to close this setup terminal...'
+    printf '%b║%b  > ' "$color_purple$color_bold" "$color_reset"
     read -r _ </dev/tty || true
 }
 stop_setup_music() {
     local music_pid=${SUBARU_SETUP_MUSIC_PID:-}
-    [[ "$music_pid" =~ ^[0-9]+$ ]] || return 0
-    kill "$music_pid" 2>/dev/null || true
-    wait "$music_pid" 2>/dev/null || true
+    local state_file=${SUBARU_SETUP_MUSIC_STATE_FILE:-}
+    if [[ "$music_pid" =~ ^[0-9]+$ ]]; then
+        kill "$music_pid" 2>/dev/null || true
+        wait "$music_pid" 2>/dev/null || true
+    fi
+    [[ -z "$state_file" ]] || rm -f -- "$state_file"
     unset SUBARU_SETUP_MUSIC_PID
+    unset SUBARU_SETUP_MUSIC_STATE_FILE
 }
 log_result() {
     local status=$?
@@ -743,6 +816,7 @@ log_result() {
         confirm_success
     fi
     wait_before_close
+    console_footer
     exit "$status"
 }
 trap log_result EXIT
@@ -988,7 +1062,7 @@ if [[ "$mode" == update ]]; then
     section "Auditing installed files against the latest release"
     if ! pacman -Q lib32-libusb &>/dev/null; then
         step "Installing the 32-bit USB runtime required by RomRaider Logger"
-        sudo pacman -S --needed lib32-libusb
+        run_with_music_keys_paused sudo pacman -S --needed lib32-libusb
     else
         ok "RomRaider Logger 32-bit USB runtime is current."
     fi
@@ -1202,9 +1276,9 @@ if [[ "$mode" == uninstall ]]; then
         rm -rf -- "$romraider_home"
     fi
     if [[ -e /etc/udev/rules.d/99-openport2.rules ]]; then
-        sudo rm -f -- /etc/udev/rules.d/99-openport2.rules
-        sudo udevadm control --reload-rules
-        sudo udevadm trigger --subsystem-match=usb
+        run_with_music_keys_paused sudo rm -f -- /etc/udev/rules.d/99-openport2.rules
+        run_with_music_keys_paused sudo udevadm control --reload-rules
+        run_with_music_keys_paused sudo udevadm trigger --subsystem-match=usb
     fi
     command -v update-desktop-database >/dev/null && \
         update-desktop-database "$applications_dir" >/dev/null 2>&1 || true
@@ -1249,7 +1323,7 @@ if ((${#missing[@]})); then
     warn "Missing packages: ${missing[*]}"
     if $install_deps; then
         step "Installing missing CachyOS packages"
-        sudo pacman -S --needed "${missing[@]}"
+        run_with_music_keys_paused sudo pacman -S --needed "${missing[@]}"
     else
         echo "Re-run with --install-deps, or install them with:"
         echo "  sudo pacman -S --needed ${missing[*]}"
@@ -1363,17 +1437,17 @@ if $install_udev; then
         fail "The required uucp device-access group does not exist."
         exit 1
     fi
-    sudo install -m 0644 "$repo_root/linux/99-openport2.rules" \
+    run_with_music_keys_paused sudo install -m 0644 "$repo_root/linux/99-openport2.rules" \
         /etc/udev/rules.d/99-openport2.rules
-    sudo cmp -s "$repo_root/linux/99-openport2.rules" \
+    run_with_music_keys_paused sudo cmp -s "$repo_root/linux/99-openport2.rules" \
         /etc/udev/rules.d/99-openport2.rules || {
         fail "The installed OpenPort udev rule does not match the packaged rule."
         exit 1
     }
-    sudo usermod -aG uucp "$USER"
-    sudo udevadm control --reload-rules
-    sudo udevadm trigger --subsystem-match=usb
-    sudo udevadm settle --timeout=10 || {
+    run_with_music_keys_paused sudo usermod -aG uucp "$USER"
+    run_with_music_keys_paused sudo udevadm control --reload-rules
+    run_with_music_keys_paused sudo udevadm trigger --subsystem-match=usb
+    run_with_music_keys_paused sudo udevadm settle --timeout=10 || {
         fail "udev did not finish applying the OpenPort permission rule."
         exit 1
     }

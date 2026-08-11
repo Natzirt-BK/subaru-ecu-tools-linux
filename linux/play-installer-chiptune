@@ -3,85 +3,67 @@ set -euo pipefail
 
 track_title=Arpanauts
 track_artist='Eric Skiff'
-track_url='https://ericskiff.com/music/Resistor%20Anthems/10%20Arpanauts.mp3'
 track_sha256=9e74d37101f54f11a8816b1031d0967e55dc011da7fb01fb56f3729e62ca25eb
-cache_dir=${XDG_CACHE_HOME:-$HOME/.cache}/subaru-ecu-tools-linux/music
-cached_track=$cache_dir/arpanauts-eric-skiff.mp3
-track=${ECU_TOOLS_MUSIC_FILE:-$cached_track}
+script_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+track=${ECU_TOOLS_MUSIC_FILE:-$script_dir/assets/arpanauts-eric-skiff.mp3}
 input_device=${ECU_TOOLS_MUSIC_INPUT_DEVICE:-/dev/tty}
+state_file=${ECU_TOOLS_MUSIC_STATE_FILE:-}
+music_volume=${ECU_TOOLS_MUSIC_VOLUME:-0.12}
 audio_pid=
-partial=
+capture_keys=true
+pause_requested=false
+resume_requested=false
+
+write_state() {
+    [[ -z "$state_file" ]] || printf '%s\n' "$1" >"$state_file"
+}
 
 cleanup() {
     trap - EXIT HUP INT TERM
-    [[ -z "$partial" ]] || rm -f -- "$partial"
     if [[ -n "$audio_pid" ]]; then
         kill "$audio_pid" >/dev/null 2>&1 || true
         wait "$audio_pid" >/dev/null 2>&1 || true
     fi
+    [[ -z "$state_file" ]] || rm -f -- "$state_file"
 }
 trap cleanup EXIT HUP INT TERM
-
-draw_frame() {
-    [[ ! -t 1 || "${TERM:-}" == dumb ]] || printf '\033[2J\033[H'
-    printf '\033[38;5;45m\033[1m'
-    cat <<'EOF'
-  ╔══════════════════════════════════════════════════╗
-  ║         SUBARU & EVO ECU TOOLS // AUDIO          ║
-  ╠══════════════════════════════════════════════════╣
-  ║                                                  ║
-  ║       ♪  ARPANAUTS — ERIC SKIFF                  ║
-  ║                                                  ║
-  ║             PRESS  M  TO MUTE                    ║
-  ║                                                  ║
-  ╚══════════════════════════════════════════════════╝
-EOF
-    printf '\033[0m\n  CC BY 4.0 • ericskiff.com/music\n'
-    printf '  This window closes automatically when setup finishes.\n'
-}
-
-download_track() {
-    [[ -z "${ECU_TOOLS_MUSIC_FILE:-}" ]] || return 0
-    if [[ -f "$track" ]] && \
-        printf '%s  %s\n' "$track_sha256" "$track" | sha256sum -c -s -; then
-        return 0
-    fi
-    command -v curl >/dev/null 2>&1 || return 1
-    mkdir -p "$cache_dir"
-    partial=$track.part.$$
-    printf '  Preparing licensed installer music...\n'
-    curl --fail --location --silent --show-error --output "$partial" "$track_url" || return 1
-    printf '%s  %s\n' "$track_sha256" "$partial" | sha256sum -c -s - || return 1
-    mv -f -- "$partial" "$track"
-    partial=
-}
+trap 'pause_requested=true' USR1
+trap 'resume_requested=true' USR2
 
 command -v pw-play >/dev/null 2>&1 || exit 0
 if ! exec 3<"$input_device"; then
     exit 0
 fi
-download_track || {
-    printf 'Installer music could not be downloaded or verified.\n'
-    sleep 2
-    exit 0
-}
+[[ -f "$track" ]] || exit 0
+printf '%s  %s\n' "$track_sha256" "$track" | sha256sum -c --status - || exit 0
 
-draw_frame
+write_state active
 while :; do
-    pw-play --volume 0.12 "$track" >/dev/null 2>&1 &
+    pw-play --volume "$music_volume" "$track" >/dev/null 2>&1 &
     audio_pid=$!
     while kill -0 "$audio_pid" 2>/dev/null; do
-        if IFS= read -rsn1 -t 0.15 -u 3 key; then
+        if [[ "$pause_requested" == true ]]; then
+            capture_keys=false
+            pause_requested=false
+            write_state paused
+        fi
+        if [[ "$resume_requested" == true ]]; then
+            capture_keys=true
+            resume_requested=false
+            write_state active
+        fi
+        if [[ "$capture_keys" == true ]] && IFS= read -rsn1 -t 0.15 -u 3 key; then
             case "$key" in
                 m|M)
                     kill "$audio_pid" >/dev/null 2>&1 || true
                     wait "$audio_pid" >/dev/null 2>&1 || true
                     audio_pid=
-                    printf '\n  \033[38;5;220mMusic muted. Closing audio controls...\033[0m\n'
-                    sleep 0.5
+                    write_state muted
                     exit 0
                     ;;
             esac
+        elif [[ "$capture_keys" != true ]]; then
+            sleep 0.05
         fi
     done
     wait "$audio_pid" || exit 0
