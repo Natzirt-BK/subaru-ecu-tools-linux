@@ -47,3 +47,36 @@ if grep -q '272&256' "$repo_root/wine-bridge/openport2-device-absent.reg"; then
 fi
 
 echo 'OpenPort physical-device state tests passed.'
+
+# A running EcuFlash session must synchronize Wine once when physical USB state
+# changes. EcuFlash itself does not refresh its cached Task Info until restart.
+monitor_sysfs=$test_root/monitor-sysfs
+monitor_log=$test_root/monitor.log
+monitor_trace=$test_root/monitor.trace
+mkdir -p "$monitor_sysfs"
+cat >"$test_root/bin/fake-sync" <<'EOF'
+#!/bin/sh
+printf 'sync\n' >>"$MONITOR_TRACE"
+EOF
+chmod +x "$test_root/bin/fake-sync"
+MONITOR_TRACE="$monitor_trace" OPENPORT_USB_SYSFS_ROOT="$monitor_sysfs" \
+OPENPORT_POLL_SECONDS=0.05 OPENPORT_INITIAL_STATE=disconnected \
+OPENPORT_REGISTRY_DIR="$repo_root/wine-bridge" OPENPORT_STATE_LOG="$monitor_log" \
+OPENPORT_STATE_SYNC="$test_root/bin/fake-sync" \
+ECUFLASH_WINE="$test_root/bin/fake-wine" ECUFLASH_WINEPREFIX="$test_root/prefix" \
+    "$repo_root/linux/monitor-openport-state" &
+monitor_pid=$!
+mkdir -p "$monitor_sysfs/2-1"
+printf '%s\n' 0403 >"$monitor_sysfs/2-1/idVendor"
+printf '%s\n' cc4d >"$monitor_sysfs/2-1/idProduct"
+attempt=0
+while [ ! -s "$monitor_trace" ] && [ "$attempt" -lt 40 ]; do
+    sleep 0.05
+    attempt=$((attempt + 1))
+done
+kill "$monitor_pid" 2>/dev/null || true
+wait "$monitor_pid" 2>/dev/null || true
+[ "$(grep -c '^sync$' "$monitor_trace")" -eq 1 ]
+grep -q 'disconnected -> connected' "$monitor_log"
+
+echo 'OpenPort live-state monitor tests passed.'

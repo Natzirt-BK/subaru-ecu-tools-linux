@@ -59,6 +59,7 @@ bridge_windows="$ECUFLASH_WINEDLLPATH/x86_64-windows/openport.sys"
 bridge_unix="$ECUFLASH_WINEDLLPATH/x86_64-unix/openport.so"
 bridge_registry="$ECU_TOOLS_DATA_DIR/registry"
 bridge_state_sync=$(dirname -- "$0")/sync-openport-device-state
+bridge_state_monitor=$(dirname -- "$0")/monitor-openport-state
 bridge_driver_dir="$ECUFLASH_WINEPREFIX/drive_c/windows/system32/drivers"
 bridge_j2534_target="$ECUFLASH_WINEPREFIX/drive_c/windows/syswow64/op20pt32.dll"
 bridge_j2534_vendor="$ECUFLASH_DIR/drivers/openport 2.0/op20pt32.dll"
@@ -80,7 +81,8 @@ if [ ! -f "$bridge_registry/openport-driver-wine.reg" ] || \
    [ ! -f "$bridge_registry/openport2-wine.reg" ] || \
    [ ! -f "$bridge_registry/openport2-device-present.reg" ] || \
    [ ! -f "$bridge_registry/openport2-device-absent.reg" ] || \
-   [ ! -x "$bridge_state_sync" ]; then
+   [ ! -x "$bridge_state_sync" ] || \
+   [ ! -x "$bridge_state_monitor" ]; then
     report_error "The OpenPort Wine registry files are missing. Run Subaru & Evo ECU Tools Update."
     exit 1
 fi
@@ -91,7 +93,8 @@ bridge_fingerprint=$(sha256sum \
     "$bridge_registry/openport-driver-wine.reg" \
     "$bridge_registry/openport2-device-present.reg" \
     "$bridge_registry/openport2-device-absent.reg" \
-    "$bridge_state_sync" | sha256sum | cut -d' ' -f1)
+    "$bridge_state_sync" "$bridge_state_monitor" | \
+    sha256sum | cut -d' ' -f1)
 installed_fingerprint=$(cat "$bridge_marker" 2>/dev/null || true)
 if [ "$installed_fingerprint" != "$bridge_fingerprint" ] || \
    ! cmp -s "$bridge_windows" "$bridge_driver_dir/openport.sys" || \
@@ -141,6 +144,14 @@ else
     report_error "OpenPort physical-device state synchronization failed. Diagnostic log: $bridge_log"
     exit 1
 fi
+if [ "$openport_state" = disconnected ] && \
+   command -v kdialog >/dev/null 2>&1 && \
+   { [ -n "${DISPLAY:-}" ] || [ -n "${WAYLAND_DISPLAY:-}" ]; }; then
+    if ! kdialog --title 'OpenPort is disconnected' --warningyesno \
+        'EcuFlash checks OpenPort status only when it starts. Starting unplugged will leave “J2534 error: no devices available” in Task Info even if the cable is connected later.\n\nStart EcuFlash for offline ROM editing anyway?'; then
+        exit 0
+    fi
+fi
 if [ -f "$launch_log" ] && [ "$(wc -c <"$launch_log")" -gt 10485760 ]; then
     mv -f -- "$launch_log" "$launch_log.previous"
 fi
@@ -156,8 +167,26 @@ fi
 
 cd "$ECUFLASH_DIR"
 set +e
-"$ECUFLASH_WINE" ecuflash.exe "$@" >>"$launch_log" 2>&1
+"$ECUFLASH_WINE" start /wait /unix "$ECUFLASH_DIR/ecuflash.exe" "$@" \
+    >>"$launch_log" 2>&1 &
+wine_pid=$!
+OPENPORT_INITIAL_STATE="$openport_state" \
+OPENPORT_REGISTRY_DIR="$bridge_registry" \
+OPENPORT_STATE_LOG="$launch_log" \
+OPENPORT_STATE_SYNC="$bridge_state_sync" \
+ECUFLASH_WINE="$ECUFLASH_WINE" \
+ECUFLASH_WINEPREFIX="$ECUFLASH_WINEPREFIX" \
+    "$bridge_state_monitor" &
+monitor_pid=$!
+cleanup_children() {
+    kill "$monitor_pid" "$wine_pid" >/dev/null 2>&1 || true
+}
+trap cleanup_children HUP INT TERM
+wait "$wine_pid"
 wine_status=$?
+trap - HUP INT TERM
+kill "$monitor_pid" >/dev/null 2>&1 || true
+wait "$monitor_pid" >/dev/null 2>&1 || true
 set -e
 if [ "$wine_status" -ne 0 ]; then
     report_error "EcuFlash exited with status $wine_status. Diagnostic log: $launch_log"

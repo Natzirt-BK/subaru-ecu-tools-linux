@@ -39,6 +39,13 @@ J2534 probe must report device-not-connected. With it connected, the probe must
 open and close the real adapter. An EcuFlash status-bar label alone is not proof
 that the cable is connected.
 
+EcuFlash 1.44 does not refresh its visible Task Info after USB hot-plug events.
+The launcher therefore warns before starting it unplugged and monitors the real
+Linux USB state while it runs. Plug/unplug changes produce immediate desktop
+notifications. Start EcuFlash with the cable connected before ECU work. Its
+`[In Use]` label can mean Wine’s PnP driver owns USB on EcuFlash’s behalf; the
+installer’s J2534 open/version/close probe is the reliable health check.
+
 The packaged runtime is the same WineGDK build used for the successful local
 EcuFlash read/write validation. Its release includes licenses, source commits,
 patches, package versions, and source checksums.

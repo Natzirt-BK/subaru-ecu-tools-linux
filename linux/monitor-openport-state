@@ -1,0 +1,53 @@
+#!/bin/sh
+set -eu
+
+: "${ECUFLASH_WINE:?ECUFLASH_WINE is required}"
+: "${ECUFLASH_WINEPREFIX:?ECUFLASH_WINEPREFIX is required}"
+: "${OPENPORT_REGISTRY_DIR:?OPENPORT_REGISTRY_DIR is required}"
+: "${OPENPORT_STATE_SYNC:?OPENPORT_STATE_SYNC is required}"
+: "${OPENPORT_STATE_LOG:=/dev/null}"
+: "${OPENPORT_USB_SYSFS_ROOT:=/sys/bus/usb/devices}"
+: "${OPENPORT_POLL_SECONDS:=1}"
+
+physical_state() {
+    for vendor_file in "$OPENPORT_USB_SYSFS_ROOT"/*/idVendor; do
+        [ -f "$vendor_file" ] || continue
+        [ "$(tr '[:upper:]' '[:lower:]' <"$vendor_file")" = 0403 ] || continue
+        product_file=${vendor_file%/idVendor}/idProduct
+        [ -f "$product_file" ] || continue
+        [ "$(tr '[:upper:]' '[:lower:]' <"$product_file")" = cc4d ] && {
+            printf '%s\n' connected
+            return
+        }
+    done
+    printf '%s\n' disconnected
+}
+
+previous=${OPENPORT_INITIAL_STATE:-$(physical_state)}
+printf 'OpenPort live monitor started: %s\n' "$previous" >>"$OPENPORT_STATE_LOG"
+while sleep "$OPENPORT_POLL_SECONDS"; do
+    current=$(physical_state)
+    [ "$current" = "$previous" ] && continue
+    printf 'OpenPort physical state changed: %s -> %s\n' \
+        "$previous" "$current" >>"$OPENPORT_STATE_LOG"
+    if OPENPORT_USB_SYSFS_ROOT="$OPENPORT_USB_SYSFS_ROOT" \
+       OPENPORT_REGISTRY_DIR="$OPENPORT_REGISTRY_DIR" \
+       OPENPORT_STATE_LOG="$OPENPORT_STATE_LOG" \
+       ECUFLASH_WINE="$ECUFLASH_WINE" \
+       ECUFLASH_WINEPREFIX="$ECUFLASH_WINEPREFIX" \
+        "$OPENPORT_STATE_SYNC" >/dev/null 2>&1; then
+        if command -v notify-send >/dev/null 2>&1; then
+            if [ "$current" = connected ]; then
+                message='OpenPort connected. Restart EcuFlash before beginning an ECU task so its startup-only Task Info is current.'
+            else
+                message='OpenPort disconnected. EcuFlash Task Info does not refresh live; do not begin or continue an ECU operation.'
+            fi
+            notify-send --app-name='Subaru & Evo ECU Tools' \
+                --urgency=normal --expire-time=10000 'EcuFlash OpenPort status' \
+                "$message" >/dev/null 2>&1 || true
+        fi
+        previous=$current
+    else
+        printf 'OpenPort live state synchronization failed.\n' >>"$OPENPORT_STATE_LOG"
+    fi
+done

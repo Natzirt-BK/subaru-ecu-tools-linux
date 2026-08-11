@@ -375,6 +375,8 @@ if $clean_install; then
         "$bin_dir/launch-ecuflash" \
         "$bin_dir/launch-evoscan" \
         "$bin_dir/launch-romraider" \
+        "$bin_dir/sync-openport-device-state" \
+        "$bin_dir/monitor-openport-state" \
         "$bin_dir/configure-romraider-definitions" \
         "$bin_dir/install-romraider-definitions" \
         "$applications_dir/ecuflash.desktop" \
@@ -488,7 +490,7 @@ install_managed_user_files() {
     }
 
     for source in launch-ecuflash launch-evoscan launch-romraider \
-        sync-openport-device-state \
+        sync-openport-device-state monitor-openport-state \
         configure-romraider-definitions install-romraider-definitions; do
         update_managed_file "$repo_root/linux/$source" "$bin_dir/$source" 0755
     done
@@ -707,6 +709,8 @@ if [[ "$mode" == uninstall ]]; then
         "$bin_dir/launch-ecuflash" \
         "$bin_dir/launch-evoscan" \
         "$bin_dir/launch-romraider" \
+        "$bin_dir/sync-openport-device-state" \
+        "$bin_dir/monitor-openport-state" \
         "$bin_dir/configure-romraider-definitions" \
         "$bin_dir/install-romraider-definitions" \
         "$data_dir" \
@@ -744,6 +748,8 @@ if [[ "$mode" == uninstall ]]; then
         "$bin_dir/launch-ecuflash" \
         "$bin_dir/launch-evoscan" \
         "$bin_dir/launch-romraider" \
+        "$bin_dir/sync-openport-device-state" \
+        "$bin_dir/monitor-openport-state" \
         "$bin_dir/configure-romraider-definitions" \
         "$bin_dir/install-romraider-definitions" \
         "$applications_dir/ecuflash.desktop" \
@@ -797,7 +803,7 @@ if [[ "$os_family" != *cachyos* && "$os_family" != *arch* ]]; then
 fi
 
 section "Checking dependencies"
-packages=(base-devel curl github-cli libusb lib32-libusb unzip wine llvm-mingw zstd)
+packages=(base-devel curl github-cli libnotify libusb lib32-libusb unzip wine llvm-mingw zstd)
 missing=()
 for package in "${packages[@]}"; do
     pacman -Q "$package" &>/dev/null || missing+=("$package")
@@ -1075,7 +1081,8 @@ if $install_ecuflash; then
             "$data_dir/registry/openport-driver-wine.reg" \
             "$data_dir/registry/openport2-device-present.reg" \
             "$data_dir/registry/openport2-device-absent.reg" \
-            "$bin_dir/sync-openport-device-state" | sha256sum | cut -d' ' -f1)
+            "$bin_dir/sync-openport-device-state" \
+            "$bin_dir/monitor-openport-state" | sha256sum | cut -d' ' -f1)
         printf '%s\n' "$bridge_fingerprint" \
             >"$ecuflash_prefix/.openport-bridge-registered-v3"
         ok "OpenPort driver files and Wine registry entries installed."

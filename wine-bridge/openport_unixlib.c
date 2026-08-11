@@ -23,6 +23,22 @@ static pthread_mutex_t state_lock = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t read_lock = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t write_lock = PTHREAD_MUTEX_INITIALIZER;
 
+/* state_lock must be held. */
+static void close_device(void)
+{
+    if (usb_device)
+    {
+        if (data_interface >= 0) libusb_release_interface(usb_device, data_interface);
+        libusb_close(usb_device);
+    }
+    if (usb_context) libusb_exit(usb_context);
+    usb_device = NULL;
+    usb_context = NULL;
+    endpoint_in = endpoint_out = 0;
+    data_interface = -1;
+    open_count = 0;
+}
+
 static NTSTATUS usb_status(int status)
 {
     if (!status) return STATUS_SUCCESS;
@@ -73,7 +89,21 @@ static NTSTATUS wrap_open(void *args)
     int result = 0;
     (void)args;
     pthread_mutex_lock(&state_lock);
-    if (open_count++) { fprintf(stderr, "openport: reuse handle count=%u\n", open_count); goto done; }
+    if (open_count)
+    {
+        struct libusb_device_descriptor descriptor;
+        result = usb_device ? libusb_get_device_descriptor(libusb_get_device(usb_device), &descriptor)
+                            : LIBUSB_ERROR_NO_DEVICE;
+        if (!result)
+        {
+            ++open_count;
+            fprintf(stderr, "openport: reuse handle count=%u\n", open_count);
+            goto done;
+        }
+        fprintf(stderr, "openport: discarding stale handle (%s)\n", libusb_error_name(result));
+        close_device();
+    }
+    open_count = 1;
     result = libusb_init(&usb_context);
     if (result) goto fail;
     usb_device = libusb_open_device_with_vid_pid(usb_context, 0x0403, 0xcc4d);
@@ -89,11 +119,7 @@ static NTSTATUS wrap_open(void *args)
     }
 fail:
     fprintf(stderr, "openport: open failed libusb=%d (%s)\n", result, libusb_error_name(result));
-    if (usb_device) libusb_close(usb_device);
-    if (usb_context) libusb_exit(usb_context);
-    usb_device = NULL;
-    usb_context = NULL;
-    open_count = 0;
+    close_device();
 done:
     pthread_mutex_unlock(&state_lock);
     return usb_status(result);
@@ -103,14 +129,7 @@ static NTSTATUS wrap_close(void *args)
 {
     (void)args;
     pthread_mutex_lock(&state_lock);
-    if (open_count && !--open_count)
-    {
-        libusb_release_interface(usb_device, data_interface);
-        libusb_close(usb_device);
-        libusb_exit(usb_context);
-        usb_device = NULL;
-        usb_context = NULL;
-    }
+    if (open_count && !--open_count) close_device();
     pthread_mutex_unlock(&state_lock);
     return STATUS_SUCCESS;
 }
@@ -122,15 +141,18 @@ static NTSTATUS transfer(void *args, int reading)
     int actual = 0, result;
     if (!p || !p->buffer || !p->length) return STATUS_SUCCESS;
     pthread_mutex_lock(lock);
+    pthread_mutex_lock(&state_lock);
     if (!usb_device) result = LIBUSB_ERROR_NO_DEVICE;
     else result = libusb_bulk_transfer(usb_device, reading ? endpoint_in : endpoint_out,
                                        (unsigned char *)(uintptr_t)p->buffer, p->length,
                                        &actual, p->timeout_ms ? p->timeout_ms : 100);
-    pthread_mutex_unlock(lock);
     p->transferred = actual > 0 ? (uint32_t)actual : 0;
     fprintf(stderr, "openport: %s requested=%u actual=%d result=%d (%s)\n",
             reading ? "read" : "write", p->length, actual, result,
             result ? libusb_error_name(result) : "success");
+    if (result == LIBUSB_ERROR_NO_DEVICE) close_device();
+    pthread_mutex_unlock(&state_lock);
+    pthread_mutex_unlock(lock);
     return usb_status(result);
 }
 

@@ -61,6 +61,8 @@ grep -F 'subaru-ecu-tools.menu' "$engine" >/dev/null
 grep -F 'X-Subaru-Evo-ECU-Tools' "$repo_root/linux/subaru-ecu-tools.menu" >/dev/null
 ! grep -F "WINEDLLOVERRIDES='op20pt32,j2534=b'" "$engine" >/dev/null
 ! grep -F 'WINEDLLOVERRIDES="op20pt32,j2534=b' "$repo_root/linux/launch-ecuflash" >/dev/null
+grep -F 'start /wait /unix' "$repo_root/linux/launch-ecuflash" >/dev/null
+grep -F 'monitor-openport-state' "$repo_root/linux/launch-ecuflash" >/dev/null
 grep -F '"$data_dir/winedll/i386-windows/op20pt32.dll"' "$engine" >/dev/null
 
 echo 'Terminal setup action tests passed.'
