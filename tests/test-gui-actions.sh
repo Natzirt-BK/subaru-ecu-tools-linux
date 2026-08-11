@@ -41,6 +41,9 @@ grep -F 'Unknown selection. Press 1, 2, 3, 4, or Q.' \
 
 engine=$repo_root/linux/install-cachyos.sh
 grep -F 'read -rsn1 key </dev/tty' "$engine" >/dev/null
+grep -F 'setup_interactive=false' "$engine" >/dev/null
+test "$(grep -F -c '$setup_interactive || return 0' "$engine")" -eq 1
+! grep -F '[[ -t 0 || -t 1 ]] || return 0' "$engine" >/dev/null
 grep -F 'Briefly describe what went wrong (optional' "$engine" >/dev/null
 grep -F 'tail -c 24000' "$engine" >/dev/null
 grep -F 'tail -c 3500' "$engine" >/dev/null

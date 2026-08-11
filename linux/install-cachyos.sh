@@ -20,6 +20,10 @@ custom_logger_definition=
 evoscan_installer=${EVOSCAN_INSTALLER:-}
 assume_yes=false
 clean_install=false
+setup_interactive=false
+if [[ -t 0 || -t 1 || -t 2 ]]; then
+    setup_interactive=true
+fi
 if [[ -n "$evoscan_installer" ]]; then
     install_evoscan=true
     install_ecuflash=true
@@ -214,7 +218,7 @@ offer_error_report() {
     local user_description=${1:-}
     local report_file upload_error issue_url extra_log
 
-    [[ -t 0 || -t 1 ]] || return 0
+    $setup_interactive || return 0
     read_yes_no "Upload this error log in a public GitHub issue so the maintainer can investigate?" no || return 0
 
     if ! command -v gh >/dev/null 2>&1; then
@@ -281,7 +285,7 @@ offer_error_report() {
 confirm_success() {
     local question user_description
 
-    [[ ( -t 0 || -t 1 ) && "${SUBARU_SETUP_NO_PAUSE:-0}" != 1 ]] || return 0
+    [[ "$setup_interactive" == true && "${SUBARU_SETUP_NO_PAUSE:-0}" != 1 ]] || return 0
     case "$mode" in
         check) question="Did the system check complete as expected?" ;;
         uninstall) question="Did removal complete as expected?" ;;
@@ -298,7 +302,7 @@ confirm_success() {
     fi
 }
 wait_before_close() {
-    [[ ( -t 0 || -t 1 ) && "${SUBARU_SETUP_NO_PAUSE:-0}" != 1 ]] || return 0
+    [[ "$setup_interactive" == true && "${SUBARU_SETUP_NO_PAUSE:-0}" != 1 ]] || return 0
     read -r -p "Press Enter to close this setup terminal..." _ </dev/tty || true
 }
 log_result() {
