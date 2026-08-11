@@ -30,6 +30,7 @@ run_choice() {
 }
 
 run_choice recommended '--yes-all'
+run_choice clean '--clean-install --yes'
 run_choice update 'update-cachyos.sh'
 run_choice check '--check'
 run_choice uninstall '--uninstall --yes'

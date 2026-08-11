@@ -72,6 +72,7 @@ add_definition_options() {
 choice=$(kdialog --title "Subaru & Evo ECU Tools" --menu \
     "Choose an action. Setup only prepares this computer; it never reads or writes an ECU." \
     recommended "Install recommended tools" \
+    clean "Clean reinstall (fix stale files)" \
     customize "Customize installation" \
     update "Update and verify installed tools" \
     check "Check this computer" \
@@ -94,6 +95,13 @@ if [[ "$choice" == recommended ]]; then
     if kdialog --title "Install recommended tools" --yesno \
         "Install EcuFlash, RomRaider DimeMod, official definitions, the OpenPort bridge, USB permissions, and required packages?\n\nExisting verified downloads will be reused. Setup does not communicate with the ECU."; then
         exec konsole -e "$installer" --yes-all
+    fi
+    exit 0
+fi
+if [[ "$choice" == clean ]]; then
+    if kdialog --title "Clean reinstall" --warningyesno \
+        "Remove all installer-managed EcuFlash/EvoScan, Wine runtime, bridge, launchers, cache, and installer-managed RomRaider files, then install fresh copies?\n\nROMs, definitions, logs, and separately installed software will be preserved. Setup does not communicate with the ECU."; then
+        exec konsole -e "$installer" --clean-install --yes
     fi
     exit 0
 fi

@@ -19,6 +19,7 @@ custom_editor_definition=
 custom_logger_definition=
 evoscan_installer=${EVOSCAN_INSTALLER:-}
 assume_yes=false
+clean_install=false
 if [[ -n "$evoscan_installer" ]]; then
     install_evoscan=true
     install_ecuflash=true
@@ -79,8 +80,9 @@ Usage: linux/install-cachyos.sh [options]
   --custom-logger-definition FILE  Import an experimental Logger XML
   --evoscan-installer FILE  Install a purchaser-supplied EvoScan EXE or MSI (experimental)
   --yes-all        Select every optional installation component
+  --clean-install  Remove installer-managed app/runtime state, then install recommended tools
   --uninstall      Remove files installed by Subaru & Evo ECU Tools
-  --yes            Do not prompt before --uninstall
+  --yes            Do not prompt before --clean-install or --uninstall
   -h, --help       Show this help
 
 The default builds the bridge and installs user files under ~/.local.
@@ -122,6 +124,14 @@ while (($#)); do
             install_ecuflash=true
             ;;
         --yes-all) install_deps=true; install_udev=true; install_ecuflash=true; install_romraider=true; install_definitions=true ;;
+        --clean-install)
+            clean_install=true
+            install_deps=true
+            install_udev=true
+            install_ecuflash=true
+            install_romraider=true
+            install_definitions=true
+            ;;
         --uninstall) mode=uninstall ;;
         --yes) assume_yes=true ;;
         -h|--help) usage; exit 0 ;;
@@ -261,6 +271,45 @@ ecuflash_prefix="${ECUFLASH_WINEPREFIX:-$data_root/ecuflash-proton}"
 default_source_dir="$HOME/.local/src/subaru-ecu-tools-linux"
 romraider_home="$data_root/romraider-dm20"
 definitions_home="$data_root/subaru-evo-ecu-definitions"
+
+if $clean_install; then
+    section "Clean reinstall"
+    warn "This removes the installer-managed EcuFlash/EvoScan prefix, Wine runtime, bridge, launchers, cache, and installer-managed RomRaider package."
+    echo "ROMs, RomRaider definitions, application logs, and separately installed software are preserved."
+    if ! $assume_yes; then
+        read -r -p "Continue with the clean reinstall? [y/N] " answer
+        [[ "$answer" == [yY] || "$answer" == [yY][eE][sS] ]] || {
+            echo "Clean reinstall cancelled."
+            exit 0
+        }
+    fi
+
+    if [[ -x "$data_dir/runtime/ecuflash-wine-11.1/bin/wineserver" ]]; then
+        WINEPREFIX="$ecuflash_prefix" \
+            "$data_dir/runtime/ecuflash-wine-11.1/bin/wineserver" -k >/dev/null 2>&1 || true
+        WINEPREFIX="$ecuflash_prefix" \
+            "$data_dir/runtime/ecuflash-wine-11.1/bin/wineserver" -w >/dev/null 2>&1 || true
+    fi
+    command -v wineserver >/dev/null 2>&1 && \
+        WINEPREFIX="$ecuflash_prefix" wineserver -k >/dev/null 2>&1 || true
+    rm -rf -- "$data_dir" "$ecuflash_prefix" "$cache_root" "$wine_ecuflash_menu_dir"
+    rm -f -- \
+        "$bin_dir/launch-ecuflash" \
+        "$bin_dir/launch-evoscan" \
+        "$bin_dir/launch-romraider" \
+        "$bin_dir/configure-romraider-definitions" \
+        "$bin_dir/install-romraider-definitions" \
+        "$applications_dir/ecuflash.desktop" \
+        "$applications_dir/evoscan.desktop" \
+        "$applications_dir/romraider-editor.desktop" \
+        "$applications_dir/romraider-logger.desktop" \
+        "$applications_dir/subaru-ecu-tools-setup.desktop" \
+        "$applications_dir/subaru-ecu-tools-update.desktop"
+    if [[ -f "$romraider_home/.installed-by-subaru-ecu-tools" ]]; then
+        rm -rf -- "$romraider_home"
+    fi
+    ok "Old installer-managed application and runtime state removed."
+fi
 
 create_documents_shortcuts() {
     local documents_dir tools_documents link target documents_evoscan_exe=

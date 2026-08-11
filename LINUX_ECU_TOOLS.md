@@ -36,8 +36,11 @@ For a graphical KDialog wizard on CachyOS KDE:
     bash /tmp/bootstrap-cachyos.sh --gui
 
 The wizard offers a recommended installation, a compact Customize path,
-Update, Check, and guided Uninstall. The command-line equivalent for the
-recommended installation is `--yes-all`.
+Clean reinstall, Update, Check, and guided Uninstall. Clean reinstall removes
+installer-managed application/runtime state and installs fresh copies while
+preserving ROMs, definitions, and logs. The command-line equivalent for the
+recommended installation is `--yes-all`; use `--clean-install` for the clean
+path.
 
 To refresh project-managed files without reinstalling large applications:
 

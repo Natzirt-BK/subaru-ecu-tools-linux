@@ -10,6 +10,7 @@ trace_file=$test_root/regedit.trace
 cat >"$test_root/bin/fake-wine" <<'EOF'
 #!/bin/sh
 printf '%s\n' "$*" >>"$TRACE_FILE"
+case "$*" in 'reg query '*) exit 1 ;; esac
 EOF
 chmod +x "$test_root/bin/fake-wine"
 
@@ -24,7 +25,7 @@ run_sync() {
 
 state=$(run_sync)
 [ "$state" = disconnected ]
-tail -1 "$trace_file" | grep -q 'openport2-device-absent.reg$'
+grep -q 'openport2-device-absent.reg$' "$trace_file"
 
 mkdir -p "$test_root/sysfs/1-2"
 printf '%s\n' 0403 >"$test_root/sysfs/1-2/idVendor"
@@ -38,7 +39,11 @@ if grep -q 'CurrentControlSet\\Enum\\USB' "$repo_root/wine-bridge/openport2-wine
     echo 'Static bridge registry must not enumerate a USB device.' >&2
     exit 1
 fi
-grep -q '^\[-HKEY_LOCAL_MACHINE.*CurrentControlSet\\Enum\\USB' \
+grep -q '^\[-HKEY_LOCAL_MACHINE.*CurrentControlSet\\Enum\\USB\\VID_0403&PID_CC4D\]$' \
     "$repo_root/wine-bridge/openport2-device-absent.reg"
+if grep -q '272&256' "$repo_root/wine-bridge/openport2-device-absent.reg"; then
+    echo 'Disconnected cleanup must not depend on a machine-specific USB instance.' >&2
+    exit 1
+fi
 
 echo 'OpenPort physical-device state tests passed.'

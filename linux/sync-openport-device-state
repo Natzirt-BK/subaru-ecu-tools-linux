@@ -35,4 +35,13 @@ fi
 printf 'Synchronizing OpenPort Wine state: %s\n' "$state" >>"$OPENPORT_STATE_LOG"
 WINEPREFIX="$ECUFLASH_WINEPREFIX" WINEDEBUG=-all \
     "$ECUFLASH_WINE" regedit /S "$registry_file" >>"$OPENPORT_STATE_LOG" 2>&1
+if [ "$state" = disconnected ] && \
+   WINEPREFIX="$ECUFLASH_WINEPREFIX" WINEDEBUG=-all \
+       "$ECUFLASH_WINE" reg query \
+       'HKLM\SYSTEM\CurrentControlSet\Enum\USB\VID_0403&PID_CC4D' \
+       >>"$OPENPORT_STATE_LOG" 2>&1; then
+    printf '%s\n' 'OpenPort Wine cleanup failed: stale USB enumeration remains.' \
+        >>"$OPENPORT_STATE_LOG"
+    exit 1
+fi
 printf '%s\n' "$state"

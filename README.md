@@ -92,7 +92,10 @@ The wizard asks which pieces to install, then opens Konsole so progress and any
 `sudo` prompt stay visible. It never communicates with an ECU. After the first
 installation, **Subaru & Evo ECU Tools Setup** is also available in the application
 menu. Choose **Install recommended tools** for the normal setup, or
-**Customize installation** for advanced definition and EvoScan choices.
+**Customize installation** for advanced definition and EvoScan choices. If an
+older installation may contain stale Wine or bridge files, choose **Clean
+reinstall**. It removes installer-managed application/runtime state before
+installing fresh copies while preserving ROMs, definitions, and logs.
 
 If dependencies or the OpenPort udev rule are missing, the installer can handle
 those too. It can also download the complete official EcuFlash installer from
@@ -146,6 +149,14 @@ run:
 ```bash
 bash ~/.local/src/subaru-ecu-tools-linux/linux/update-cachyos.sh
 ```
+
+For a confirmed clean reinstall from the command line:
+
+```bash
+bash ~/.local/src/subaru-ecu-tools-linux/linux/install-cachyos.sh --clean-install
+```
+
+The clean reinstall asks for confirmation unless `--yes` is also supplied.
 
 This updates project-managed files without redownloading Wine, Java,
 RomRaider, EcuFlash, or EvoScan.
