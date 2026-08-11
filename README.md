@@ -131,6 +131,9 @@ was not released for EcuFlash.
 Because an OpenPort reset can briefly re-enumerate it under a new Linux USB
 device number, setup waits for the replacement device to remain stable before
 starting EcuFlash.
+The post-test evaluates the complete J2534 sequence: an early transient
+no-device message is accepted only when EcuFlash subsequently opens the
+physical OpenPort through the installed bridge.
 
 Setup can now download and install the checksum-pinned RomRaider DimeMod DM20
 Linux package and its required Azul Zulu 32-bit Java runtime automatically at

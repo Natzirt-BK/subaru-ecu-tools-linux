@@ -1113,6 +1113,8 @@ if $install_ecuflash; then
         step "Verifying EcuFlash after the communication probe"
         post_probe_marker=$(mktemp "$cache_root/ecuflash-post-probe.XXXXXX")
         post_probe_log="$cache_root/ecuflash-post-probe-startup.log"
+        j2534_log="$state_dir/ecuflash-j2534.log"
+        j2534_log_size=$(wc -c <"$j2534_log" 2>/dev/null || echo 0)
         set +e
         timeout 12s env \
             XDG_DATA_HOME="$data_root" \
@@ -1133,13 +1135,28 @@ if $install_ecuflash; then
             -path '*/OpenECU/EcuFlash/logs/*' -newer "$post_probe_marker" \
             -exec grep -il 'J2534 error.*no devices available' {} + 2>/dev/null | \
             sed -n '1p' || true)
+        post_probe_j2534_log="$cache_root/ecuflash-post-probe-j2534.log"
+        if [[ -f "$j2534_log" ]]; then
+            tail -c "+$((j2534_log_size + 1))" "$j2534_log" >"$post_probe_j2534_log"
+        else
+            : >"$post_probe_j2534_log"
+        fi
         rm -f -- "$post_probe_marker"
-        if [[ -n "$post_probe_error_log" ]]; then
+        if grep -q 'DeviceID [0-9][0-9]* opened' "$post_probe_j2534_log"; then
+            if [[ -n "$post_probe_error_log" ]]; then
+                warn "EcuFlash logged a transient no-devices error, then successfully opened the OpenPort."
+            fi
+            ok "EcuFlash opened the connected OpenPort through the installed bridge."
+        elif [[ -n "$post_probe_error_log" ]]; then
             fail "EcuFlash could not access the connected OpenPort after validation."
             echo "EcuFlash log: $post_probe_error_log" >&2
+            echo "J2534 log: $post_probe_j2534_log" >&2
+            exit 1
+        else
+            fail "EcuFlash did not open the connected OpenPort during validation."
+            echo "J2534 log: $post_probe_j2534_log" >&2
             exit 1
         fi
-        ok "EcuFlash remained running after the probe without a no-devices error."
     fi
 fi
 

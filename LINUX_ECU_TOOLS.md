@@ -107,6 +107,8 @@ EcuFlash. A new EcuFlash log containing `J2534 error [no devices available]`
 causes setup to fail instead of reporting a false success.
 Setup also waits for a connected OpenPort's sysfs device number to settle after
 the probe, since the adapter can briefly disconnect and re-enumerate on reset.
+An early no-device message is treated as a recovered transient only if the new
+J2534 log segment proves EcuFlash subsequently opened the physical adapter.
 
 ## EvoScan (experimental)
 

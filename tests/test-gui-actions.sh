@@ -42,5 +42,7 @@ grep -F 'The complete ready-to-share report remains at:' "$installer" >/dev/null
 grep -F 'wait_for_stable_openport' "$installer" >/dev/null
 grep -F '"$cache_root/ecuflash-j2534-probe.log"' "$installer" >/dev/null
 grep -F 'LD_LIBRARY_PATH="/usr/lib32' "$repo_root/linux/launch-romraider" >/dev/null
+grep -F "grep -q 'DeviceID [0-9][0-9]* opened'" "$installer" >/dev/null
+grep -F 'logged a transient no-devices error, then successfully opened' "$installer" >/dev/null
 
 echo 'Graphical setup action tests passed.'
