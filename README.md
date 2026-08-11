@@ -39,7 +39,8 @@ computer only; it never reads or writes an ECU.
 The installer checks the physical USB state. With the cable disconnected, the
 J2534 probe must report device-not-connected. With it connected, the probe must
 open and close the real adapter. An EcuFlash status-bar label alone is not proof
-that the cable is connected.
+that the cable is connected. The guided plug/unplug test is recommended but can
+be skipped when the adapter is unavailable.
 
 EcuFlash 1.44 checks the cable when it starts and does not refresh Task Info
 after a USB change. The launcher watches the real Linux USB state and shows a

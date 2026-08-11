@@ -1354,11 +1354,23 @@ if $install_udev; then
     }
     ok "Installed and reloaded the OpenPort 2.0 udev permission rule."
     if $setup_interactive; then
-        verify_openport_hotplug_cycle || exit 1
-        if $install_ecuflash; then
-            wait_for_openport_state present \
-                "Plug the OpenPort back in for the standalone driver and J2534 communication tests." || exit 1
-            verify_openport_usb_access || exit 1
+        echo "The guided plug/unplug test is recommended, but it can be skipped."
+        if read_yes_no "Run the guided OpenPort plug/unplug test now?" yes; then
+            verify_openport_hotplug_cycle || exit 1
+            if $install_ecuflash; then
+                wait_for_openport_state present \
+                    "Plug the OpenPort back in for the standalone driver and J2534 communication tests." || exit 1
+                verify_openport_usb_access || exit 1
+            fi
+        else
+            warn "Guided OpenPort plug/unplug test skipped by the user."
+            if openport_usb_present; then
+                wait_for_stable_openport || {
+                    fail "The connected OpenPort did not stabilize after applying the udev rule."
+                    exit 1
+                }
+                verify_openport_usb_access || exit 1
+            fi
         fi
     elif openport_usb_present; then
         wait_for_stable_openport || {

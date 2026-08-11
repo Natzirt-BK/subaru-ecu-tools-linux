@@ -116,6 +116,10 @@ grep -q '^verify_openport_usb_access()' "$repo_root/linux/install-cachyos.sh"
 grep -q '^wait_for_openport_state()' "$repo_root/linux/install-cachyos.sh"
 grep -q '^verify_openport_hotplug_cycle()' "$repo_root/linux/install-cachyos.sh"
 grep -q 'OpenPort plug/unplug detection passed' "$repo_root/linux/install-cachyos.sh"
+grep -q 'Run the guided OpenPort plug/unplug test now?' \
+    "$repo_root/linux/install-cachyos.sh"
+grep -q 'Guided OpenPort plug/unplug test skipped by the user' \
+    "$repo_root/linux/install-cachyos.sh"
 grep -q 'sudo cmp -s.*99-openport2.rules' "$repo_root/linux/install-cachyos.sh"
 grep -q 'sudo udevadm settle --timeout=10' "$repo_root/linux/install-cachyos.sh"
 grep -q 'udev grants effective read/write access to the connected OpenPort' \
