@@ -68,7 +68,9 @@ addresses, hardware and USB identifiers, adapter serial, groups, and relevant
 packages/processes. It does not intentionally collect credentials, tokens, SSH
 keys, browser data, or the unfiltered environment. Review it before uploading;
 reports are public. If GitHub upload fails, a ready-to-share report is preserved
-locally.
+locally. Reports are assembled below GitHub's issue-body limit; an oversized
+report is automatically reduced to bounded first/last excerpts while the
+complete version remains local.
 
 Report problems at:
 [GitHub Issues](https://github.com/Natzirt-BK/subaru-ecu-tools-linux/issues)

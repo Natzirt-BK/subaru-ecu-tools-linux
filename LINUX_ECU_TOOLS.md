@@ -111,7 +111,9 @@ addresses, hardware/USB identifiers, adapter serial, groups, and relevant
 packages/processes. It intentionally excludes credentials, tokens, SSH keys,
 browser data, and the unfiltered environment. Upload uses the authenticated
 GitHub CLI and requires explicit confirmation. If upload fails, the complete
-Markdown report remains beside the setup logs.
+Markdown report remains beside the setup logs. If a report exceeds GitHub's
+issue-body limit, setup uploads bounded first/last excerpts and retains the
+complete version locally.
 
 Common checks:
 

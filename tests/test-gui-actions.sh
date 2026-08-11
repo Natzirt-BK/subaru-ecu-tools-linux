@@ -45,20 +45,23 @@ grep -F 'setup_interactive=false' "$engine" >/dev/null
 test "$(grep -F -c '$setup_interactive || return 0' "$engine")" -eq 1
 ! grep -F '[[ -t 0 || -t 1 ]] || return 0' "$engine" >/dev/null
 grep -F 'Briefly describe what went wrong (optional' "$engine" >/dev/null
-grep -F 'tail -c 18000' "$engine" >/dev/null
-grep -F '*j2534-probe.log) log_bytes=12000' "$engine" >/dev/null
+grep -F 'tail -c 12000' "$engine" >/dev/null
+grep -F '*j2534-probe.log) log_bytes=10000' "$engine" >/dev/null
 ! grep -F 'WINEDEBUG=-all,+loaddll' "$engine" >/dev/null
 grep -F 'The complete ready-to-share report remains at:' "$engine" >/dev/null
 grep -F 'OpenPort USB access diagnostics:' "$engine" >/dev/null
 grep -F 'Host and installed-runtime diagnostics:' "$engine" >/dev/null
-grep -F 'first 9,000 bytes; may include identifying host' "$engine" >/dev/null
+grep -F 'first 6,000 bytes; may include identifying host' "$engine" >/dev/null
 grep -F 'It does not intentionally collect passwords, tokens, SSH keys' "$engine" >/dev/null
 grep -F 'ip -brief address' "$engine" >/dev/null
 grep -F 'OpenPort native bridge dependencies:' "$engine" >/dev/null
 grep -F 'effective write access:' "$engine" >/dev/null
 grep -F 'processes using node:' "$engine" >/dev/null
 grep -F 'Verbose OpenPort USB descriptor:' "$engine" >/dev/null
-grep -F 'first 16,000 bytes; may include adapter serial and host USB details' "$engine" >/dev/null
+grep -F 'first 10,000 bytes; may include adapter serial and host USB details' "$engine" >/dev/null
+grep -F 'report_bytes <= 60000' "$engine" >/dev/null
+grep -F 'head -c 28000 "$full_report"' "$engine" >/dev/null
+grep -F 'tail -c 28000 "$full_report"' "$engine" >/dev/null
 grep -F 'Failure-only Wine OpenPort driver/PnP trace' "$engine" >/dev/null
 grep -F 'ecuflash-post-probe-startup.log' "$engine" >/dev/null
 grep -F 'wait_for_stable_openport' "$engine" >/dev/null

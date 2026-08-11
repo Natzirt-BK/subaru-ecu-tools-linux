@@ -481,7 +481,7 @@ github_repo=Natzirt-BK/subaru-ecu-tools-linux
 ecuflash_vendor_j2534_sha256=f432084801762d919a3c31974616e097562424470003edc4f4fb843df34103cf
 offer_error_report() {
     local user_description=${1:-}
-    local report_file upload_error issue_url extra_log log_bytes usb_report host_report latest_ecuflash_log
+    local report_file full_report upload_error issue_url extra_log log_bytes usb_report host_report latest_ecuflash_log report_bytes
 
     $setup_interactive || return 0
     warn "The public report may identify this computer and user. It includes the username, hostname, home paths, local network addresses, hardware and USB identifiers, adapter serial, groups, relevant packages/processes, permissions, and bounded application/system logs. It does not intentionally collect passwords, tokens, SSH keys, browser data, or an unfiltered environment. Review the report before sharing."
@@ -499,6 +499,7 @@ offer_error_report() {
     fi
 
     report_file="$state_dir/report-$log_stamp.md"
+    full_report="$state_dir/report-$log_stamp-full.md"
     {
         echo "Setup submitted this report after a detected or user-reported problem."
         echo
@@ -507,9 +508,9 @@ offer_error_report() {
             printf '%s\n' "$user_description" | sed 's/^/> /'
             echo
         fi
-        echo "Installer log (last 18,000 bytes):"
+        echo "Installer log (last 12,000 bytes):"
         echo '```text'
-        tail -c 18000 "$log_file"
+        tail -c 12000 "$log_file"
         echo
         echo '```'
         echo "Source revision: $(git -C "$repo_root" rev-parse --short HEAD 2>/dev/null || echo unknown)"
@@ -517,21 +518,21 @@ offer_error_report() {
         echo "Installed J2534 DLL: $(sha256sum "$ecuflash_prefix/drive_c/windows/syswow64/op20pt32.dll" 2>/dev/null || echo missing)"
         echo
         echo 'Host and installed-runtime diagnostics:'
-        echo '(first 9,000 bytes; may include identifying host, user, network, hardware, process, and path details)'
+        echo '(first 6,000 bytes; may include identifying host, user, network, hardware, process, and path details)'
         echo '```text'
         host_report=$(mktemp /tmp/subaru-ecu-tools-host-report.XXXXXX)
         write_host_runtime_diagnostics >"$host_report" 2>&1
-        head -c 9000 "$host_report"
+        head -c 6000 "$host_report"
         rm -f -- "$host_report"
         echo
         echo '```'
         echo
         echo 'OpenPort USB access diagnostics:'
-        echo '(first 16,000 bytes; may include adapter serial and host USB details)'
+        echo '(first 10,000 bytes; may include adapter serial and host USB details)'
         echo '```text'
         usb_report=$(mktemp /tmp/subaru-ecu-tools-usb-report.XXXXXX)
         write_openport_usb_diagnostics >"$usb_report" 2>&1
-        head -c 16000 "$usb_report"
+        head -c 10000 "$usb_report"
         rm -f -- "$usb_report"
         echo
         echo '```'
@@ -554,9 +555,9 @@ offer_error_report() {
             "$HOME/.RomRaider/romraider_sout.log"; do
             [[ -s "$extra_log" ]] || continue
             case "$extra_log" in
-                *j2534-probe.log) log_bytes=12000 ;;
-                *ecuflash_log_*) log_bytes=6000 ;;
-                *) log_bytes=2500 ;;
+                *j2534-probe.log) log_bytes=10000 ;;
+                *ecuflash_log_*) log_bytes=5000 ;;
+                *) log_bytes=1500 ;;
             esac
             echo
             echo "Application log: $extra_log (last $log_bytes bytes)"
@@ -565,16 +566,44 @@ offer_error_report() {
             echo
             echo '```'
         done
-    } >"$report_file"
+    } >"$full_report"
+    report_bytes=$(wc -c <"$full_report")
+    if ((report_bytes <= 60000)); then
+        mv -f -- "$full_report" "$report_file"
+    else
+        {
+            echo 'Setup diagnostic report automatically shortened for the GitHub issue-body limit.'
+            echo "Complete local report: $full_report ($report_bytes bytes)"
+            echo
+            echo 'First 28,000 bytes:'
+            echo '```text'
+            head -c 28000 "$full_report"
+            echo
+            echo '```'
+            echo
+            echo 'Middle omitted from the upload; retained in the complete local report.'
+            echo
+            echo 'Last 28,000 bytes:'
+            echo '```text'
+            tail -c 28000 "$full_report"
+            echo
+            echo '```'
+        } >"$report_file"
+    fi
     upload_error=$(mktemp /tmp/subaru-ecu-tools-upload-error.XXXXXX)
     if issue_url=$(gh issue create --repo "$github_repo" \
         --title "Setup diagnostic report ($log_stamp)" \
         --body-file "$report_file" 2>"$upload_error"); then
         echo "Error report uploaded: $issue_url"
-        rm -f -- "$report_file"
+        rm -f -- "$report_file" "$full_report"
     else
         echo "GitHub upload failed: $(tail -n 1 "$upload_error")" >&2
-        echo "The complete ready-to-share report remains at: $report_file" >&2
+        if [[ -f "$full_report" ]]; then
+            echo "The complete report remains at: $full_report" >&2
+            echo "The GitHub-sized report remains at: $report_file" >&2
+        else
+            echo "The complete ready-to-share report remains at: $report_file" >&2
+        fi
         echo "You can attach it manually at: https://github.com/$github_repo/issues/new" >&2
     fi
     rm -f -- "$upload_error"
