@@ -12,8 +12,7 @@ Paste this into a terminal:
 curl -fsSL https://raw.githubusercontent.com/Natzirt-BK/subaru-ecu-tools-linux/master/bootstrap-cachyos.sh | bash
 ```
 
-The installer responds to one keypress; Enter is not required for menu choices
-or Y/N questions.
+Menus use single keypresses, so you do not need to press Enter after a choice.
 
 1. **Install / repair** — normal setup and updates
 2. **Clean reinstall** — replace all installer-managed state
@@ -41,12 +40,14 @@ J2534 probe must report device-not-connected. With it connected, the probe must
 open and close the real adapter. An EcuFlash status-bar label alone is not proof
 that the cable is connected.
 
-EcuFlash 1.44 does not refresh its visible Task Info after USB hot-plug events.
-The launcher therefore warns before starting it unplugged and monitors the real
-Linux USB state while it runs. Plug/unplug changes produce immediate desktop
-notifications. Start EcuFlash with the cable connected before ECU work. Its
-`[In Use]` label can mean Wine’s PnP driver owns USB on EcuFlash’s behalf; the
-installer’s J2534 open/version/close probe is the reliable health check.
+EcuFlash 1.44 checks the cable when it starts and does not refresh Task Info
+after a USB change. The launcher watches the real Linux USB state and shows a
+desktop notice when the cable is plugged in or removed. If that happens,
+restart EcuFlash before working with an ECU.
+
+`[In Use]` is not automatically an error under Wine. It often means Wine has
+the USB device open for EcuFlash. The installer confirms the connection with a
+real J2534 open/version/close test.
 
 The packaged runtime is the same WineGDK build used for the successful local
 EcuFlash read/write validation. Its release includes licenses, source commits,

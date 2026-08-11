@@ -152,9 +152,9 @@ Usage: linux/install-cachyos.sh [options]
   --yes            Do not prompt before --clean-install or --uninstall
   -h, --help       Show this help
 
-The default builds the bridge and installs user files under ~/.local.
-RomRaider DimeMod is installed only when selected. Setup never installs ROMs,
-definitions, or vehicle firmware.
+The default builds the bridge and installs support files under ~/.local.
+RomRaider DimeMod is installed only when selected. Setup never supplies ROMs
+or vehicle firmware.
 EOF
 }
 
@@ -1184,7 +1184,7 @@ if $install_ecuflash; then
         fi
         post_probe_ecuflash_log=$(find "$ecuflash_prefix/drive_c/users" -type f \
             -path '*/OpenECU/EcuFlash/logs/*' -newer "$post_probe_marker" \
-            sed -n '1p' || true)
+            -print 2>/dev/null | sed -n '1p' || true)
         rm -f -- "$post_probe_marker"
         if [[ -n "$post_probe_ecuflash_log" ]] && \
            grep -q 'J2534 DLL Version: 1\.02\.4870' "$post_probe_ecuflash_log" && \
@@ -1205,7 +1205,7 @@ fi
 
 if $install_evoscan; then
     section "Installing EvoScan (experimental Linux support)"
-    evoscan_wine="${EVOSCAN_WINE:-$wine_runtime_dir/bin/wine}"
+    evoscan_wine="${EVOSCAN_WINE:-$ecuflash_runtime_dir/files/bin/wine}"
     evoscan_install_log="$cache_root/evoscan-installer.log"
     step "Opening the purchaser-supplied EvoScan installer"
     set +e

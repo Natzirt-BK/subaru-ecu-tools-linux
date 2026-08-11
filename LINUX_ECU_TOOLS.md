@@ -1,7 +1,7 @@
 # Technical reference
 
-The normal installation is intentionally simple. This document covers manual
-and advanced operation for maintainers and troubleshooting.
+The README covers normal setup. This page is for manual commands,
+troubleshooting, and maintenance.
 
 ## Bootstrap and command line
 
@@ -54,14 +54,14 @@ The launcher synchronizes Wine’s USB registry with physical Linux USB state
 before every start. Static registry files never claim the adapter is present.
 The OpenPort 2.0 USB identity is `0403:cc4d`.
 
-EcuFlash 1.44 caches its visible interface and Task Info state at startup and
-ignores standard Windows device-interface arrival/removal notifications. The
-launcher warns before an unplugged start. While EcuFlash runs, a monitor keeps
-Wine’s state synchronized and sends desktop notifications for physical changes.
-Reconnects also discard stale native libusb handles before reuse. Restart
-EcuFlash before beginning an ECU task after any cable transition. Under Wine,
-`[In Use]` can mean the bridge’s PnP driver owns USB on EcuFlash’s behalf; use
-the J2534 probe result to distinguish that from a real access failure.
+EcuFlash 1.44 reads its visible cable state at startup and ignores Windows
+arrival/removal notifications afterward. The launcher warns when it starts
+without a cable. While it runs, a small monitor keeps Wine in sync with Linux
+and reports USB changes on the desktop. Restart EcuFlash after plugging or
+unplugging the cable. The bridge also drops stale libusb handles before reuse.
+
+Under Wine, `[In Use]` often means Wine has opened the USB device for EcuFlash.
+Use the J2534 probe to tell that apart from an access failure.
 
 After EcuFlash startup, setup stops Wine and waits for all prefix services to
 exit before probing J2534. A transient probe startup failure is retried once

@@ -64,5 +64,9 @@ grep -F 'X-Subaru-Evo-ECU-Tools' "$repo_root/linux/subaru-ecu-tools.menu" >/dev/
 grep -F 'start /wait /unix' "$repo_root/linux/launch-ecuflash" >/dev/null
 grep -F 'monitor-openport-state' "$repo_root/linux/launch-ecuflash" >/dev/null
 grep -F '"$data_dir/winedll/i386-windows/op20pt32.dll"' "$engine" >/dev/null
+grep -F -- '-print 2>/dev/null | sed -n' "$engine" >/dev/null
+grep -F 'evoscan_wine="${EVOSCAN_WINE:-$ecuflash_runtime_dir/files/bin/wine}"' \
+    "$engine" >/dev/null
+! grep -F '$wine_runtime_dir/bin/wine' "$engine" >/dev/null
 
 echo 'Terminal setup action tests passed.'
