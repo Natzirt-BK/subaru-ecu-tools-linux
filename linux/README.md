@@ -4,7 +4,7 @@ The Linux integration is split by responsibility:
 
 - `install-cachyos.sh` — main CLI, checks, install, update-files, diagnostics,
   and uninstall orchestration.
-- `setup-cachyos-gui.sh` — native KDE/KDialog front end for the main CLI.
+- `setup-cachyos-gui.sh` — colorful single-key terminal front end (historical filename retained for shortcut compatibility).
 - `update-cachyos.sh` — lightweight Git and managed-file updater.
 - `install-romraider-definitions` — checksum-pinned definition download,
   custom XML import, and active definition selection.

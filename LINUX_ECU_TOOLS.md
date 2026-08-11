@@ -31,16 +31,17 @@ the official EcuFlash installer:
 
     bash /tmp/bootstrap-cachyos.sh --install-deps --install-udev --install-romraider --install-ecuflash
 
-For a graphical KDialog wizard on CachyOS KDE:
+For the colorful single-key terminal installer:
 
-    bash /tmp/bootstrap-cachyos.sh --gui
+    bash /tmp/bootstrap-cachyos.sh
 
-The wizard offers a recommended installation, a compact Customize path,
-Clean reinstall, Update, Check, and guided Uninstall. Clean reinstall removes
-installer-managed application/runtime state and installs fresh copies while
-preserving ROMs, definitions, and logs. The command-line equivalent for the
-recommended installation is `--yes-all`; use `--clean-install` for the clean
-path.
+The menu offers Install/repair, Clean reinstall, System check, and Uninstall.
+Selections and Y/N confirmations take one keypress without Enter. Install/repair
+also updates managed files, avoiding a redundant update choice. Clean reinstall
+removes installer-managed application/runtime state and installs fresh copies
+while preserving ROMs, definitions, and logs. The command-line equivalent for
+the recommended installation is `--yes-all`; use `--clean-install` for the
+clean path.
 
 To refresh project-managed files without reinstalling large applications:
 
@@ -58,7 +59,7 @@ application logs, and shared system packages.
 
 ## Diagnostic logs
 
-Every command-line or graphical setup run records its terminal output in:
+Every setup run records its terminal output in:
 
     $HOME/.local/state/subaru-ecu-tools-linux/
 
@@ -82,7 +83,8 @@ diagnostic issue.
 The optional EcuFlash step downloads checksum-pinned version 1.44.4870 directly
 from Tactrix. After the vendor installer closes, setup starts EcuFlash for 12
 seconds and fails if it crashes or exits early. Setup uses the project's
-checksum-verified, source-built Wine 11.1 runtime, including its LGPL license;
+checksum-verified WineGDK 11.1 runtime, including its licenses and full build
+provenance;
 set `ECUFLASH_WINE` to test another general-purpose runner. No runtime from an
 unrelated application is downloaded or reused. Compatibility is established
 only by the startup test on the user's computer.

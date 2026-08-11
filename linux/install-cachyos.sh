@@ -46,6 +46,27 @@ ok() { printf '%b  OK %b%s\n' "$color_green" "$color_reset" "$*"; }
 warn() { printf '%b  WARNING %b%s\n' "$color_yellow" "$color_reset" "$*" >&2; }
 fail() { printf '%b  ERROR %b%s\n' "$color_red" "$color_reset" "$*" >&2; }
 
+# Read confirmations immediately, without requiring Enter. Noninteractive callers
+# continue to use --yes/--yes-all and never reach this helper.
+read_yes_no() {
+    local prompt=$1 default=${2:-no} key suffix
+    [[ "$default" == yes ]] && suffix='[Y/n]' || suffix='[y/N]'
+    while true; do
+        printf '%s %s ' "$prompt" "$suffix"
+        IFS= read -rsn1 key </dev/tty || return 1
+        if [[ -z "$key" ]]; then
+            printf '\n'
+            [[ "$default" == yes ]]
+            return
+        fi
+        case "$key" in
+            y|Y) printf 'Y\n'; return 0 ;;
+            n|N) printf 'N\n'; return 1 ;;
+            *) printf '\nPress Y or N — Enter is not required.\n' ;;
+        esac
+    done
+}
+
 openport_usb_present() {
     local sysfs_root=${OPENPORT_USB_SYSFS_ROOT:-/sys/bus/usb/devices}
     local vendor_file product_file vendor product
@@ -191,11 +212,10 @@ github_repo=Natzirt-BK/subaru-ecu-tools-linux
 ecuflash_vendor_j2534_sha256=f432084801762d919a3c31974616e097562424470003edc4f4fb843df34103cf
 offer_error_report() {
     local user_description=${1:-}
-    local answer report_file upload_error issue_url extra_log
+    local report_file upload_error issue_url extra_log
 
     [[ -t 0 || -t 1 ]] || return 0
-    read -r -p "Upload this error log in a public GitHub issue so the maintainer can investigate? [y/N] " answer </dev/tty || return 0
-    [[ "$answer" == [yY] || "$answer" == [yY][eE][sS] ]] || return 0
+    read_yes_no "Upload this error log in a public GitHub issue so the maintainer can investigate?" no || return 0
 
     if ! command -v gh >/dev/null 2>&1; then
         echo "Automatic upload requires GitHub CLI. Install 'github-cli', run 'gh auth login', then retry."
@@ -259,7 +279,7 @@ offer_error_report() {
     rm -f -- "$upload_error"
 }
 confirm_success() {
-    local answer question user_description
+    local question user_description
 
     [[ ( -t 0 || -t 1 ) && "${SUBARU_SETUP_NO_PAUSE:-0}" != 1 ]] || return 0
     case "$mode" in
@@ -268,8 +288,7 @@ confirm_success() {
         update) question="Did the update and automatic OpenPort test complete successfully?" ;;
         *) question="Did installation complete and do the installed shortcuts open correctly?" ;;
     esac
-    read -r -p "$question [Y/n] " answer </dev/tty || return 0
-    if [[ "$answer" == [nN] || "$answer" == [nN][oO] ]]; then
+    if ! read_yes_no "$question" yes; then
         warn "The run exited successfully, but the user reported a problem."
         read -r -p "Briefly describe what went wrong (optional; do not include passwords or private data): " \
             user_description </dev/tty || user_description=
@@ -303,6 +322,10 @@ bin_dir="${XDG_BIN_HOME:-$HOME/.local/bin}"
 data_root="${XDG_DATA_HOME:-$HOME/.local/share}"
 data_dir="$data_root/subaru-ecu-tools-linux"
 applications_dir="$data_root/applications"
+desktop_directories_dir="$data_root/desktop-directories"
+menus_dir="${XDG_CONFIG_HOME:-$HOME/.config}/menus/applications-merged"
+tools_menu_file="$menus_dir/subaru-ecu-tools.menu"
+tools_directory_file="$desktop_directories_dir/subaru-ecu-tools.directory"
 wine_ecuflash_menu_dir="$applications_dir/wine/Programs/EcuFlash"
 cache_root="${XDG_CACHE_HOME:-$HOME/.cache}/subaru-ecu-tools-linux"
 ecuflash_prefix="${ECUFLASH_WINEPREFIX:-$data_root/ecuflash-proton}"
@@ -315,18 +338,17 @@ if $clean_install; then
     warn "This removes the installer-managed EcuFlash/EvoScan prefix, Wine runtime, bridge, launchers, cache, and installer-managed RomRaider package."
     echo "ROMs, RomRaider definitions, application logs, and separately installed software are preserved."
     if ! $assume_yes; then
-        read -r -p "Continue with the clean reinstall? [y/N] " answer
-        [[ "$answer" == [yY] || "$answer" == [yY][eE][sS] ]] || {
+        read_yes_no "Continue with the clean reinstall?" no || {
             echo "Clean reinstall cancelled."
             exit 0
         }
     fi
 
-    if [[ -x "$data_dir/runtime/ecuflash-wine-11.1/bin/wineserver" ]]; then
+    if [[ -x "$data_dir/runtime/ecuflash-winegdk-11.1/files/bin/wineserver" ]]; then
         WINEPREFIX="$ecuflash_prefix" \
-            "$data_dir/runtime/ecuflash-wine-11.1/bin/wineserver" -k >/dev/null 2>&1 || true
+            "$data_dir/runtime/ecuflash-winegdk-11.1/files/bin/wineserver" -k >/dev/null 2>&1 || true
         WINEPREFIX="$ecuflash_prefix" \
-            "$data_dir/runtime/ecuflash-wine-11.1/bin/wineserver" -w >/dev/null 2>&1 || true
+            "$data_dir/runtime/ecuflash-winegdk-11.1/files/bin/wineserver" -w >/dev/null 2>&1 || true
     fi
     command -v wineserver >/dev/null 2>&1 && \
         WINEPREFIX="$ecuflash_prefix" wineserver -k >/dev/null 2>&1 || true
@@ -342,7 +364,9 @@ if $clean_install; then
         "$applications_dir/romraider-editor.desktop" \
         "$applications_dir/romraider-logger.desktop" \
         "$applications_dir/subaru-ecu-tools-setup.desktop" \
-        "$applications_dir/subaru-ecu-tools-update.desktop"
+        "$applications_dir/subaru-ecu-tools-update.desktop" \
+        "$tools_menu_file" \
+        "$tools_directory_file"
     if [[ -f "$romraider_home/.installed-by-subaru-ecu-tools" ]]; then
         rm -rf -- "$romraider_home"
     fi
@@ -424,7 +448,8 @@ install_managed_user_files() {
     local source target desktop rendered expected_mode actual_mode
     local checked=0 updated=0 current=0
 
-    install -d "$bin_dir" "$applications_dir" "$data_dir/registry"
+    install -d "$bin_dir" "$applications_dir" "$desktop_directories_dir" \
+        "$menus_dir" "$data_dir/registry"
 
     update_managed_file() {
         source=$1
@@ -467,41 +492,48 @@ install_managed_user_files() {
         update_managed_file "$rendered" "$applications_dir/$desktop.desktop" 0644
         rm -f -- "$rendered"
     done
+    update_managed_file "$repo_root/linux/subaru-ecu-tools.directory" \
+        "$tools_directory_file" 0644
+    update_managed_file "$repo_root/linux/subaru-ecu-tools.menu" \
+        "$tools_menu_file" 0644
     command -v update-desktop-database >/dev/null && \
         update-desktop-database "$applications_dir" >/dev/null 2>&1 || true
+    ok "Application menu folder: Subaru & Evo ECU Tools"
     ok "Managed-file audit complete: $checked checked, $updated updated, $current already current."
 }
 
-ecuflash_runtime_url=https://github.com/Natzirt-BK/subaru-ecu-tools-linux/releases/download/ecuflash-wine-11.1-1/ecuflash-wine-11.1-x86_64.tar.zst
-ecuflash_runtime_sha256=e3e1d6f83f54b710e01e93ae9150c14775ec6e4905bddcf08a127a7e602b2c03
-ecuflash_wine_sha256=db39819d2e916e15abe2e55c167f21fb8ffb5400eb8083b8ef08359c7b2b1c70
-ecuflash_runtime_archive="$cache_root/ecuflash-wine-11.1-x86_64.tar.zst"
+ecuflash_runtime_url=https://github.com/Natzirt-BK/subaru-ecu-tools-linux/releases/download/ecuflash-winegdk-11.1-validated-1/ecuflash-winegdk-11.1-validated.tar.zst
+ecuflash_runtime_sha256=065b6e7f12c77c717946806c7272fdadfbfcf7d9328593de630c7f7a72dc45c1
+ecuflash_wine_sha256=c249f6017f910365dc51b7a1ba5114004fca12aa4182fdeb6e404b8591658b11
+ecuflash_runtime_archive="$cache_root/ecuflash-winegdk-11.1-validated.tar.zst"
 ecuflash_runtime_root="$data_dir/runtime"
-ecuflash_runtime_dir="$ecuflash_runtime_root/ecuflash-wine-11.1"
+ecuflash_runtime_dir="$ecuflash_runtime_root/ecuflash-winegdk-11.1"
 install_ecuflash_runtime() {
     mkdir -p "$cache_root" "$ecuflash_runtime_root"
     if [[ ! -f "$ecuflash_runtime_archive" ]] || \
        ! printf '%s  %s\n' "$ecuflash_runtime_sha256" "$ecuflash_runtime_archive" | \
            sha256sum -c - >/dev/null 2>&1; then
-        step "Downloading the project-built Wine 11.1 runtime"
+        step "Downloading the validated WineGDK 11.1 runtime"
         curl --fail --location --output "$ecuflash_runtime_archive" "$ecuflash_runtime_url"
     fi
     printf '%s  %s\n' "$ecuflash_runtime_sha256" "$ecuflash_runtime_archive" | sha256sum -c - >/dev/null
-    if [[ ! -x "$ecuflash_runtime_dir/bin/wine" ]] || \
-       ! printf '%s  %s\n' "$ecuflash_wine_sha256" "$ecuflash_runtime_dir/bin/wine" | \
+    if [[ ! -x "$ecuflash_runtime_dir/files/bin/wine" ]] || \
+       ! printf '%s  %s\n' "$ecuflash_wine_sha256" "$ecuflash_runtime_dir/files/bin/wine" | \
            sha256sum -c - >/dev/null 2>&1 || \
-       [[ ! -f "$ecuflash_runtime_dir/COPYING.LIB" ]]; then
+       [[ ! -f "$ecuflash_runtime_dir/LICENSE" ]] || \
+       [[ ! -f "$ecuflash_runtime_dir/engine-manifest.json" ]]; then
         rm -rf -- "$ecuflash_runtime_dir"
         tar --zstd -xf "$ecuflash_runtime_archive" -C "$ecuflash_runtime_root"
     fi
-    if [[ ! -x "$ecuflash_runtime_dir/bin/wine" ]] || \
-       ! printf '%s  %s\n' "$ecuflash_wine_sha256" "$ecuflash_runtime_dir/bin/wine" | \
+    if [[ ! -x "$ecuflash_runtime_dir/files/bin/wine" ]] || \
+       ! printf '%s  %s\n' "$ecuflash_wine_sha256" "$ecuflash_runtime_dir/files/bin/wine" | \
            sha256sum -c - >/dev/null 2>&1 || \
-       [[ ! -f "$ecuflash_runtime_dir/COPYING.LIB" ]]; then
+       [[ ! -f "$ecuflash_runtime_dir/LICENSE" ]] || \
+       [[ ! -f "$ecuflash_runtime_dir/engine-manifest.json" ]]; then
         fail "The verified Wine 11.1 runtime is incomplete."
         exit 1
     fi
-    ok "Project-built Wine 11.1 runtime verified."
+    ok "Validated WineGDK 11.1 runtime and provenance verified."
 }
 
 restore_openport_after_probe() {
@@ -560,7 +592,7 @@ if [[ "$mode" == update ]]; then
         section "Checking the installed EcuFlash runtime"
         install_ecuflash_runtime
         section "Force-refreshing Wine and OpenPort dependencies"
-        update_wine=${ECUFLASH_WINE:-$ecuflash_runtime_dir/bin/wine}
+        update_wine=${ECUFLASH_WINE:-$ecuflash_runtime_dir/files/bin/wine}
         command -v "$update_wine" >/dev/null 2>&1 || [[ -x "$update_wine" ]] || {
             fail "The configured EcuFlash Wine runner is missing: $update_wine"
             exit 1
@@ -677,6 +709,8 @@ if [[ "$mode" == uninstall ]]; then
         "$applications_dir/romraider-logger.desktop" \
         "$applications_dir/subaru-ecu-tools-setup.desktop" \
         "$applications_dir/subaru-ecu-tools-update.desktop" \
+        "$tools_menu_file" \
+        "$tools_directory_file" \
         "/etc/udev/rules.d/99-openport2.rules"
     if [[ "$repo_root" == "$default_source_dir" ]]; then
         printf '  %s\n' "$default_source_dir"
@@ -689,8 +723,7 @@ if [[ "$mode" == uninstall ]]; then
     fi
 
     if ! $assume_yes; then
-        read -r -p "Remove these Subaru & Evo ECU Tools files? [y/N] " answer
-        [[ "$answer" == [yY] || "$answer" == [yY][eE][sS] ]] || {
+        read_yes_no "Remove these Subaru & Evo ECU Tools files?" no || {
             echo "Uninstall cancelled."
             exit 0
         }
@@ -707,7 +740,9 @@ if [[ "$mode" == uninstall ]]; then
         "$applications_dir/romraider-editor.desktop" \
         "$applications_dir/romraider-logger.desktop" \
         "$applications_dir/subaru-ecu-tools-setup.desktop" \
-        "$applications_dir/subaru-ecu-tools-update.desktop"
+        "$applications_dir/subaru-ecu-tools-update.desktop" \
+        "$tools_menu_file" \
+        "$tools_directory_file"
     rm -rf -- "$data_dir" "$ecuflash_prefix" "$cache_root" "$state_dir" \
         "$wine_ecuflash_menu_dir"
     if [[ -f "$romraider_home/.installed-by-subaru-ecu-tools" ]]; then
@@ -972,7 +1007,7 @@ if $install_ecuflash; then
     fi
     printf '%s  %s\n' "$ecuflash_sha256" "$ecuflash_installer" | sha256sum -c -
 
-    ecuflash_wine="${ECUFLASH_WINE:-$ecuflash_runtime_dir/bin/wine}"
+    ecuflash_wine="${ECUFLASH_WINE:-$ecuflash_runtime_dir/files/bin/wine}"
     ecuflash_dir="$ecuflash_prefix/drive_c/Program Files (x86)/OpenECU/EcuFlash"
     if [[ ! -f "$ecuflash_dir/ecuflash.exe" ]]; then
         step "Opening Tactrix's installer; review and accept its license"

@@ -1,138 +1,91 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# Kept at the historical filename so existing desktop shortcuts continue to work.
 script_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
-if [[ -x "$script_dir/install-cachyos.sh" ]]; then
-    installer="$script_dir/install-cachyos.sh"
-else
-    installer="$script_dir/subaru-ecu-tools-install"
-fi
+installer=${ECU_TOOLS_INSTALLER:-$script_dir/install-cachyos.sh}
+
 if [[ ! -x "$installer" ]]; then
-    echo "Cannot find the Subaru & Evo ECU Tools command-line installer." >&2
+    printf 'Cannot find the Subaru & Evo ECU Tools installer: %s\n' "$installer" >&2
     exit 1
 fi
 
-if ! command -v kdialog >/dev/null || ! command -v konsole >/dev/null; then
-    echo "The graphical setup requires KDialog and Konsole." >&2
-    echo "Install them with: sudo pacman -S --needed kdialog konsole" >&2
-    exit 1
-fi
-if [[ -z "${DISPLAY:-}" && -z "${WAYLAND_DISPLAY:-}" ]]; then
-    echo "No graphical desktop session was detected." >&2
-    exit 1
+if [[ -t 1 && -z "${NO_COLOR:-}" && "${TERM:-}" != dumb ]]; then
+    reset=$'\033[0m'; bold=$'\033[1m'; dim=$'\033[2m'
+    blue=$'\033[38;5;39m'; cyan=$'\033[38;5;51m'; green=$'\033[38;5;82m'
+    yellow=$'\033[38;5;220m'; red=$'\033[38;5;196m'; purple=$'\033[38;5;135m'
+else
+    reset=; bold=; dim=; blue=; cyan=; green=; yellow=; red=; purple=
 fi
 
-add_definition_options() {
-    local make year model source units custom_file
+cleanup_terminal() { printf '%b' "$reset"; }
+trap cleanup_terminal EXIT HUP INT TERM
 
-    make=$(kdialog --title "Vehicle definitions" --menu \
-        "Choose the vehicle family. Exact Editor matching is performed by ROM ID." \
-        Subaru "Subaru" \
-        Mitsubishi "Mitsubishi Lancer Evolution") || return 0
-    year=$(kdialog --title "Vehicle year" --inputbox \
-        "Enter the four-digit model year (recorded for guidance and support):" "2008") || return 0
-    if [[ "$make" == Subaru ]]; then
-        model=$(kdialog --title "Subaru model" --menu "Choose the closest model family." \
-            Impreza "Impreza / WRX / STI" Forester "Forester" Legacy "Legacy / Liberty" \
-            Outback "Outback" Baja "Baja" BRZ "BRZ" Other "Other Subaru") || return 0
-        source=$(kdialog --title "Editor definition channel" --menu \
-            "Official is recommended. Beta and Alpha are experimental and used at your discretion." \
-            official "Official RomRaider 0.8.3.1b (Recommended)" \
-            stable "Community Stable" beta "Community Beta (Experimental)" \
-            alpha "Community Alpha (Highly experimental)") || return 0
-        if [[ "$source" == beta || "$source" == alpha ]]; then
-            kdialog --title "Confirm experimental definitions" --warningyesno \
-                "$source definitions may contain incomplete or incorrect table addresses and can contribute to engine or ECU damage if trusted blindly. Continue at your discretion?" || return 0
-        fi
-        args+=(--install-definitions "$source")
-    else
-        model=$(kdialog --title "Lancer Evolution model" --menu "Choose the closest model family." \
-            "Evo V" "Lancer Evolution V" "Evo VI" "Lancer Evolution VI" \
-            "Evo VII" "Lancer Evolution VII" "Evo VIII" "Lancer Evolution VIII" \
-            "Evo IX" "Lancer Evolution IX" "Evo X" "Lancer Evolution X" \
-            Ralliart "Lancer Ralliart" Other "Other Mitsubishi") || return 0
-        kdialog --title "Experimental Mitsubishi definitions" --msgbox \
-            "There is no vetted all-model Mitsubishi RomRaider Editor pack equivalent to the Subaru pack. Select an XML matched to your exact ROM ID. The official v370 Logger pack will still be installed; a Mitsubishi-specific Logger XML can also be selected."
-        custom_file=$(kdialog --title "Select Mitsubishi Editor definition XML" \
-            --getopenfilename "$HOME/Downloads" "*.xml|RomRaider XML definitions (*.xml)") || return 0
-        [[ -n "$custom_file" ]] || return 0
-        args+=(--install-definitions official --custom-editor-definition "$custom_file")
-        if kdialog --title "Mitsubishi Logger definition" --yesno \
-            "Do you also have a Logger XML matched to this vehicle?"; then
-            custom_file=$(kdialog --title "Select Mitsubishi Logger definition XML" \
-                --getopenfilename "$HOME/Downloads" "*.xml|RomRaider Logger XML (*.xml)") || true
-            [[ -z "${custom_file:-}" ]] || args+=(--custom-logger-definition "$custom_file")
-        fi
-    fi
-    units=$(kdialog --title "Definition units" --menu "Choose display units." \
-        metric "Metric" standard "US standard" imperial "Imperial") || units=metric
-    args+=(--definition-units "$units" --vehicle-make "$make" --vehicle-year "$year" --vehicle-model "$model")
+draw_banner() {
+    [[ ! -t 1 || "${TERM:-}" == dumb ]] || printf '\033[2J\033[H'
+    printf '%b' "$blue$bold"
+    cat <<'EOF'
+       ╭────────────────────────────────────────────╮
+       │       SUBARU & EVO ECU TOOLS // LINUX      │
+       ╰────────────────────────────────────────────╯
+EOF
+    printf '%b        ◆ ◆ ◆ ◆ ◆ ◆   %binstaller & diagnostics%b\n\n' "$purple" "$cyan" "$reset"
+    printf '  %bSafe setup only:%b this installer never reads or writes an ECU.\n\n' "$green$bold" "$reset"
 }
 
-choice=$(kdialog --title "Subaru & Evo ECU Tools" --menu \
-    "Choose an action. Setup only prepares this computer; it never reads or writes an ECU." \
-    recommended "Install recommended tools" \
-    clean "Clean reinstall (fix stale files)" \
-    customize "Customize installation" \
-    update "Update and verify installed tools" \
-    check "Check this computer" \
-    uninstall "Uninstall") || exit 0
+read_key() {
+    local key
+    IFS= read -rsn1 key || return 1
+    printf '%s' "$key"
+}
 
-if [[ "$choice" == check ]]; then
-    exec konsole -e "$installer" --check
-fi
-if [[ "$choice" == update ]]; then
-    exec konsole -e "$script_dir/update-cachyos.sh"
-fi
-if [[ "$choice" == uninstall ]]; then
-    if kdialog --title "Remove Subaru & Evo ECU Tools" --warningyesno \
-        "Remove launchers, desktop entries, the Wine bridge, EcuFlash/EvoScan Wine prefix, cache, USB rule, and default source checkout?\n\nROMs, definitions, logs, and separately supplied packages will be preserved."; then
-        exec konsole -e "$installer" --uninstall --yes
-    fi
-    exit 0
-fi
-if [[ "$choice" == recommended ]]; then
-    if kdialog --title "Install recommended tools" --yesno \
-        "Install EcuFlash, RomRaider DimeMod, official definitions, the OpenPort bridge, USB permissions, and required packages?\n\nExisting verified downloads will be reused. Setup does not communicate with the ECU."; then
-        exec konsole -e "$installer" --yes-all
-    fi
-    exit 0
-fi
-if [[ "$choice" == clean ]]; then
-    if kdialog --title "Clean reinstall" --warningyesno \
-        "Remove all installer-managed EcuFlash/EvoScan, Wine runtime, bridge, launchers, cache, and installer-managed RomRaider files, then install fresh copies?\n\nROMs, definitions, logs, and separately installed software will be preserved. Setup does not communicate with the ECU."; then
-        exec konsole -e "$installer" --clean-install --yes
-    fi
-    exit 0
-fi
+confirm() {
+    local prompt=$1 key
+    while true; do
+        printf '%b%s%b %b[Y/N]%b ' "$bold" "$prompt" "$reset" "$yellow$bold" "$reset"
+        key=$(read_key) || return 1
+        case "$key" in
+            y|Y) printf '%bY%b\n' "$green$bold" "$reset"; return 0 ;;
+            n|N) printf '%bN%b\n' "$red$bold" "$reset"; return 1 ;;
+            *) printf '\n  Press Y or N — Enter is not required.\n' ;;
+        esac
+    done
+}
 
-args=()
-components=$(kdialog --title "Customize installation" --checklist \
-    "Choose only what you need. Required bridge files are always installed." \
-    deps "System dependencies (sudo may be required)" on \
-    udev "OpenPort 2.0 USB permissions (sudo may be required)" on \
-    romraider "RomRaider DimeMod Editor and Logger" on \
-    ecuflash "EcuFlash with a startup-tested Wine runtime" on) || exit 0
-[[ "$components" == *'"deps"'* ]] && args+=(--install-deps)
-[[ "$components" == *'"udev"'* ]] && args+=(--install-udev)
-if [[ "$components" == *'"romraider"'* ]]; then
-    args+=(--install-romraider)
-    if kdialog --title "RomRaider definitions" --yesno \
-        "Install and automatically configure Editor and Logger definitions now?"; then
-        add_definition_options
-    fi
-fi
-[[ "$components" == *'"ecuflash"'* ]] && args+=(--install-ecuflash)
-if kdialog --title "Optional EvoScan" --yesno \
-    "Add a purchased EvoScan installer? Linux support is experimental."; then
-    evoscan_file=$(kdialog --title "Select purchased EvoScan installer" \
-        --getopenfilename "$HOME/Downloads" "*.exe *.msi|Windows installers (*.exe *.msi)") || true
-    [[ -n "${evoscan_file:-}" ]] && args+=(--evoscan-installer "$evoscan_file")
-fi
+draw_menu() {
+    printf '  %b1%b  %bInstall / repair%b     Recommended; installs and updates everything needed\n' "$cyan$bold" "$reset" "$bold" "$reset"
+    printf '  %b2%b  %bClean reinstall%b      Fresh managed files and Wine environment\n' "$cyan$bold" "$reset" "$bold" "$reset"
+    printf '  %b3%b  %bSystem check%b         Diagnose installation and connected OpenPort\n' "$cyan$bold" "$reset" "$bold" "$reset"
+    printf '  %b4%b  %bUninstall%b            Remove installer-managed components\n' "$cyan$bold" "$reset" "$bold" "$reset"
+    printf '  %bQ%b  Exit\n\n' "$dim" "$reset"
+    printf '%b  Select an option (no Enter required): %b' "$yellow$bold" "$reset"
+}
 
-if ! kdialog --title "Confirm custom installation" --yesno \
-    "Start the selected installation? A terminal will show progress and save a diagnostic log.\n\nSetup does not communicate with the ECU."; then
-    exit 0
-fi
+draw_banner
+draw_menu
+choice=$(read_key) || exit 0
+printf '%s\n\n' "$choice"
 
-exec konsole -e "$installer" "${args[@]}"
+case "$choice" in
+    1)
+        confirm 'Install or repair the recommended tools?' || exit 0
+        exec "$installer" --yes-all
+        ;;
+    2)
+        printf '  This replaces installer-managed applications, bridge files, runtime, and cache.\n'
+        printf '  Your ROMs, definitions, and logs are preserved.\n\n'
+        confirm 'Continue with a clean reinstall?' || exit 0
+        exec "$installer" --clean-install --yes
+        ;;
+    3) exec "$installer" --check ;;
+    4)
+        printf '  Your ROMs, definitions, and logs are preserved.\n\n'
+        confirm 'Remove installer-managed ECU tools?' || exit 0
+        exec "$installer" --uninstall --yes
+        ;;
+    q|Q) printf 'Setup closed.\n' ;;
+    *)
+        printf '%bUnknown selection.%b Run setup again and press 1, 2, 3, 4, or Q.\n' "$red" "$reset" >&2
+        exit 2
+        ;;
+esac

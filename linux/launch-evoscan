@@ -7,7 +7,7 @@ set -eu
 : "${EVOSCAN_WINEPREFIX:=$XDG_DATA_HOME/ecuflash-proton}"
 
 if [ -z "${EVOSCAN_WINE:-}" ]; then
-    project_wine="$ECU_TOOLS_DATA_DIR/runtime/ecuflash-wine-11.1/bin/wine"
+    project_wine="$ECU_TOOLS_DATA_DIR/runtime/ecuflash-winegdk-11.1/files/bin/wine"
     if [ -x "$project_wine" ]; then
         EVOSCAN_WINE=$project_wine
     else

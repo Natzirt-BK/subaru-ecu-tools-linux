@@ -48,9 +48,9 @@ else
 fi
 
 if (($# == 0)); then
-    set -- --check
+    exec "$source_dir/linux/setup-cachyos-gui.sh"
 fi
-if [[ "${1:-}" == --gui ]]; then
+if [[ "${1:-}" == --gui || "${1:-}" == --terminal ]]; then
     shift
     exec "$source_dir/linux/setup-cachyos-gui.sh" "$@"
 fi

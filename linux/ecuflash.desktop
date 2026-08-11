@@ -5,5 +5,5 @@ Comment=Launch EcuFlash with the OpenPort 2.0 Wine bridge
 Exec=@BINDIR@/launch-ecuflash
 Icon=applications-engineering
 Terminal=false
-Categories=Utility;Engineering;
+Categories=X-Subaru-Evo-ECU-Tools;
 StartupNotify=true

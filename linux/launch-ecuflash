@@ -8,7 +8,7 @@ set -eu
 : "${ECUFLASH_DIR:=$ECUFLASH_WINEPREFIX/drive_c/Program Files (x86)/OpenECU/EcuFlash}"
 
 if [ -z "${ECUFLASH_WINE:-}" ]; then
-    project_wine="$ECU_TOOLS_DATA_DIR/runtime/ecuflash-wine-11.1/bin/wine"
+    project_wine="$ECU_TOOLS_DATA_DIR/runtime/ecuflash-winegdk-11.1/files/bin/wine"
     if [ -x "$project_wine" ]; then
         ECUFLASH_WINE=$project_wine
     else

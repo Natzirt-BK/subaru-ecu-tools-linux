@@ -1,9 +1,9 @@
 [Desktop Entry]
 Type=Application
 Name=Subaru & Evo ECU Tools Setup
-Comment=Set up EcuFlash, RomRaider, and experimental EvoScan support on CachyOS
+Comment=Install, repair, check, or remove Subaru and Evo ECU tools
 Exec=@SETUP@
 Icon=applications-engineering
-Terminal=false
-Categories=Utility;Engineering;
+Terminal=true
+Categories=X-Subaru-Evo-ECU-Tools;
 StartupNotify=true

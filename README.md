@@ -6,12 +6,12 @@
 > Copy this complete command, paste it into a terminal, and press Enter:
 >
 > ```bash
-> curl -fsSL https://raw.githubusercontent.com/Natzirt-BK/subaru-ecu-tools-linux/master/bootstrap-cachyos.sh | bash -s -- --gui
+> curl -fsSL https://raw.githubusercontent.com/Natzirt-BK/subaru-ecu-tools-linux/master/bootstrap-cachyos.sh | bash
 > ```
 >
-> The graphical installer lets you select EcuFlash, RomRaider Editor/Logger,
-> official or experimental definitions, USB permissions, and experimental
-> purchaser-supplied EvoScan support. It never reads or writes an ECU.
+> The colorful terminal installer has four clear choices: install/repair, clean
+> reinstall, system check, and uninstall. Menu choices and Y/N prompts respond
+> to one keypress without Enter. It never reads or writes an ECU.
 
 Already installed? Update the managed tools without reinstalling the large
 applications:
@@ -80,22 +80,20 @@ The first method is recommended because it lets you read the script before it
 runs. The bootstrap keeps its checkout in
 `$HOME/.local/src/subaru-ecu-tools-linux` and updates it safely when run again.
 
-### Graphical setup
+### Terminal setup
 
-CachyOS KDE users can open a KDialog setup wizard from Konsole:
+CachyOS/Arch users can open the terminal setup with:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/Natzirt-BK/subaru-ecu-tools-linux/master/bootstrap-cachyos.sh | bash -s -- --gui
+curl -fsSL https://raw.githubusercontent.com/Natzirt-BK/subaru-ecu-tools-linux/master/bootstrap-cachyos.sh | bash
 ```
 
-The wizard asks which pieces to install, then opens Konsole so progress and any
-`sudo` prompt stay visible. It never communicates with an ECU. After the first
-installation, **Subaru & Evo ECU Tools Setup** is also available in the application
-menu. Choose **Install recommended tools** for the normal setup, or
-**Customize installation** for advanced definition and EvoScan choices. If an
-older installation may contain stale Wine or bridge files, choose **Clean
-reinstall**. It removes installer-managed application/runtime state before
-installing fresh copies while preserving ROMs, definitions, and logs.
+The normal **Install / repair** choice installs recommended components and
+refreshes managed files. **Clean reinstall** replaces stale application,
+runtime, bridge, and cache state while preserving ROMs, definitions, and logs.
+After installation, **Subaru & Evo ECU Tools Setup** is also available in the
+application menu. Advanced command-line options remain available for unusual
+definition or purchaser-supplied EvoScan setups.
 
 If dependencies or the OpenPort udev rule are missing, the installer can handle
 those too. It can also download the complete official EcuFlash installer from
@@ -110,8 +108,9 @@ The EcuFlash download is the unmodified Tactrix 1.44.4870 distribution and is
 pinned by checksum. After installation, setup opens EcuFlash for a 12-second
 startup test and reports success only if it stays running. Its own installer
 shows the Tactrix license. Setup downloads the project's checksum-verified,
-source-built Wine 11.1 runtime and includes its LGPL license. It is a
-general-purpose Wine build with no dependency on another application.
+validated WineGDK 11.1 runtime with its LGPL notices, source commits, applied
+patches, package versions, and source checksums. It is installed as a standalone
+project runtime with no dependency on another application.
 `ECUFLASH_WINE` can select a different runner explicitly; no runner is treated
 as compatible unless it passes the fresh-prefix startup test on that computer.
 After installation, launch **EcuFlash (Wine)** from the application menu. Setup

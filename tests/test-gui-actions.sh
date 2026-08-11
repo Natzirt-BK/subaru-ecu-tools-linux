@@ -4,48 +4,50 @@ set -eu
 repo_root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 test_root=$(mktemp -d)
 trap 'rm -rf -- "$test_root"' EXIT HUP INT TERM
-mkdir -p "$test_root/bin"
+installer=$test_root/installer
 
-cat >"$test_root/bin/kdialog" <<'EOF'
-#!/bin/sh
-case " $* " in
-    *' --menu '*) printf '%s\n' "$TEST_CHOICE" ;;
-    *' --yesno '*|*' --warningyesno '*) exit 0 ;;
-    *) exit 1 ;;
-esac
-EOF
-cat >"$test_root/bin/konsole" <<'EOF'
+cat >"$installer" <<'EOF'
 #!/bin/sh
 printf '%s\n' "$*" >"$TEST_TRACE"
 EOF
-chmod +x "$test_root/bin/kdialog" "$test_root/bin/konsole"
+chmod +x "$installer"
 
 run_choice() {
-    choice=$1
-    expected=$2
-    trace=$test_root/$choice.trace
-    PATH="$test_root/bin:$PATH" TEST_CHOICE="$choice" TEST_TRACE="$trace" \
-        DISPLAY=:test "$repo_root/linux/setup-cachyos-gui.sh"
+    name=$1
+    keys=$2
+    expected=$3
+    trace=$test_root/$name.trace
+    output=$test_root/$name.output
+    printf '%s' "$keys" | TERM=dumb ECU_TOOLS_INSTALLER="$installer" TEST_TRACE="$trace" \
+        "$repo_root/linux/setup-cachyos-gui.sh" >"$output"
     grep -F -- "$expected" "$trace" >/dev/null
+    grep -F 'Select an option (no Enter required)' "$output" >/dev/null
 }
 
-run_choice recommended '--yes-all'
-run_choice clean '--clean-install --yes'
-run_choice update 'update-cachyos.sh'
-run_choice check '--check'
-run_choice uninstall '--uninstall --yes'
+run_choice recommended '1y' '--yes-all'
+run_choice clean '2y' '--clean-install --yes'
+run_choice check '3' '--check'
+run_choice uninstall '4y' '--uninstall --yes'
 
-installer=$repo_root/linux/install-cachyos.sh
-grep -F 'tail -c 24000' "$installer" >/dev/null
-grep -F 'tail -c 3500' "$installer" >/dev/null
-grep -F 'The complete ready-to-share report remains at:' "$installer" >/dev/null
-grep -F 'wait_for_stable_openport' "$installer" >/dev/null
-grep -F '"$cache_root/ecuflash-j2534-probe.log"' "$installer" >/dev/null
+printf '1n' | TERM=dumb ECU_TOOLS_INSTALLER="$installer" TEST_TRACE="$test_root/cancel.trace" \
+    "$repo_root/linux/setup-cachyos-gui.sh" >/dev/null
+test ! -e "$test_root/cancel.trace"
+
+engine=$repo_root/linux/install-cachyos.sh
+grep -F 'read -rsn1 key </dev/tty' "$engine" >/dev/null
+grep -F 'Briefly describe what went wrong (optional' "$engine" >/dev/null
+grep -F 'tail -c 24000' "$engine" >/dev/null
+grep -F 'tail -c 3500' "$engine" >/dev/null
+grep -F 'The complete ready-to-share report remains at:' "$engine" >/dev/null
+grep -F 'wait_for_stable_openport' "$engine" >/dev/null
+grep -F '"$cache_root/ecuflash-j2534-probe.log"' "$engine" >/dev/null
 grep -F 'LD_LIBRARY_PATH="/usr/lib32' "$repo_root/linux/launch-romraider" >/dev/null
-grep -F "grep -q 'J2534 DLL Version: 1\\.02\\.4870'" "$installer" >/dev/null
-grep -F 'official Tactrix J2534 library' "$installer" >/dev/null
-! grep -F "WINEDLLOVERRIDES='op20pt32,j2534=b'" "$installer" >/dev/null
+grep -F "grep -q 'J2534 DLL Version: 1\\.02\\.4870'" "$engine" >/dev/null
+grep -F 'official Tactrix J2534 library' "$engine" >/dev/null
+grep -F 'subaru-ecu-tools.menu' "$engine" >/dev/null
+grep -F 'X-Subaru-Evo-ECU-Tools' "$repo_root/linux/subaru-ecu-tools.menu" >/dev/null
+! grep -F "WINEDLLOVERRIDES='op20pt32,j2534=b'" "$engine" >/dev/null
 ! grep -F 'WINEDLLOVERRIDES="op20pt32,j2534=b' "$repo_root/linux/launch-ecuflash" >/dev/null
-grep -F '"$data_dir/winedll/i386-windows/op20pt32.dll"' "$installer" >/dev/null
+grep -F '"$data_dir/winedll/i386-windows/op20pt32.dll"' "$engine" >/dev/null
 
-echo 'Graphical setup action tests passed.'
+echo 'Terminal setup action tests passed.'

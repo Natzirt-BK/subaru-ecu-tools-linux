@@ -4,5 +4,5 @@ Name=RomRaider Editor
 Exec=env ROMRAIDER_MODE=editor @BINDIR@/launch-romraider
 Icon=applications-engineering
 Terminal=false
-Categories=Utility;Engineering;
+Categories=X-Subaru-Evo-ECU-Tools;
 StartupNotify=true
