@@ -6,6 +6,7 @@ script_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 installer=${ECU_TOOLS_INSTALLER:-$script_dir/install-cachyos.sh}
 updater=${ECU_TOOLS_UPDATER:-$script_dir/update-cachyos.sh}
 music_player=${ECU_TOOLS_MUSIC_PLAYER:-$script_dir/play-installer-chiptune}
+music_terminal=${ECU_TOOLS_MUSIC_TERMINAL:-konsole}
 installed_setup=${XDG_DATA_HOME:-$HOME/.local/share}/applications/subaru-ecu-tools-setup.desktop
 
 if [[ ! -x "$installer" ]]; then
@@ -36,12 +37,15 @@ draw_banner() {
     [[ ! -t 1 || "${TERM:-}" == dumb ]] || printf '\033[2J\033[H'
     printf '%b' "$blue$bold"
     cat <<'EOF'
-       ╭────────────────────────────────────────────╮
-       │       SUBARU & EVO ECU TOOLS // LINUX      │
-       ╰────────────────────────────────────────────╯
+       ╭──────────────────────────────────────────────╮
+       │        SUBARU & EVO ECU TOOLS // LINUX       │
+       ├──────────────────────────────────────────────┤
+       │        INSTALL • REPAIR • DIAGNOSTICS        │
+       ╰──────────────────────────────────────────────╯
 EOF
-    printf '%b        ◆ ◆ ◆ ◆ ◆ ◆   %binstaller & diagnostics%b\n\n' "$purple" "$cyan" "$reset"
-    printf '  %bSafe setup only:%b this installer never reads or writes an ECU.\n\n' "$green$bold" "$reset"
+    printf '%b           ◆ ◆ ◆ ◆ ◆ ◆ ◆ ◆ ◆ ◆ ◆ ◆%b\n\n' "$purple" "$reset"
+    printf '  %b✓ Safe setup only%b — this installer never reads or writes an ECU.\n\n' \
+        "$green$bold" "$reset"
 }
 
 read_key() {
@@ -64,19 +68,33 @@ confirm() {
 }
 
 start_installer_music() {
-    [[ -x "$music_player" ]] && command -v pw-play >/dev/null 2>&1 || return 0
-    "$music_player" >/dev/null 2>&1 &
+    [[ -x "$music_player" ]] && command -v pw-play >/dev/null 2>&1 && \
+        command -v "$music_terminal" >/dev/null 2>&1 || return 0
+    "$music_terminal" --separate --nofork --hide-menubar --hide-tabbar \
+        -p 'tabtitle=Installer Music' -e "$music_player" >/dev/null 2>&1 &
     export SUBARU_SETUP_MUSIC_PID=$!
-    printf '  %b♪ Installer music is playing.%b Press %bM%b at any time to mute.\n\n' \
-        "$purple$bold" "$reset" "$yellow$bold" "$reset"
+    printf '  %b♪ Installer music opened in its own control window.%b\n' \
+        "$purple$bold" "$reset"
+    printf '  Focus %bInstaller Music%b and press %bM%b to mute it.\n\n' \
+        "$cyan$bold" "$reset" "$yellow$bold" "$reset"
+}
+
+menu_line() {
+    local text=$1 style=${2:-}
+    printf '  %b│%b %b%-53s%b%b│%b\n' \
+        "$blue" "$reset" "$style" "$text" "$reset" "$blue" "$reset"
 }
 
 draw_menu() {
-    printf '  %b1%b  %bInstall / repair%b     Recommended; installs and updates everything needed\n' "$cyan$bold" "$reset" "$bold" "$reset"
-    printf '  %b2%b  %bClean reinstall%b      Fresh managed files and Wine environment\n' "$cyan$bold" "$reset" "$bold" "$reset"
-    printf '  %b3%b  %bSystem check%b         Diagnose installation and connected OpenPort\n' "$cyan$bold" "$reset" "$bold" "$reset"
-    printf '  %b4%b  %bUninstall%b            Remove installer-managed components\n' "$cyan$bold" "$reset" "$bold" "$reset"
-    printf '  %bQ%b  Exit\n\n' "$dim" "$reset"
+    printf '  %b╭─ SETUP MENU ─────────────────────────────────────────╮%b\n' "$blue$bold" "$reset"
+    menu_line '[1] INSTALL / REPAIR                  RECOMMENDED' "$cyan$bold"
+    menu_line '    Install or update all managed components.'
+    menu_line '[2] CLEAN REINSTALL' "$cyan$bold"
+    menu_line '    Rebuild managed files and the Wine environment.'
+    menu_line '[3] SYSTEM CHECK' "$cyan$bold"
+    menu_line '    Diagnose installation and a connected OpenPort.'
+    menu_line '[4] UNINSTALL                    [Q] EXIT' "$cyan$bold"
+    printf '  %b╰──────────────────────────────────────────────────────╯%b\n\n' "$blue$bold" "$reset"
     printf '%b  Select an option: %b' "$yellow$bold" "$reset"
 }
 

@@ -44,12 +44,15 @@ else
     use_color=false
 fi
 
-music_pending_key=
-section() { poll_setup_music_key; printf '\n%b==> %s%b\n' "$color_bold$color_cyan" "$*" "$color_reset"; }
-step() { poll_setup_music_key; printf '%b  -> %s%b\n' "$color_blue" "$*" "$color_reset"; }
-ok() { poll_setup_music_key; printf '%b  OK %b%s\n' "$color_green" "$color_reset" "$*"; }
-warn() { poll_setup_music_key; printf '%b  WARNING %b%s\n' "$color_yellow" "$color_reset" "$*" >&2; }
-fail() { poll_setup_music_key; printf '%b  ERROR %b%s\n' "$color_red" "$color_reset" "$*" >&2; }
+section() {
+    printf '\n%b╭─ %s%b\n' "$color_bold$color_cyan" "$*" "$color_reset"
+    printf '%b╰────────────────────────────────────────────────────────%b\n' \
+        "$color_cyan" "$color_reset"
+}
+step() { printf '%b  ◆ %s%b\n' "$color_blue" "$*" "$color_reset"; }
+ok() { printf '%b  ✓ %b%s\n' "$color_green$color_bold" "$color_reset" "$*"; }
+warn() { printf '%b  ▲ WARNING %b%s\n' "$color_yellow$color_bold" "$color_reset" "$*" >&2; }
+fail() { printf '%b  ✕ ERROR %b%s\n' "$color_red$color_bold" "$color_reset" "$*" >&2; }
 summary_row() { printf '  %b%-16s%b %s\n' "$color_cyan$color_bold" "$1" "$color_reset" "$2"; }
 completion_banner() {
     printf '\n%b' "$color_green$color_bold"
@@ -68,59 +71,18 @@ read_yes_no() {
     [[ "$default" == yes ]] && suffix='[Y/n]' || suffix='[y/N]'
     while true; do
         printf '%s %s ' "$prompt" "$suffix"
-        if [[ -n "$music_pending_key" ]]; then
-            key=$music_pending_key
-            music_pending_key=
-        else
-            IFS= read -rsn1 key </dev/tty || return 1
-        fi
+        IFS= read -rsn1 key </dev/tty || return 1
         if [[ -z "$key" ]]; then
             printf '\n'
             [[ "$default" == yes ]]
             return
         fi
         case "$key" in
-            m|M)
-                if setup_music_active; then
-                    mute_setup_music
-                    printf 'Music muted.\n'
-                else
-                    printf '\nPress Y or N.\n'
-                fi
-                ;;
             y|Y) printf 'Y\n'; return 0 ;;
             n|N) printf 'N\n'; return 1 ;;
             *) printf '\nPress Y or N.\n' ;;
         esac
     done
-}
-
-setup_music_active() {
-    local music_pid=${SUBARU_SETUP_MUSIC_PID:-}
-    [[ "$music_pid" =~ ^[0-9]+$ ]] && kill -0 "$music_pid" 2>/dev/null
-}
-
-mute_setup_music() {
-    setup_music_active || return 0
-    kill "$SUBARU_SETUP_MUSIC_PID" 2>/dev/null || true
-    wait "$SUBARU_SETUP_MUSIC_PID" 2>/dev/null || true
-    unset SUBARU_SETUP_MUSIC_PID
-}
-
-poll_setup_music_key() {
-    local key
-    setup_music_active || return 0
-    [[ "$setup_interactive" == true ]] || return 0
-    if IFS= read -rsn1 -t 0.01 key </dev/tty 2>/dev/null; then
-        case "$key" in
-            m|M)
-                mute_setup_music
-                printf '%b  ♪ Installer music muted.%b\n' \
-                    "$color_yellow" "$color_reset"
-                ;;
-            *) music_pending_key=$key ;;
-        esac
-    fi
 }
 
 stop_wine_prefix() {
@@ -761,7 +723,11 @@ wait_before_close() {
     read -r _ </dev/tty || true
 }
 stop_setup_music() {
-    mute_setup_music
+    local music_pid=${SUBARU_SETUP_MUSIC_PID:-}
+    [[ "$music_pid" =~ ^[0-9]+$ ]] || return 0
+    kill "$music_pid" 2>/dev/null || true
+    wait "$music_pid" 2>/dev/null || true
+    unset SUBARU_SETUP_MUSIC_PID
 }
 log_result() {
     local status=$?

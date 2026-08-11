@@ -1,45 +1,89 @@
-#!/bin/sh
-set -eu
+#!/usr/bin/env bash
+set -euo pipefail
 
-command -v pw-play >/dev/null 2>&1 || exit 0
+track_title=Arpanauts
+track_artist='Eric Skiff'
+track_url='https://ericskiff.com/music/Resistor%20Anthems/10%20Arpanauts.mp3'
+track_sha256=9e74d37101f54f11a8816b1031d0967e55dc011da7fb01fb56f3729e62ca25eb
+cache_dir=${XDG_CACHE_HOME:-$HOME/.cache}/subaru-ecu-tools-linux/music
+cached_track=$cache_dir/arpanauts-eric-skiff.mp3
+track=${ECU_TOOLS_MUSIC_FILE:-$cached_track}
+input_device=${ECU_TOOLS_MUSIC_INPUT_DEVICE:-/dev/tty}
 audio_pid=
+partial=
+
 cleanup() {
     trap - EXIT HUP INT TERM
-    if [ -n "$audio_pid" ]; then
+    [[ -z "$partial" ]] || rm -f -- "$partial"
+    if [[ -n "$audio_pid" ]]; then
         kill "$audio_pid" >/dev/null 2>&1 || true
         wait "$audio_pid" >/dev/null 2>&1 || true
     fi
 }
 trap cleanup EXIT HUP INT TERM
 
-generate_loop() {
-    LC_ALL=C awk 'BEGIN {
-        rate = 11025
-        step = 0.25
-        split("64 67 71 76 71 67 64 67 62 66 69 74 69 66 62 66 60 64 67 72 67 64 60 64 59 62 67 71 67 62 59 62 64 67 71 76 74 71 67 64 62 66 69 74 72 69 66 62 60 64 67 72 71 67 64 60 59 62 64 67 64 64 0 0", melody)
-        split("40 38 36 35 40 38 36 0", bass)
-        for (i = 1; i <= 64; i++) {
-            mf = melody[i] ? 440 * exp(log(2) * (melody[i] - 69) / 12) : 0
-            bf = bass[1 + int((i - 1) / 8)] ? 440 * exp(log(2) * (bass[1 + int((i - 1) / 8)] - 69) / 12) : 0
-            count = int(rate * step)
-            for (sample = 0; sample < count; sample++) {
-                lead = mf ? ((int(sample * mf * 2 / rate) % 2) ? 1 : -1) : 0
-                low = bf ? ((int(sample * bf * 2 / rate) % 2) ? 1 : -1) : 0
-                tick = (melody[i] && i % 2 == 1 && sample < 90) ? (1 - sample / 90) : 0
-                edge = sample < 80 ? sample / 80 : ((count - sample) < 100 ? (count - sample) / 100 : 1)
-                value = int(128 + edge * (25 * lead + 13 * low) + 10 * tick)
-                if (value < 0) value = 0
-                if (value > 255) value = 255
-                printf "%c", value
-            }
-        }
-    }'
+draw_frame() {
+    [[ ! -t 1 || "${TERM:-}" == dumb ]] || printf '\033[2J\033[H'
+    printf '\033[38;5;45m\033[1m'
+    cat <<'EOF'
+  ╔══════════════════════════════════════════════════╗
+  ║         SUBARU & EVO ECU TOOLS // AUDIO          ║
+  ╠══════════════════════════════════════════════════╣
+  ║                                                  ║
+  ║       ♪  ARPANAUTS — ERIC SKIFF                  ║
+  ║                                                  ║
+  ║             PRESS  M  TO MUTE                    ║
+  ║                                                  ║
+  ╚══════════════════════════════════════════════════╝
+EOF
+    printf '\033[0m\n  CC BY 4.0 • ericskiff.com/music\n'
+    printf '  This window closes automatically when setup finishes.\n'
 }
 
+download_track() {
+    [[ -z "${ECU_TOOLS_MUSIC_FILE:-}" ]] || return 0
+    if [[ -f "$track" ]] && \
+        printf '%s  %s\n' "$track_sha256" "$track" | sha256sum -c -s -; then
+        return 0
+    fi
+    command -v curl >/dev/null 2>&1 || return 1
+    mkdir -p "$cache_dir"
+    partial=$track.part.$$
+    printf '  Preparing licensed installer music...\n'
+    curl --fail --location --silent --show-error --output "$partial" "$track_url" || return 1
+    printf '%s  %s\n' "$track_sha256" "$partial" | sha256sum -c -s - || return 1
+    mv -f -- "$partial" "$track"
+    partial=
+}
+
+command -v pw-play >/dev/null 2>&1 || exit 0
+if ! exec 3<"$input_device"; then
+    exit 0
+fi
+download_track || {
+    printf 'Installer music could not be downloaded or verified.\n'
+    sleep 2
+    exit 0
+}
+
+draw_frame
 while :; do
-    generate_loop | pw-play --raw --rate 11025 --channels 1 --format u8 \
-        --volume 0.12 - >/dev/null 2>&1 &
+    pw-play --volume 0.12 "$track" >/dev/null 2>&1 &
     audio_pid=$!
+    while kill -0 "$audio_pid" 2>/dev/null; do
+        if IFS= read -rsn1 -t 0.15 -u 3 key; then
+            case "$key" in
+                m|M)
+                    kill "$audio_pid" >/dev/null 2>&1 || true
+                    wait "$audio_pid" >/dev/null 2>&1 || true
+                    audio_pid=
+                    printf '\n  \033[38;5;220mMusic muted. Closing audio controls...\033[0m\n'
+                    sleep 0.5
+                    exit 0
+                    ;;
+            esac
+        fi
+    done
     wait "$audio_pid" || exit 0
     audio_pid=
 done

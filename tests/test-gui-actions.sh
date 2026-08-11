@@ -68,23 +68,36 @@ grep -F 'Continuing without updating is not recommended.' \
     "$test_root/no-update.output" >/dev/null
 
 music_player=$test_root/music-player
+music_terminal=$test_root/music-terminal
 cat >"$music_player" <<'EOF'
 #!/bin/sh
 printf 'started\n' >"$TEST_MUSIC_TRACE"
+EOF
+cat >"$music_terminal" <<'EOF'
+#!/bin/sh
+while [ "$1" != -e ]; do shift; done
+shift
+exec "$@"
 EOF
 cat >"$test_root/pw-play" <<'EOF'
 #!/bin/sh
 exit 0
 EOF
-chmod +x "$music_player" "$test_root/pw-play"
+chmod +x "$music_player" "$music_terminal" "$test_root/pw-play"
 printf '1y' | PATH="$test_root:$PATH" TERM=dumb \
     SUBARU_SETUP_INPUT_DEVICE=/dev/stdin ECU_TOOLS_INSTALLER="$installer" \
-    ECU_TOOLS_MUSIC_PLAYER="$music_player" ECU_TOOLS_SKIP_UPDATE_PROMPT=1 \
+    ECU_TOOLS_MUSIC_PLAYER="$music_player" ECU_TOOLS_MUSIC_TERMINAL="$music_terminal" \
+    ECU_TOOLS_SKIP_UPDATE_PROMPT=1 \
     TEST_TRACE="$test_root/music-install.trace" \
     TEST_MUSIC_TRACE="$test_root/music.trace" \
     "$repo_root/linux/setup-cachyos-gui.sh" >"$test_root/music.output" 2>&1
+i=0
+while [ ! -e "$test_root/music.trace" ] && [ "$i" -lt 50 ]; do
+    sleep 0.01
+    i=$((i + 1))
+done
 grep -Fx 'started' "$test_root/music.trace" >/dev/null
-grep -F 'Press M at any time to mute.' "$test_root/music.output" >/dev/null
+grep -F 'Focus Installer Music and press M to mute it.' "$test_root/music.output" >/dev/null
 
 engine=$repo_root/linux/install-cachyos.sh
 grep -F 'Removed the redundant Update shortcut; Setup now offers updates first.' \
@@ -101,12 +114,28 @@ grep -q '^start_installer_music()' \
 grep -F 'export SUBARU_SETUP_MUSIC_PID=$!' \
     "$repo_root/linux/setup-cachyos-gui.sh" >/dev/null
 grep -q '^stop_setup_music()' "$engine"
-grep -q '^poll_setup_music_key()' "$engine"
-grep -F 'm|M)' "$engine" >/dev/null
-grep -F 'pw-play --raw --rate 11025' \
+! grep -q '^poll_setup_music_key()' "$engine"
+grep -F -- '--separate --nofork --hide-menubar --hide-tabbar' \
+    "$repo_root/linux/setup-cachyos-gui.sh" >/dev/null
+grep -F 'track_title=Arpanauts' "$repo_root/linux/play-installer-chiptune" >/dev/null
+grep -F 'track_artist='"'"'Eric Skiff'"'" \
     "$repo_root/linux/play-installer-chiptune" >/dev/null
-grep -F 'step = 0.25' "$repo_root/linux/play-installer-chiptune" >/dev/null
-grep -F '64 64 0 0' "$repo_root/linux/play-installer-chiptune" >/dev/null
+grep -F 'Creative Commons Attribution 4.0' \
+    "$repo_root/linux/installer-music-CREDITS.md" >/dev/null
+grep -F 'pw-play --volume 0.12' \
+    "$repo_root/linux/play-installer-chiptune" >/dev/null
+grep -F 'm|M)' "$repo_root/linux/play-installer-chiptune" >/dev/null
+touch "$test_root/music.mp3"
+cat >"$test_root/pw-play" <<'EOF'
+#!/bin/sh
+exec sleep 30
+EOF
+chmod +x "$test_root/pw-play"
+printf 'M' | PATH="$test_root:$PATH" TERM=dumb \
+    ECU_TOOLS_MUSIC_INPUT_DEVICE=/dev/stdin \
+    ECU_TOOLS_MUSIC_FILE="$test_root/music.mp3" \
+    "$repo_root/linux/play-installer-chiptune" >"$test_root/mute.output" 2>&1
+grep -F 'Music muted. Closing audio controls...' "$test_root/mute.output" >/dev/null
 grep -F 'SETUP COMPLETE  ✓' "$engine" >/dev/null
 test "$(grep -c -- '--progress-bar' "$engine")" -eq 4
 grep -F -- '--progress-bar' "$repo_root/linux/install-romraider-definitions" >/dev/null

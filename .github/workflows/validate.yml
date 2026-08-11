@@ -16,8 +16,8 @@ jobs:
         run: |
           bash -n bootstrap-cachyos.sh linux/build-ecuflash-wine-runtime.sh \
             linux/configure-romraider-definitions linux/install-cachyos.sh \
-            linux/install-romraider-definitions linux/setup-cachyos-gui.sh \
-            linux/update-cachyos.sh
+            linux/install-romraider-definitions linux/play-installer-chiptune \
+            linux/setup-cachyos-gui.sh linux/update-cachyos.sh
           sh -n linux/launch-ecuflash linux/launch-evoscan linux/launch-romraider \
             linux/monitor-openport-state linux/sync-openport-device-state \
             wine-bridge/build-openport-driver.sh \
