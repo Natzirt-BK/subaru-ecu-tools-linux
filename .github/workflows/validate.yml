@@ -21,7 +21,7 @@ jobs:
           sh -n linux/launch-ecuflash linux/launch-evoscan linux/launch-romraider \
             linux/monitor-openport-state linux/sync-openport-device-state \
             wine-bridge/build-openport-driver.sh \
-            tests/*.sh
+            tests/*.sh tests/vm/*.sh
       - name: Run tests
         run: |
           set -eu
