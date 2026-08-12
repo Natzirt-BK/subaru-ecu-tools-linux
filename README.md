@@ -1,8 +1,8 @@
 # Subaru & Evo ECU Tools for Linux
 
-Run EcuFlash and RomRaider on CachyOS or Arch Linux with a Tactrix OpenPort 2.0.
+This enables EcuFlash and RomRaider on CachyOS or Arch Linux with a Tactrix OpenPort 2.0 without having to manually set everything up. read/write are working.
 
-Created and maintained by **Tristan Bukenberger**.
+set up by **Tristan Bukenberger**.
 
 ## Install
 
@@ -17,8 +17,7 @@ curl -fsSL https://raw.githubusercontent.com/Natzirt-BK/subaru-ecu-tools-linux/m
 3. **System check** — inspect the current installation
 4. **Uninstall** — remove installer-managed files
 
-Use **Clean reinstall** when replacing an older or broken setup. ROMs,
-definitions, and logs are preserved.
+Use **Clean reinstall** when replacing an older or broken setup. It will not you own roms, definitions, and logs. they will be preserved.
 
 ## What gets installed
 
@@ -26,15 +25,16 @@ definitions, and logs are preserved.
 - the validated WineGDK 11.1 runtime published with this project
 - the official Tactrix OpenPort 2.0 J2534 library
 - the Linux OpenPort Wine bridge and USB permissions
-- RomRaider DimeMod Editor and Logger with official definitions
+- RomRaider. DimeMod Editor and Logger with official definition
 
-Applications appear together under **Subaru & Evo ECU Tools** in the application
-menu with short names such as **Setup**, **EcuFlash**, and **RomRaider Logger**.
-After installation, **Setup** offers to update the project before showing its
-menu; skipping that update is supported but not recommended. Setup prepares the
-computer only; it never reads or writes an ECU. Install and Clean Reinstall play
-Eric Skiff's CC BY 4.0 chiptune “Arpanauts” at low volume without opening an
-extra window. Press **M** in the Setup terminal to mute it. The bundled track is
+All Applications are installed to appear together under **Subaru & Evo ECU Tools** in your application
+menu.
+
+After the installation, **Setup** offers to update the project before showing its
+menu to make updating simple. Setup prepares the
+computer and it never reads or writes to your ECU.
+
+Press **M** in the Setup terminal to mute sound. The bundled track is
 checksum-verified and credited in
 [`linux/installer-music-CREDITS.md`](linux/installer-music-CREDITS.md).
 
@@ -42,24 +42,24 @@ checksum-verified and credited in
 
 The installer checks the physical USB state. With the cable disconnected, the
 J2534 probe must report device-not-connected. With it connected, the probe must
-open and close the real adapter. An EcuFlash status-bar label alone is not proof
+open and close the real adapter. An EcuFlash status-bar label by itself is not proof
 that the cable is connected. The guided plug/unplug test is recommended but can
-be skipped when the adapter is unavailable.
+be skipped if the adapter is unavailable at the time of install.
 
-EcuFlash 1.44 checks the cable when it starts and does not refresh Task Info
+EcuFlash checks the cable when it starts and does not refresh Task Info
 after a USB change. The launcher watches the real Linux USB state and shows a
-desktop notice when the cable is plugged in or removed. If that happens,
+desktop notice when the cable is plugged in or removed. If usb state changes
 restart EcuFlash before working with an ECU.
 
-`[In Use]` is not automatically an error under Wine. It often means Wine has
+note:`[In Use]` is not automatically an error under Wine. It often means Wine has
 the USB device open for EcuFlash. The installer confirms the connection with a
 real J2534 open/version/close test.
 
-The packaged runtime is the same WineGDK build used for the successful local
-EcuFlash read/write validation. Its release includes licenses, source commits,
+The packaged runtime is the same WineGDK build used for my successful local
+EcuFlash read/write validation. I discovered this build was the closest one available to work. originally it was to get Minecraft bedrock on linux working. Its release includes licenses, source commits,
 patches, package versions, and source checksums.
 
-## If setup fails
+## If setup fails please report
 
 Setup saves its output under:
 
@@ -71,12 +71,12 @@ On failure, press `Y` when asked to create a GitHub diagnostic report. The
 report includes bounded excerpts from the setup, J2534, EcuFlash, and RomRaider
 logs, plus OpenPort-targeted USB descriptors, permissions, udev state, and
 recent filtered kernel USB events. It also includes a bounded host/runtime
-snapshot that may identify the username, hostname, home paths, local network
+snapshot that may identify your username, hostname, home paths, local network
 addresses, hardware and USB identifiers, adapter serial, groups, and relevant
 packages/processes. It does not intentionally collect credentials, tokens, SSH
-keys, browser data, or the unfiltered environment. Review it before uploading;
+keys, browser data, or the unfiltered environment. Review it before uploading because
 reports are public. If GitHub upload fails, a ready-to-share report is preserved
-locally. Reports are assembled below GitHub's issue-body limit; an oversized
+locally. Reports are assembled below GitHub's issue-body limit. an oversized
 report is automatically reduced to bounded first/last excerpts while the
 complete version remains local.
 
@@ -85,13 +85,13 @@ Report problems at:
 
 ## Safety
 
-Cable detection does not guarantee that an ECU write is safe. Begin with a
-supervised read-only test, verify the exact ROM ID and definition, keep a
+Cable detection does not nessesarily guarantee that an ECU write is safe. Begin with a
+write test, verify the exact ROM ID and definition, keep a
 recovery path, and never interrupt a flash.
 
 EvoScan support is available only through the advanced command line with a
 purchaser-supplied installer; it is not part of the recommended setup and Linux
-vehicle communication is not validated.
+vehicle communication is not validated as I do not have an Evo, nor do I have Evoscan. I had a tester but they were unreliable and excuse ridden. The only reason it was included was because of this so called tester. I started development to get it working but discontinued my efforts shortly after.
 
 Technical details and advanced commands are in
 [LINUX_ECU_TOOLS.md](LINUX_ECU_TOOLS.md). The project is licensed under the
