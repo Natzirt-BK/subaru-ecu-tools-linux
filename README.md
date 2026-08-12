@@ -21,7 +21,7 @@ Use **Clean reinstall** when replacing an older or broken setup. It will not rem
 
 ## What gets installed
 
-- EcuFlash 1.44.4870 from Tactrix
+- EcuFlash 1.44.4870 from Tactrix (Official)
 - the validated WineGDK 11.1 runtime published with this project
 - the official Tactrix OpenPort 2.0 J2534 library
 - the Linux OpenPort Wine bridge and USB permissions
