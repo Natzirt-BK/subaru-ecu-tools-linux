@@ -17,7 +17,7 @@ curl -fsSL https://raw.githubusercontent.com/Natzirt-BK/subaru-ecu-tools-linux/m
 3. **System check** — inspect the current installation
 4. **Uninstall** — remove installer-managed files
 
-Use **Clean reinstall** when replacing an older or broken setup. It will not you own roms, definitions, and logs. they will be preserved.
+Use **Clean reinstall** when replacing an older or broken setup. It will not remove your own roms, definitions, and logs. they will be preserved.
 
 ## What gets installed
 
