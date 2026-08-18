@@ -1422,7 +1422,8 @@ case "$distro_family" in
     debian)
         packages=(build-essential ca-certificates curl file git gh libnotify-bin libusb-1.0-0
             libusb-1.0-0-dev libusb-1.0-0:i386 unzip zstd usbutils udev
-            desktop-file-utils sudo wine64-tools libwine-dev libwine-dev:i386 gcc-mingw-w64)
+            desktop-file-utils sudo wine64-tools libwine-dev libwine-dev:i386 gcc-mingw-w64
+            libxtst6:i386 libxi6:i386 libxinerama1:i386 libxrandr2:i386)
         install_hint="sudo apt-get install --no-install-recommends"
         ;;
 esac
