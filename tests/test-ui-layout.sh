@@ -15,16 +15,21 @@ printf 'q' | TERM=xterm SUBARU_SETUP_INPUT_DEVICE=/dev/stdin \
 
 perl -CSD -Mutf8 -e '
     use strict; use warnings;
-    my $failed = 0;
+    my $failed = 0; my $seen = 0;
     while (<>) {
         s/\e\[[0-9;]*m//g; s/\r//g; chomp;
         next unless /║/;
+        $seen++;
         my @chars = split //;
         my @borders = grep { $chars[$_] eq "║" } 0 .. $#chars;
         if (@borders != 2 || $borders[0] != 0 || $borders[1] != 69) {
             warn "invalid setup-console border width: $_\n";
             $failed = 1;
         }
+    }
+    if ($seen < 8) {
+        warn "setup console emitted only $seen bordered rows\n";
+        $failed = 1;
     }
     exit $failed;
 ' "$test_root/console.typescript"

@@ -9,6 +9,7 @@ image_sha512=0ce1f1d675733027d3e17a4665cb95e1d7173bdf67fb8a87ff822ff5ee025bc2a90
 cache_dir=${XDG_CACHE_HOME:-$HOME/.cache}/subaru-ecu-tools-vm
 image_path=$cache_dir/$image_name
 ssh_key=$cache_dir/debian-test-ed25519
+ssh_known_hosts=$cache_dir/debian-test-known-hosts
 pool_name=images
 disk_volume=subaru-ecu-tools-debian-13.qcow2
 snapshot_name=clean-debian-13-gnome
@@ -72,6 +73,7 @@ wait_for_ssh() {
     for attempt in {1..120}; do
         ip=$(vm_ip || true)
         if [[ -n "$ip" ]] && ssh -i "$ssh_key" \
+            -o UserKnownHostsFile="$ssh_known_hosts" \
             -o BatchMode=yes -o ConnectTimeout=3 -o StrictHostKeyChecking=accept-new \
             "$vm_user@$ip" true 2>/dev/null; then
             printf '%s\n' "$ip"
@@ -98,6 +100,7 @@ setup_vm() {
     local prepared_image user_data meta_data public_key
     vm_exists && { echo "$vm_name already exists."; return; }
     mkdir -p "$cache_dir"
+    rm -f -- "$ssh_known_hosts"
     if [[ ! -f "$image_path" ]] || \
        ! printf '%s  %s\n' "$image_sha512" "$image_path" | sha512sum -c - >/dev/null 2>&1; then
         echo "Downloading official Debian 13 Stable image build $image_build..."
@@ -140,8 +143,16 @@ setup_vm() {
         printf '%s\n' 'package_upgrade: true'
         printf '%s\n' 'packages:'
         printf '%s\n' '  - gnome-core' '  - gdm3' '  - spice-vdagent' \
-            '  - qemu-guest-agent' '  - git' '  - curl' '  - ca-certificates'
+            '  - qemu-guest-agent' '  - linux-image-amd64' \
+            '  - git' '  - curl' '  - ca-certificates'
         printf '%s\n' 'runcmd:'
+        printf '%s\n' '  - |'
+        printf '%s\n' \
+            '    standard_kernel=$(dpkg-query -W -f="\${Depends}" linux-image-amd64 | sed -E "s/^linux-image-([^ ]+).*/\1/")' \
+            '    printf '\''GRUB_DEFAULT="Advanced options for Debian GNU/Linux>Debian GNU/Linux, with Linux %s"\n'\'' "$standard_kernel" > /etc/default/grub.d/99-subaru-test-input.cfg' \
+            '    update-grub'
+        printf '%s\n' '  - [netplan, set, --origin-hint, 99-gnome-network, renderer=NetworkManager]'
+        printf '%s\n' '  - [netplan, apply]'
         printf '%s\n' '  - [systemctl, set-default, graphical.target]'
         printf '%s\n' '  - [systemctl, enable, --now, qemu-guest-agent.service]'
         printf '%s\n' '  - [systemctl, enable, --now, gdm3.service]'
@@ -177,7 +188,8 @@ wait_ready() {
         virsh -c qemu:///system start "$vm_name"
     ip=$(wait_for_ssh)
     echo "Debian VM reachable at $ip; waiting for cloud-init..."
-    ssh -i "$ssh_key" -o StrictHostKeyChecking=accept-new "$vm_user@$ip" \
+    ssh -i "$ssh_key" -o UserKnownHostsFile="$ssh_known_hosts" \
+        -o StrictHostKeyChecking=accept-new "$vm_user@$ip" \
         'cloud-init status --wait --long; systemctl is-active gdm3 qemu-guest-agent; cat /etc/debian_version'
 }
 
@@ -187,9 +199,11 @@ test_vm() {
     ip=$(vm_ip)
     remote_root=/home/$vm_user/subaru-ecu-tools-linux-under-test
     tar --exclude=.git --exclude=build-wine-bridge -C "$repo_root" -cf - . | \
-        ssh -i "$ssh_key" -o StrictHostKeyChecking=accept-new "$vm_user@$ip" \
+        ssh -i "$ssh_key" -o UserKnownHostsFile="$ssh_known_hosts" \
+        -o StrictHostKeyChecking=accept-new "$vm_user@$ip" \
         "rm -rf '$remote_root' && mkdir -p '$remote_root' && tar -xf - -C '$remote_root'"
-    ssh -tt -i "$ssh_key" -o StrictHostKeyChecking=accept-new "$vm_user@$ip" \
+    ssh -T -i "$ssh_key" -o UserKnownHostsFile="$ssh_known_hosts" \
+        -o StrictHostKeyChecking=accept-new "$vm_user@$ip" \
         "cd '$remote_root' && ./tests/vm/qualify-debian.sh"
 }
 

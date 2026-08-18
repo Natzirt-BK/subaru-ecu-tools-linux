@@ -5,7 +5,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <libusb.h>
-#include <unixlib.h>
+#include "wine_unixlib_compat.h"
 
 #include "openport_unix_calls.h"
 

@@ -1,7 +1,7 @@
 #include <stdint.h>
 #include <windows.h>
 #include <winternl.h>
-#include <unixlib.h>
+#include "wine_unixlib_compat.h"
 
 #include "j2534_unix_calls.h"
 

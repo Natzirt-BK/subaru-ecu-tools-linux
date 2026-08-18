@@ -3,7 +3,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
-#include <wine/unixlib.h>
+#include "wine_unixlib_compat.h"
 
 #include "j2534_unix_calls.h"
 

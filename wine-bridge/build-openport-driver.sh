@@ -81,6 +81,7 @@ WINEBUILD=${WINEBUILD:-}
 }
 WINE_CRT0=${WINE_CRT0:-}
 [ -n "$WINE_CRT0" ] || WINE_CRT0=$(first_file \
+    /usr/lib/i386-linux-gnu/wine/i386-windows/libwinecrt0.a \
     /usr/lib/wine/i386-windows/libwinecrt0.a \
     /usr/lib/x86_64-linux-gnu/wine/i386-windows/libwinecrt0.a \
     /usr/lib/x86_64-linux-gnu/wine/libwinecrt0.a) || {

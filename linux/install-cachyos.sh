@@ -83,10 +83,6 @@ ui_stage=0
 ui_console_open=false
 ui_box_line() {
     local style=$1 text=$2 line
-    if [[ "$use_color" != true ]]; then
-        printf '  %s\n' "$text"
-        return 0
-    fi
     while IFS= read -r line || [[ -n "$line" ]]; do
         printf '%b║%b  %b%-66s%b%b║%b\n' \
             "$color_purple$color_bold" "$color_reset" "$style" "$line" \
@@ -599,7 +595,8 @@ write_host_runtime_diagnostics() {
             ;;
         apt)
             dpkg-query -W git gh libusb-1.0-0 libusb-1.0-0:i386 usbutils \
-                libwine-dev wine64-tools gcc-mingw-w64 2>&1 | sed 's/^/  /' || true
+                libwine-dev libwine-dev:i386 wine64-tools gcc-mingw-w64 \
+                2>&1 | sed 's/^/  /' || true
             ;;
         *) echo '  supported package manager unavailable' ;;
     esac
@@ -1425,7 +1422,7 @@ case "$distro_family" in
     debian)
         packages=(build-essential ca-certificates curl file git gh libnotify-bin libusb-1.0-0
             libusb-1.0-0-dev libusb-1.0-0:i386 unzip zstd usbutils udev
-            desktop-file-utils sudo wine64-tools libwine-dev gcc-mingw-w64)
+            desktop-file-utils sudo wine64-tools libwine-dev libwine-dev:i386 gcc-mingw-w64)
         install_hint="sudo apt-get install --no-install-recommends"
         ;;
 esac
