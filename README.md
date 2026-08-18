@@ -23,10 +23,10 @@ curl -fsSL https://raw.githubusercontent.com/Natzirt-BK/subaru-ecu-tools-linux/m
 Debian setup enables the official `i386` multiarch repository support needed
 by the bundled 32-bit RomRaider Logger and installs dependencies with APT.
 
-1. **Install / repair** — normal setup and updates
-2. **Clean reinstall** — replace all installer-managed state
-3. **System check** — inspect the current installation
-4. **Uninstall** — remove installer-managed files
+1. **Install / repair** > normal setup and updates
+2. **Clean reinstall** > replace all installer-managed state
+3. **System check** > inspect the current installation
+4. **Uninstall** > remove installer-managed files
 
 Use **Clean reinstall** when replacing an older or broken setup. Your ROMs,
 definitions, and logs are preserved.
