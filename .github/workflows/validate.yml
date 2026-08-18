@@ -14,14 +14,15 @@ jobs:
       - uses: actions/checkout@v5
       - name: Check shell syntax
         run: |
-          bash -n bootstrap-cachyos.sh linux/build-ecuflash-wine-runtime.sh \
+          bash -n bootstrap-cachyos.sh bootstrap-debian.sh linux/build-ecuflash-wine-runtime.sh \
             linux/configure-romraider-definitions linux/install-cachyos.sh \
-            linux/install-romraider-definitions linux/play-installer-chiptune \
-            linux/setup-cachyos-gui.sh linux/update-cachyos.sh
+            linux/install-debian.sh linux/install-romraider-definitions linux/play-installer-chiptune \
+            linux/setup-cachyos-gui.sh linux/setup-debian-gui.sh \
+            linux/update-cachyos.sh linux/update-debian.sh tests/vm/*.sh
           sh -n linux/launch-ecuflash linux/launch-evoscan linux/launch-romraider \
             linux/monitor-openport-state linux/sync-openport-device-state \
             wine-bridge/build-openport-driver.sh \
-            tests/*.sh tests/vm/*.sh
+            tests/*.sh
       - name: Run tests
         run: |
           set -eu
@@ -30,3 +31,30 @@ jobs:
           done
       - name: Check whitespace
         run: git diff --check
+
+  debian-13-bridge:
+    runs-on: ubuntu-latest
+    container: debian:13
+    steps:
+      - uses: actions/checkout@v5
+      - name: Install Debian build dependencies
+        run: |
+          dpkg --add-architecture i386
+          apt-get update
+          apt-get install -y --no-install-recommends \
+            build-essential ca-certificates curl file git gh libnotify-bin libusb-1.0-0 \
+            libusb-1.0-0-dev libusb-1.0-0:i386 unzip zstd usbutils udev \
+            desktop-file-utils sudo wine64-tools libwine-dev gcc-mingw-w64
+      - name: Check Debian installer and build bridge
+        run: |
+          ./linux/install-debian.sh --check
+          ./wine-bridge/build-openport-driver.sh
+          file build-wine-bridge/openport.sys build-wine-bridge/openport.so \
+            build-wine-bridge/op20pt32.dll build-wine-bridge/op20pt32.so \
+            build-wine-bridge/j2534-probe.exe build-wine-bridge/openport-device-probe.exe
+      - name: Run repository tests on Debian
+        run: |
+          set -eu
+          for test_script in tests/*.sh; do
+            "$test_script"
+          done

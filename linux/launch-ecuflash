@@ -18,6 +18,15 @@ fi
 
 : "${ECUFLASH_WINEDLLPATH:=$ECU_TOOLS_DATA_DIR/winedll}"
 current_user=${USER:-$(id -un)}
+openport_group=${OPENPORT_GROUP:-}
+if [ -z "$openport_group" ]; then
+    openport_group=uucp
+    os_release_file=${ECU_TOOLS_OS_RELEASE:-/etc/os-release}
+    if [ -r "$os_release_file" ] && grep -Eiq \
+        '^(ID|ID_LIKE)=.*debian' "$os_release_file"; then
+        openport_group=dialout
+    fi
+fi
 : "${OPENPORT_USB_SYSFS_ROOT:=/sys/bus/usb/devices}"
 : "${OPENPORT_USB_DEV_ROOT:=/dev/bus/usb}"
 
@@ -60,24 +69,24 @@ else
 fi
 
 if [ "$openport_access_state" = inaccessible ] && \
-   ! id -nG | tr ' ' '\n' | grep -qx uucp; then
-    if getent group uucp | cut -d: -f4 | tr ',' '\n' | grep -qx "$current_user"; then
+   ! id -nG | tr ' ' '\n' | grep -qx "$openport_group"; then
+    if getent group "$openport_group" | cut -d: -f4 | tr ',' '\n' | grep -qx "$current_user"; then
         if [ "${ECUFLASH_GROUP_REFRESHED:-0}" = 1 ]; then
-            report_error "The connected OpenPort is not readable/writable after activating the uucp fallback group. Check its udev rule and reconnect it."
+            report_error "The connected OpenPort is not readable/writable after activating the $openport_group fallback group. Check its udev rule and reconnect it."
             exit 1
         fi
-        /usr/bin/newgrp uucp -c \
+        /usr/bin/newgrp "$openport_group" -c \
             "env ECUFLASH_GROUP_REFRESHED=1 '$0'" || {
-            report_error "EcuFlash could not activate the uucp device-access group. Log out and back in, then try again."
+            report_error "EcuFlash could not activate the $openport_group device-access group. Log out and back in, then try again."
             exit 1
         }
         exit 0
     fi
-    report_error "The connected OpenPort is not readable/writable. Desktop uaccess did not grant access and your account is not in the uucp fallback group. Open Setup from the Subaru & Evo ECU Tools menu, select OpenPort USB permissions, then reconnect it."
+    report_error "The connected OpenPort is not readable/writable. Desktop uaccess did not grant access and your account is not in the $openport_group fallback group. Open Setup from the Subaru & Evo ECU Tools menu, select OpenPort USB permissions, then reconnect it."
     exit 1
 fi
 if [ "$openport_access_state" = inaccessible ]; then
-    report_error "The connected OpenPort is not readable/writable even though the uucp fallback group is active. Check its udev rule and reconnect it."
+    report_error "The connected OpenPort is not readable/writable even though the $openport_group fallback group is active. Check its udev rule and reconnect it."
     exit 1
 fi
 

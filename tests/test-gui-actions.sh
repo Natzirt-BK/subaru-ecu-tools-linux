@@ -130,10 +130,10 @@ exec sleep 30
 EOF
 chmod +x "$test_root/pw-play"
 # PTY key delivery differs on Ubuntu's CI image. Exercise the live mute path on
-# the supported Arch/CachyOS platform; Ubuntu still checks the controller,
-# bundled asset checksum, signal coordination, and syntax above.
+# the Arch host; Debian CI still checks the controller, bundled asset checksum,
+# signal coordination, and syntax above.
 if [ -e /etc/arch-release ]; then
-    printf 'M\n' | PATH="$test_root:$PATH" TERM=dumb timeout 10 \
+    { sleep 0.2; printf 'M\n'; } | PATH="$test_root:$PATH" TERM=dumb timeout 10 \
         script -q -e -c "$repo_root/linux/play-installer-chiptune" /dev/null \
         >/dev/null 2>&1
 fi
@@ -178,7 +178,9 @@ grep -F 'wait_for_stable_openport' "$engine" >/dev/null
 grep -F 'stop_wine_prefix "$ecuflash_wine" "$ecuflash_prefix"' "$engine" >/dev/null
 grep -F 'restarting Wine and retrying once' "$engine" >/dev/null
 grep -F '"$cache_root/ecuflash-j2534-probe.log"' "$engine" >/dev/null
-grep -F 'LD_LIBRARY_PATH="/usr/lib32' "$repo_root/linux/launch-romraider" >/dev/null
+grep -F 'romraider_system_lib=/usr/lib32' "$repo_root/linux/launch-romraider" >/dev/null
+grep -F 'romraider_system_lib=/usr/lib/i386-linux-gnu' \
+    "$repo_root/linux/launch-romraider" >/dev/null
 grep -F "grep -q 'J2534 DLL Version: 1\\.02\\.4870'" "$engine" >/dev/null
 grep -F 'official Tactrix J2534 library' "$engine" >/dev/null
 grep -F 'WINAPI *open_fn' "$repo_root/wine-bridge/probe.c" >/dev/null

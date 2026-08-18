@@ -12,6 +12,15 @@ fi
 : "${ROMRAIDER_JAVA:=$ROMRAIDER_HOME/jre32/bin/java}"
 : "${ROMRAIDER_MODE:=editor}"
 current_user=${USER:-$(id -un)}
+openport_group=${OPENPORT_GROUP:-}
+if [ -z "$openport_group" ]; then
+    openport_group=uucp
+    os_release_file=${ECU_TOOLS_OS_RELEASE:-/etc/os-release}
+    if [ -r "$os_release_file" ] && grep -Eiq \
+        '^(ID|ID_LIKE)=.*debian' "$os_release_file"; then
+        openport_group=dialout
+    fi
+fi
 : "${OPENPORT_USB_SYSFS_ROOT:=/sys/bus/usb/devices}"
 : "${OPENPORT_USB_DEV_ROOT:=/dev/bus/usb}"
 
@@ -55,25 +64,25 @@ fi
 
 if [ "$ROMRAIDER_MODE" = logger ] && \
    [ "$openport_access_state" = inaccessible ] && \
-   ! id -nG | tr ' ' '\n' | grep -qx uucp; then
-    if getent group uucp | cut -d: -f4 | tr ',' '\n' | grep -qx "$current_user"; then
+   ! id -nG | tr ' ' '\n' | grep -qx "$openport_group"; then
+    if getent group "$openport_group" | cut -d: -f4 | tr ',' '\n' | grep -qx "$current_user"; then
         if [ "${ROMRAIDER_GROUP_REFRESHED:-0}" = 1 ]; then
-            report_error "The Logger could not activate the uucp device-access group. Log out and back in, then try again."
+            report_error "The Logger could not activate the $openport_group device-access group. Log out and back in, then try again."
             exit 1
         fi
-        /usr/bin/newgrp uucp -c \
+        /usr/bin/newgrp "$openport_group" -c \
             "env ROMRAIDER_MODE=logger ROMRAIDER_GROUP_REFRESHED=1 '$0'" || {
-            report_error "The Logger could not activate the uucp device-access group. Log out and back in, then try again."
+            report_error "The Logger could not activate the $openport_group device-access group. Log out and back in, then try again."
             exit 1
         }
         exit 0
     fi
-    report_error "The connected OpenPort is not readable/writable. Desktop uaccess did not grant access and your account is not in the uucp fallback group. Open Setup from the Subaru & Evo ECU Tools menu, select USB permissions, then reconnect it."
+    report_error "The connected OpenPort is not readable/writable. Desktop uaccess did not grant access and your account is not in the $openport_group fallback group. Open Setup from the Subaru & Evo ECU Tools menu, select USB permissions, then reconnect it."
     exit 1
 fi
 if [ "$ROMRAIDER_MODE" = logger ] && \
    [ "$openport_access_state" = inaccessible ]; then
-    report_error "The connected OpenPort is not readable/writable even though the uucp fallback group is active. Check its udev rule and reconnect it."
+    report_error "The connected OpenPort is not readable/writable even though the $openport_group fallback group is active. Check its udev rule and reconnect it."
     exit 1
 fi
 
@@ -118,7 +127,12 @@ if [ -f "$romraider_log" ] && [ "$(wc -c <"$romraider_log")" -gt 10485760 ]; the
     mv -f -- "$romraider_log" "$romraider_log.previous"
 fi
 cd "$ROMRAIDER_HOME"
-LD_LIBRARY_PATH="/usr/lib32${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+if [ -d /usr/lib32 ]; then
+    romraider_system_lib=/usr/lib32
+else
+    romraider_system_lib=/usr/lib/i386-linux-gnu
+fi
+LD_LIBRARY_PATH="$romraider_system_lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
 export LD_LIBRARY_PATH
 set +e
 "$ROMRAIDER_JAVA" \

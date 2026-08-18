@@ -81,9 +81,11 @@ start_installer_music() {
 }
 
 menu_line() {
-    local text=$1 style=${2:-}
-    printf '  %b│%b %b%-53s%b%b│%b\n' \
-        "$blue" "$reset" "$style" "$text" "$reset" "$blue" "$reset"
+    local text=$1 style=${2:-} line
+    while IFS= read -r line || [[ -n "$line" ]]; do
+        printf '  %b│%b %b%-53s%b%b│%b\n' \
+            "$blue" "$reset" "$style" "$line" "$reset" "$blue" "$reset"
+    done < <(printf '%s\n' "$text" | fold -s -w 53)
 }
 
 draw_menu() {

@@ -31,7 +31,7 @@ printf 'Revision: %s\n' "$revision"
 pass 'public repository cloned'
 
 section 'Repository tests'
-bash -n bootstrap-cachyos.sh linux/*.sh
+bash -n bootstrap-cachyos.sh bootstrap-debian.sh linux/*.sh tests/vm/*.sh
 sh -n linux/launch-ecuflash linux/launch-evoscan linux/launch-romraider \
     linux/monitor-openport-state linux/sync-openport-device-state \
     wine-bridge/build-openport-driver.sh tests/*.sh

@@ -29,6 +29,38 @@ if [[ -n "$evoscan_installer" ]]; then
     install_ecuflash=true
 fi
 
+os_release_file=${ECU_TOOLS_OS_RELEASE:-/etc/os-release}
+if [[ ! -r "$os_release_file" ]]; then
+    echo "Cannot identify this Linux distribution: $os_release_file" >&2
+    exit 1
+fi
+# shellcheck disable=SC1090
+source "$os_release_file"
+os_family="${ID:-} ${ID_LIKE:-}"
+case " ${os_family,,} " in
+    *debian*)
+        distro_family=debian
+        distro_label=Debian
+        package_manager=apt
+        github_cli_package=gh
+        openport_group=${OPENPORT_GROUP:-dialout}
+        ;;
+    *cachyos*|*arch*)
+        distro_family=arch
+        distro_label=CachyOS/Arch
+        package_manager=pacman
+        github_cli_package=github-cli
+        openport_group=${OPENPORT_GROUP:-uucp}
+        ;;
+    *)
+        distro_family=unsupported
+        distro_label=${PRETTY_NAME:-unknown}
+        package_manager=unknown
+        github_cli_package=gh
+        openport_group=${OPENPORT_GROUP:-dialout}
+        ;;
+esac
+
 if [[ -t 1 && -z "${NO_COLOR:-}" && "${TERM:-}" != dumb ]]; then
     color_reset=$'\033[0m'
     color_bold=$'\033[1m'
@@ -97,6 +129,18 @@ completion_banner() {
     printf '%b╠%s╣%b\n' "$color_green$color_bold" "$ui_rule" "$color_reset"
 }
 
+if [[ "${ECU_TOOLS_UI_SELF_TEST:-0}" == 1 ]]; then
+    installer_banner
+    section "Layout validation on $distro_label"
+    step "A deliberately long status message verifies that ordinary words wrap cleanly inside the setup console border on every supported distribution."
+    warn "A deliberately-long-unbroken-token-ABCDEFGHIJKLMNOPQRSTUVWXYZ-0123456789-abcdefghijklmnopqrstuvwxyz-must-not-cross-the-right-border."
+    ok "Short status text remains aligned."
+    summary_row PLATFORM "$distro_label / $(uname -m) / $package_manager"
+    completion_banner
+    console_footer
+    exit 0
+fi
+
 setup_music_process_active() {
     local music_pid=${SUBARU_SETUP_MUSIC_PID:-}
     [[ "$music_pid" =~ ^[0-9]+$ ]] && kill -0 "$music_pid" 2>/dev/null && \
@@ -127,6 +171,54 @@ run_with_music_keys_paused() {
     "$@" && status=0 || status=$?
     resume_setup_music_keys
     return "$status"
+}
+
+package_installed() {
+    case "$package_manager" in
+        pacman) pacman -Q "$1" &>/dev/null ;;
+        apt)
+            dpkg-query -W -f='${db:Status-Abbrev}' "$1" 2>/dev/null | grep -q '^ii '
+            ;;
+        *) return 1 ;;
+    esac
+}
+
+enable_debian_i386() {
+    [[ "$distro_family" == debian ]] || return 0
+    [[ "$(dpkg --print-architecture)" == amd64 ]] || {
+        fail "Debian support currently requires an amd64 installation."
+        return 1
+    }
+    if ! dpkg --print-foreign-architectures | grep -qx i386; then
+        step "Enabling Debian i386 multiarch for RomRaider Logger"
+        run_with_music_keys_paused sudo dpkg --add-architecture i386
+    fi
+}
+
+install_host_packages() {
+    case "$package_manager" in
+        pacman)
+            run_with_music_keys_paused sudo pacman -S --needed "$@"
+            ;;
+        apt)
+            enable_debian_i386
+            run_with_music_keys_paused sudo apt-get update
+            run_with_music_keys_paused sudo apt-get install -y --no-install-recommends "$@"
+            ;;
+        *)
+            fail "Unsupported package manager on $distro_label."
+            return 1
+            ;;
+    esac
+}
+
+romraider_libusb_runtime() {
+    local candidate
+    for candidate in /usr/lib32/libusb-1.0.so.0 \
+        /usr/lib/i386-linux-gnu/libusb-1.0.so.0; do
+        [[ -e "$candidate" ]] && { printf '%s\n' "$candidate"; return 0; }
+    done
+    return 1
 }
 
 # Read confirmations immediately, without requiring Enter. Noninteractive callers
@@ -173,17 +265,17 @@ stop_wine_prefix() {
 run_with_openport_access() {
     local group_command= current_user
     current_user=${USER:-$(id -un)}
-    if id -nG | tr ' ' '\n' | grep -qx uucp || \
-       ! getent group uucp | cut -d: -f4 | tr ',' '\n' | grep -qx "$current_user"; then
+    if id -nG | tr ' ' '\n' | grep -qx "$openport_group" || \
+       ! getent group "$openport_group" | cut -d: -f4 | tr ',' '\n' | grep -qx "$current_user"; then
         "$@"
         return
     fi
     command -v newgrp >/dev/null 2>&1 || {
-        fail "The uucp device-access group was added, but newgrp is unavailable. Log out and back in, then run Update."
+        fail "The $openport_group device-access group was added, but newgrp is unavailable. Log out and back in, then run Update."
         return 1
     }
     printf -v group_command ' %q' "$@"
-    newgrp uucp -c "exec${group_command}"
+    newgrp "$openport_group" -c "exec${group_command}"
 }
 
 capture_verbose_openport_probe() {
@@ -429,8 +521,8 @@ write_openport_usb_diagnostics() {
     else
         echo '  missing or unreadable'
     fi
-    printf 'uucp group entry: '
-    getent group uucp 2>&1 || echo 'missing'
+    printf '%s group entry: ' "$openport_group"
+    getent group "$openport_group" 2>&1 || echo 'missing'
     if command -v lsusb >/dev/null 2>&1; then
         echo 'Verbose OpenPort USB descriptor:'
         lsusb -v -d 0403:cc4d 2>&1 || true
@@ -500,12 +592,17 @@ write_host_runtime_diagnostics() {
         echo '  ip unavailable'
     fi
     echo 'Relevant installed packages:'
-    if command -v pacman >/dev/null 2>&1; then
-        pacman -Q git github-cli libusb lib32-libusb usbutils wine wine-mono \
-            llvm llvm-libs mingw-w64-gcc jre8-openjdk 2>&1 | sed 's/^/  /' || true
-    else
-        echo '  pacman unavailable'
-    fi
+    case "$package_manager" in
+        pacman)
+            pacman -Q git github-cli libusb lib32-libusb usbutils wine wine-mono \
+                llvm llvm-libs mingw-w64-gcc jre8-openjdk 2>&1 | sed 's/^/  /' || true
+            ;;
+        apt)
+            dpkg-query -W git gh libusb-1.0-0 libusb-1.0-0:i386 usbutils \
+                libwine-dev wine64-tools gcc-mingw-w64 2>&1 | sed 's/^/  /' || true
+            ;;
+        *) echo '  supported package manager unavailable' ;;
+    esac
     echo 'Relevant running processes:'
     ps -eo pid,user,stat,lstart,comm 2>&1 | \
         grep -Ei ' (wine|wine64|wineserver|wineboot|ecuflash|romraider|openport|j2534|java)$' | \
@@ -546,12 +643,11 @@ write_host_runtime_diagnostics() {
 }
 
 usage() {
+    printf 'Usage: %s [options]\n\n' "$0"
     cat <<'EOF'
-Usage: linux/install-cachyos.sh [options]
-
   --check          Check the system without building or installing anything
   --update-files   Audit and update all installer-managed support files
-  --install-deps   Install missing CachyOS/Arch packages with sudo pacman
+  --install-deps   Install missing host packages with sudo
   --install-udev   Install the OpenPort 2.0 udev rule with sudo
   --install-ecuflash  Download and open Tactrix's official EcuFlash installer
   --install-romraider  Install RomRaider DimeMod with a bundled 32-bit JRE
@@ -650,7 +746,7 @@ offer_error_report() {
     read_yes_no "Upload this error log in a public GitHub issue so the maintainer can investigate?" no || return 0
 
     if ! command -v gh >/dev/null 2>&1; then
-        echo "Automatic upload requires GitHub CLI. Install 'github-cli', run 'gh auth login', then retry."
+        echo "Automatic upload requires GitHub CLI. Install '$github_cli_package', run 'gh auth login', then retry."
         echo "No log was uploaded. Your log remains at: $log_file"
         return 0
     fi
@@ -954,8 +1050,11 @@ create_documents_shortcuts() {
 }
 
 install_managed_user_files() {
-    local source target desktop rendered expected_mode actual_mode
+    local source target desktop rendered expected_mode actual_mode setup_script
     local checked=0 updated=0 current=0
+
+    setup_script=$repo_root/linux/setup-cachyos-gui.sh
+    [[ "$distro_family" == debian ]] && setup_script=$repo_root/linux/setup-debian-gui.sh
 
     install -d "$bin_dir" "$applications_dir" "$desktop_directories_dir" \
         "$menus_dir" "$data_dir/registry"
@@ -994,7 +1093,7 @@ install_managed_user_files() {
     for desktop in ecuflash evoscan romraider-editor romraider-logger subaru-ecu-tools-setup; do
         rendered=$(mktemp "$cache_root/desktop-$desktop.XXXXXX")
         sed -e "s|@BINDIR@|$bin_dir|g" \
-            -e "s|@SETUP@|$repo_root/linux/setup-cachyos-gui.sh|g" \
+            -e "s|@SETUP@|$setup_script|g" \
             "$repo_root/linux/$desktop.desktop" \
             >"$rendered"
         update_managed_file "$rendered" "$applications_dir/$desktop.desktop" 0644
@@ -1064,9 +1163,13 @@ restore_openport_after_probe() {
 
 if [[ "$mode" == update ]]; then
     section "Auditing installed files against the latest release"
-    if ! pacman -Q lib32-libusb &>/dev/null; then
+    if ! romraider_libusb_runtime >/dev/null; then
         step "Installing the 32-bit USB runtime required by RomRaider Logger"
-        run_with_music_keys_paused sudo pacman -S --needed lib32-libusb
+        case "$distro_family" in
+            arch) install_host_packages lib32-libusb ;;
+            debian) install_host_packages libusb-1.0-0:i386 ;;
+            *) fail "Updates are unsupported on $distro_label."; exit 1 ;;
+        esac
     else
         ok "RomRaider Logger 32-bit USB runtime is current."
     fi
@@ -1075,8 +1178,7 @@ if [[ "$mode" == update ]]; then
     if [[ -f "$ecuflash_prefix/drive_c/Program Files (x86)/OpenECU/EcuFlash/ecuflash.exe" ]]; then
         section "Rebuilding the installed OpenPort J2534 bridge"
         bridge_build_log="$cache_root/openport-bridge-build.log"
-        if LLVM_MINGW_ROOT=/opt/llvm-mingw WINEBUILD=$(command -v winebuild) \
-            "$repo_root/wine-bridge/build-openport-driver.sh" >"$bridge_build_log" 2>&1; then
+        if "$repo_root/wine-bridge/build-openport-driver.sh" >"$bridge_build_log" 2>&1; then
             install -d "$data_dir/winedll/x86_64-windows" "$data_dir/winedll/x86_64-unix"
             install -m 0644 "$repo_root/build-wine-bridge/winedll/x86_64-windows/openport.sys" \
                 "$data_dir/winedll/x86_64-windows/openport.sys"
@@ -1305,32 +1407,53 @@ if $install_evoscan; then
     }
 fi
 
-if [[ ! -r /etc/os-release ]]; then
-    echo "Cannot identify this Linux distribution." >&2
+if [[ "$distro_family" == unsupported ]]; then
+    fail "Supported hosts are CachyOS/Arch and Debian-family amd64; detected $distro_label."
     exit 1
 fi
-# shellcheck disable=SC1091
-source /etc/os-release
-os_family="${ID:-} ${ID_LIKE:-}"
-if [[ "$os_family" != *cachyos* && "$os_family" != *arch* ]]; then
-    warn "Designed for CachyOS/Arch; detected ${PRETTY_NAME:-unknown}."
+if [[ "$(uname -m)" != x86_64 ]]; then
+    fail "This release requires an x86_64/amd64 host; detected $(uname -m)."
+    exit 1
 fi
 
 section "Checking dependencies"
-packages=(base-devel curl github-cli libnotify libusb lib32-libusb unzip wine llvm-mingw zstd)
+case "$distro_family" in
+    arch)
+        packages=(base-devel curl github-cli libnotify libusb lib32-libusb unzip wine llvm-mingw zstd)
+        install_hint="sudo pacman -S --needed"
+        ;;
+    debian)
+        packages=(build-essential ca-certificates curl file git gh libnotify-bin libusb-1.0-0
+            libusb-1.0-0-dev libusb-1.0-0:i386 unzip zstd usbutils udev
+            desktop-file-utils sudo wine64-tools libwine-dev gcc-mingw-w64)
+        install_hint="sudo apt-get install --no-install-recommends"
+        ;;
+esac
 missing=()
 for package in "${packages[@]}"; do
-    pacman -Q "$package" &>/dev/null || missing+=("$package")
+    package_installed "$package" || missing+=("$package")
 done
 
 if ((${#missing[@]})); then
     warn "Missing packages: ${missing[*]}"
     if $install_deps; then
-        step "Installing missing CachyOS packages"
-        run_with_music_keys_paused sudo pacman -S --needed "${missing[@]}"
+        step "Installing missing $distro_label packages"
+        install_host_packages "${missing[@]}"
+        missing=()
+        for package in "${packages[@]}"; do
+            package_installed "$package" || missing+=("$package")
+        done
+        ((${#missing[@]} == 0)) || {
+            fail "Packages remain missing after installation: ${missing[*]}"
+            exit 1
+        }
     else
         echo "Re-run with --install-deps, or install them with:"
-        echo "  sudo pacman -S --needed ${missing[*]}"
+        if [[ "$distro_family" == debian ]] && \
+           ! dpkg --print-foreign-architectures | grep -qx i386; then
+            echo "  sudo dpkg --add-architecture i386 && sudo apt-get update"
+        fi
+        echo "  $install_hint ${missing[*]}"
     fi
 fi
 
@@ -1345,13 +1468,23 @@ check_path() {
     fi
 }
 
-check_path "LLVM-MinGW compiler" /opt/llvm-mingw/bin/x86_64-w64-mingw32-gcc
-check_path "LLVM-MinGW DDK headers" /opt/llvm-mingw/x86_64-w64-mingw32/include/ddk
-check_path "Wine headers" /usr/include/wine/windows
-check_path "Wine 32-bit startup library" /usr/lib/wine/i386-windows/libwinecrt0.a
 check_path "libusb headers" /usr/include/libusb-1.0/libusb.h
-check_path "RomRaider 32-bit libusb runtime" /usr/lib32/libusb-1.0.so.0
-command -v winebuild >/dev/null || { echo "MISSING: winebuild"; checks_failed=1; }
+if romraider_libusb_path=$(romraider_libusb_runtime); then
+    ok "RomRaider 32-bit libusb runtime ($romraider_libusb_path)"
+else
+    fail "MISSING: RomRaider 32-bit libusb runtime"
+    checks_failed=1
+fi
+if bridge_config=$("$repo_root/wine-bridge/build-openport-driver.sh" --check 2>&1); then
+    ok "OpenPort bridge compilers, Wine headers, and startup library"
+    while IFS= read -r bridge_config_line; do
+        summary_row BUILD "$bridge_config_line"
+    done <<<"$bridge_config"
+else
+    fail "MISSING: OpenPort bridge build prerequisites"
+    printf '%s\n' "$bridge_config" >&2
+    checks_failed=1
+fi
 command -v cc >/dev/null || { echo "MISSING: C compiler"; checks_failed=1; }
 
 if [[ "$mode" == check ]]; then
@@ -1389,7 +1522,7 @@ if [[ "$mode" == check ]]; then
         ok "Tactrix OpenPort 2.0 detected"
         openport_usb_accessible && \
             ok "Current session has raw read/write OpenPort access" || \
-            warn "MISSING: current session cannot read/write the connected OpenPort (desktop uaccess and uucp fallback unavailable)"
+            warn "MISSING: current session cannot read/write the connected OpenPort (desktop uaccess and $openport_group fallback unavailable)"
     else
         step "OpenPort 2.0 is not currently detected; USB access can be validated after connecting it"
     fi
@@ -1408,8 +1541,7 @@ fi
 section "Building the OpenPort Wine bridge"
 mkdir -p "$cache_root"
 bridge_build_log="$cache_root/openport-bridge-build.log"
-if LLVM_MINGW_ROOT=/opt/llvm-mingw WINEBUILD=$(command -v winebuild) \
-    "$repo_root/wine-bridge/build-openport-driver.sh" >"$bridge_build_log" 2>&1; then
+if "$repo_root/wine-bridge/build-openport-driver.sh" >"$bridge_build_log" 2>&1; then
     ok "OpenPort Wine bridge built and verified."
 else
     fail "OpenPort Wine bridge build failed. Diagnostic log: $bridge_build_log"
@@ -1437,18 +1569,21 @@ install -m 0755 "$repo_root/build-wine-bridge/openport-device-probe.exe" \
 
 if $install_udev; then
     section "Configuring OpenPort USB permissions"
-    if ! getent group uucp >/dev/null; then
-        fail "The required uucp device-access group does not exist."
+    if ! getent group "$openport_group" >/dev/null; then
+        fail "The required $openport_group device-access group does not exist."
         exit 1
     fi
-    run_with_music_keys_paused sudo install -m 0644 "$repo_root/linux/99-openport2.rules" \
+    udev_rule_rendered="$cache_root/99-openport2-$distro_family.rules"
+    sed "s/GROUP=\"uucp\"/GROUP=\"$openport_group\"/" \
+        "$repo_root/linux/99-openport2.rules" >"$udev_rule_rendered"
+    run_with_music_keys_paused sudo install -m 0644 "$udev_rule_rendered" \
         /etc/udev/rules.d/99-openport2.rules
-    run_with_music_keys_paused sudo cmp -s "$repo_root/linux/99-openport2.rules" \
+    run_with_music_keys_paused sudo cmp -s "$udev_rule_rendered" \
         /etc/udev/rules.d/99-openport2.rules || {
         fail "The installed OpenPort udev rule does not match the packaged rule."
         exit 1
     }
-    run_with_music_keys_paused sudo usermod -aG uucp "$USER"
+    run_with_music_keys_paused sudo usermod -aG "$openport_group" "$USER"
     run_with_music_keys_paused sudo udevadm control --reload-rules
     run_with_music_keys_paused sudo udevadm trigger --subsystem-match=usb
     run_with_music_keys_paused sudo udevadm settle --timeout=10 || {
@@ -1484,7 +1619,7 @@ if $install_udev; then
     else
         echo "Connect the OpenPort to validate live USB permissions; the built-in System Check will verify them."
     fi
-    echo "Added $USER to the uucp fallback group. A new login activates it for future sessions."
+    echo "Added $USER to the $openport_group fallback group. A new login activates it for future sessions."
 fi
 
 if $install_romraider; then

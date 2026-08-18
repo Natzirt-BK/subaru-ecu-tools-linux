@@ -13,6 +13,14 @@ less /tmp/bootstrap-cachyos.sh
 bash /tmp/bootstrap-cachyos.sh
 ```
 
+For Debian 13 Stable (amd64), substitute `bootstrap-debian.sh`:
+
+```bash
+curl -fL https://raw.githubusercontent.com/Natzirt-BK/subaru-ecu-tools-linux/master/bootstrap-debian.sh -o /tmp/bootstrap-debian.sh
+less /tmp/bootstrap-debian.sh
+bash /tmp/bootstrap-debian.sh
+```
+
 Useful direct commands after checkout:
 
 ```bash
@@ -22,6 +30,10 @@ Useful direct commands after checkout:
 ./linux/update-cachyos.sh
 ./linux/install-cachyos.sh --uninstall
 ```
+
+On Debian, use `./linux/install-debian.sh`, `./linux/setup-debian-gui.sh`, and
+`./linux/update-debian.sh`. Both distro entry points use the same installation
+engine, while the explicit Debian names make manual maintenance unambiguous.
 
 Run `./linux/install-cachyos.sh --help` for advanced component, definition, and
 EvoScan flags. The bootstrap checkout lives at
@@ -70,10 +82,11 @@ physical adapter; disconnected testing requires J2534
 `ERR_DEVICE_NOT_CONNECTED`.
 
 The udev rule grants OpenPort access to the active desktop seat through
-`uaccess`; membership in `uucp` is a fallback. Setup and the launchers test the
-actual connected USB node before using the fallback group. A restart is not
-normally required; reconnecting the adapter applies the rule, and a logout/login
-refreshes fallback group membership when needed.
+`uaccess`; membership in `uucp` on Arch or `dialout` on Debian is a fallback.
+Setup renders the correct group into the installed rule. Setup and the
+launchers test the actual connected USB node before using the fallback group. A
+restart is not normally required; reconnecting the adapter applies the rule,
+and a logout/login refreshes fallback group membership when needed.
 
 ## RomRaider definitions
 
@@ -120,7 +133,7 @@ Common checks:
 
 ```bash
 lsusb | grep -i '0403:cc4d'
-id -nG | tr ' ' '\n' | grep -x uucp
+id -nG | tr ' ' '\n' | grep -E '^(uucp|dialout)$'
 sha256sum ~/.local/share/ecuflash-proton/drive_c/windows/syswow64/op20pt32.dll
 ```
 
@@ -148,6 +161,20 @@ Run the repository tests:
 for test_script in tests/*.sh; do "$test_script"; done
 ```
 
-The build requires CachyOS/Arch packages listed by the installer, including
-LLVM-MinGW, Wine development files, and libusb development files. Driver design
-details are in [wine-bridge/README-linux-driver.md](wine-bridge/README-linux-driver.md).
+On CachyOS/Arch, the build uses LLVM-MinGW. On Debian it uses the distribution's
+`gcc-mingw-w64`, `wine64-tools`, `libwine-dev`, and libusb development packages.
+The build script discovers both layouts and reports the selected toolchain with
+`./wine-bridge/build-openport-driver.sh --check`.
+
+The repository includes a checksum-pinned Debian 13 Stable GNOME VM workflow:
+
+```bash
+./tests/vm/manage-debian-vm.sh setup
+./tests/vm/manage-debian-vm.sh wait-ready
+./tests/vm/manage-debian-vm.sh test
+```
+
+This VM is separate from the CachyOS qualification VM. It compiles every bridge
+artifact, runs repository tests, and installs only non-flashing support files.
+Driver design details are in
+[wine-bridge/README-linux-driver.md](wine-bridge/README-linux-driver.md).

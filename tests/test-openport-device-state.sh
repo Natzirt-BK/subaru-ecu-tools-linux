@@ -93,7 +93,7 @@ grep -q 'disconnected -> connected' "$monitor_log"
 
 echo 'OpenPort live-state monitor tests passed.'
 
-# A clean install adds uucp after setup has already started. Its immediate
+# A clean install adds the distro device group after setup has already started. Its immediate
 # hardware probe must enter the new group instead of failing until next login.
 grep -q '^run_with_openport_access()' "$repo_root/linux/install-cachyos.sh"
 [ "$(grep -c 'run_with_openport_access env WINEPREFIX=' "$repo_root/linux/install-cachyos.sh")" -eq 6 ]
@@ -101,14 +101,14 @@ grep -q 'TAG+="uaccess"' "$repo_root/linux/99-openport2.rules"
 grep -q '^openport_raw_access_state()' "$repo_root/linux/launch-ecuflash"
 grep -q 'OPENPORT_USB_SYSFS_ROOT' "$repo_root/linux/launch-ecuflash"
 grep -q 'OPENPORT_USB_DEV_ROOT' "$repo_root/linux/launch-ecuflash"
-grep -q 'Desktop uaccess did not grant access.*uucp fallback group' \
+grep -q 'Desktop uaccess did not grant access.*openport_group.*fallback group' \
     "$repo_root/linux/launch-ecuflash"
 if grep -q '^if ! id -nG.*grep -qx uucp' "$repo_root/linux/launch-ecuflash"; then
     echo 'EcuFlash launcher still treats uucp membership as mandatory.' >&2
     exit 1
 fi
 grep -q '^openport_raw_access_state()' "$repo_root/linux/launch-romraider"
-grep -q 'Desktop uaccess did not grant access.*uucp fallback group' \
+grep -q 'Desktop uaccess did not grant access.*openport_group.*fallback group' \
     "$repo_root/linux/launch-romraider"
 grep -q '^openport_usb_accessible()' "$repo_root/linux/install-cachyos.sh"
 grep -q '^openport_usb_node()' "$repo_root/linux/install-cachyos.sh"
@@ -120,7 +120,7 @@ grep -q 'Run the guided OpenPort plug/unplug test now?' \
     "$repo_root/linux/install-cachyos.sh"
 grep -q 'Guided OpenPort plug/unplug test skipped by the user' \
     "$repo_root/linux/install-cachyos.sh"
-grep -q 'sudo cmp -s.*99-openport2.rules' "$repo_root/linux/install-cachyos.sh"
+grep -q 'sudo cmp -s.*udev_rule_rendered' "$repo_root/linux/install-cachyos.sh"
 grep -q 'sudo udevadm settle --timeout=10' "$repo_root/linux/install-cachyos.sh"
 grep -q 'udev grants effective read/write access to the connected OpenPort' \
     "$repo_root/linux/install-cachyos.sh"

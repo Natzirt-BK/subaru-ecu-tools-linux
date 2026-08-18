@@ -21,6 +21,7 @@ touch \
     "$test_root/data/subaru-evo-ecu-definitions/user-definition.xml" \
     "$test_root/state/subaru-ecu-tools-linux/existing.log" \
     "$test_root/home/ROMs/user-rom.bin"
+printf '%s\n' 'ID=arch' 'PRETTY_NAME="Test Arch"' >"$test_root/os-release"
 
 cat >"$test_root/bin/pacman" <<'EOF'
 #!/bin/sh
@@ -40,6 +41,7 @@ XDG_DATA_HOME="$test_root/data" \
 XDG_CACHE_HOME="$test_root/cache" \
 XDG_STATE_HOME="$test_root/state" \
 SUBARU_SETUP_NO_PAUSE=1 NO_COLOR=1 \
+ECU_TOOLS_OS_RELEASE="$test_root/os-release" \
     "$repo_root/linux/install-cachyos.sh" --clean-install --yes \
     >"$test_root/clean-install.log" 2>&1
 status=$?
