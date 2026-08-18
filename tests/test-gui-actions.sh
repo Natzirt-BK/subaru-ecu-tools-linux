@@ -146,7 +146,7 @@ grep -Fx 'Name=EcuFlash' "$repo_root/linux/ecuflash.desktop" >/dev/null
 grep -Fx 'Name=EvoScan' "$repo_root/linux/evoscan.desktop" >/dev/null
 grep -F 'read -rsn1 key </dev/tty' "$engine" >/dev/null
 grep -F 'setup_interactive=false' "$engine" >/dev/null
-test "$(grep -F -c '$setup_interactive || return 0' "$engine")" -eq 1
+test "$(grep -F -c '[[ "$setup_interactive" == true && "${SUBARU_SETUP_NO_PAUSE:-0}" != 1 ]] || return 0' "$engine")" -eq 3
 ! grep -F '[[ -t 0 || -t 1 ]] || return 0' "$engine" >/dev/null
 grep -F 'Briefly describe what went wrong (optional' "$engine" >/dev/null
 grep -F 'tail -c 12000' "$engine" >/dev/null

@@ -741,7 +741,7 @@ offer_error_report() {
     local user_description=${1:-}
     local report_file full_report upload_error issue_url extra_log log_bytes usb_report host_report latest_ecuflash_log report_bytes
 
-    $setup_interactive || return 0
+    [[ "$setup_interactive" == true && "${SUBARU_SETUP_NO_PAUSE:-0}" != 1 ]] || return 0
     warn "The public report may identify this computer and user. It includes the username, hostname, home paths, local network addresses, hardware and USB identifiers, adapter serial, groups, relevant packages/processes, permissions, and bounded application/system logs. It does not intentionally collect passwords, tokens, SSH keys, browser data, or an unfiltered environment. Review the report before sharing."
     read_yes_no "Upload this error log in a public GitHub issue so the maintainer can investigate?" no || return 0
 

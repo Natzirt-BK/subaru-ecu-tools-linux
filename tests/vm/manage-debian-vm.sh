@@ -52,8 +52,19 @@ vm_exists() {
 }
 
 vm_ip() {
+    local ip
+
+    # Managed-save restores can briefly leave an older DHCP lease beside the
+    # guest's current address. Prefer what the guest agent reports, then fall
+    # back to the newest address shown by libvirt's lease source.
+    ip=$(virsh -c qemu:///system domifaddr "$vm_name" --source agent 2>/dev/null | \
+        awk '$3 == "ipv4" && $1 != "lo" {sub(/\/.*/, "", $4); print $4; exit}')
+    if [[ -n "$ip" ]]; then
+        printf '%s\n' "$ip"
+        return 0
+    fi
     virsh -c qemu:///system domifaddr "$vm_name" --source lease 2>/dev/null | \
-        awk '$3 == "ipv4" {sub(/\/.*/, "", $4); print $4; exit}'
+        awk '$3 == "ipv4" {sub(/\/.*/, "", $4); ip=$4} END {if (ip != "") print ip}'
 }
 
 wait_for_ssh() {

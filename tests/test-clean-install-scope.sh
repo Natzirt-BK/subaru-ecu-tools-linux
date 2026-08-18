@@ -57,5 +57,6 @@ set -e
 [ -e "$test_root/home/ROMs/user-rom.bin" ]
 grep -q 'Old installer-managed application and runtime state removed' \
     "$test_root/clean-install.log"
+! grep -q '\[ INPUT \]' "$test_root/clean-install.log"
 
 echo 'Clean-install scope tests passed.'
