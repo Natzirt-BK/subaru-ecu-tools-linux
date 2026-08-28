@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Evo RomRaider MUT-II Logger
+Comment=Optional NatZirt MUT-II logger for Mitsubishi Evo 8/9
+Exec=env EVO_MUT2_MODE=logger @BINDIR@/launch-romraider-evo-mut2
+Icon=applications-engineering
+Terminal=false
+Categories=X-Subaru-Evo-ECU-Tools;
+StartupNotify=true

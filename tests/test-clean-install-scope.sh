@@ -9,6 +9,7 @@ mkdir -p \
     "$test_root/data/subaru-ecu-tools-linux/runtime" \
     "$test_root/data/ecuflash-proton" \
     "$test_root/data/romraider-dm20" \
+    "$test_root/data/romraider-mut2-evo-88780008" \
     "$test_root/data/subaru-evo-ecu-definitions" \
     "$test_root/cache/subaru-ecu-tools-linux" \
     "$test_root/state/subaru-ecu-tools-linux" \
@@ -18,6 +19,7 @@ touch \
     "$test_root/data/subaru-ecu-tools-linux/runtime/stale" \
     "$test_root/data/ecuflash-proton/stale-registry" \
     "$test_root/data/romraider-dm20/separately-installed" \
+    "$test_root/data/romraider-mut2-evo-88780008/.installed-by-subaru-ecu-tools" \
     "$test_root/data/subaru-evo-ecu-definitions/user-definition.xml" \
     "$test_root/state/subaru-ecu-tools-linux/existing.log" \
     "$test_root/home/ROMs/user-rom.bin"
@@ -52,6 +54,7 @@ set -e
 [ ! -e "$test_root/data/ecuflash-proton" ]
 [ ! -e "$test_root/bin/launch-ecuflash" ]
 [ -e "$test_root/data/romraider-dm20/separately-installed" ]
+[ -e "$test_root/data/romraider-mut2-evo-88780008/.installed-by-subaru-ecu-tools" ]
 [ -e "$test_root/data/subaru-evo-ecu-definitions/user-definition.xml" ]
 [ -e "$test_root/state/subaru-ecu-tools-linux/existing.log" ]
 [ -e "$test_root/home/ROMs/user-rom.bin" ]

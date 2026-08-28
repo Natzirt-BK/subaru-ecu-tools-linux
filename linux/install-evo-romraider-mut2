@@ -1,0 +1,64 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+data_root=${XDG_DATA_HOME:-$HOME/.local/share}
+cache_root=${XDG_CACHE_HOME:-$HOME/.cache}/subaru-ecu-tools-linux
+install_root=${EVO_MUT2_INSTALL_ROOT:-$data_root/romraider-mut2-evo-88780008}
+archive=${EVO_MUT2_ARCHIVE:-$cache_root/RomRaider_MUT2_88780008_Release_v1.0.0.zip}
+archive_root=RomRaider_MUT2_88780008_Release_v1.0.0
+release_url=${EVO_MUT2_URL:-https://github.com/Natzirt-BK/subaru-ecu-tools-linux/releases/download/romraider-mut2-evo-88780008-v1.0.0/RomRaider_MUT2_88780008_Release_v1.0.0.zip}
+release_sha256=${EVO_MUT2_SHA256:-5d59d9259182e61e698f14ea41f1b79afdbdb7d1d7711ac7b47efa36aa88b9da}
+
+case "$install_root" in
+    ''|/|"$HOME") echo "Unsafe Evo RomRaider install path: $install_root" >&2; exit 2 ;;
+esac
+
+complete_install() {
+    local root=$1
+    [[ -x "$root/START_LOGGER_LINUX.sh" && \
+       -x "$root/START_EDITOR_LINUX.sh" && \
+       -x "$root/app/jre32/bin/java" && \
+       -f "$root/app/RomRaider-MUT2-88780008-32.jar" && \
+       -f "$root/app/lib/linux/32/j2534.so" && \
+       -f "$root/app/i18n/com/romraider/ECUExec.properties" && \
+       -f "$root/definitions/RomRaider_Logger/88780008_MUT2_logger.xml" && \
+       -f "$root/definitions/RomRaider_Profiles/88780008_MUT2_Tuning_Profile.xml" ]]
+}
+
+if complete_install "$install_root" && \
+   [[ -f "$install_root/.installed-by-subaru-ecu-tools" ]] && \
+   [[ -f "$install_root/.release-sha256" ]] && \
+   grep -Fxq "$release_sha256" "$install_root/.release-sha256"; then
+    echo "  OK Optional Evo RomRaider MUT-II is already current."
+    exit 0
+fi
+
+mkdir -p "$cache_root" "$(dirname -- "$install_root")"
+if [[ ! -f "$archive" ]] || \
+   ! printf '%s  %s\n' "$release_sha256" "$archive" | sha256sum -c - >/dev/null 2>&1; then
+    echo "  -> Downloading optional Evo RomRaider MUT-II 88780008 release"
+    curl --fail --location --progress-bar --output "$archive" "$release_url"
+fi
+printf '%s  %s\n' "$release_sha256" "$archive" | sha256sum -c - >/dev/null
+
+stage=$(mktemp -d "$(dirname -- "$install_root")/.romraider-evo-mut2-install.XXXXXX")
+trap 'rm -rf -- "$stage"' EXIT HUP INT TERM
+unzip -q "$archive" -d "$stage"
+staged_root=$stage/$archive_root
+complete_install "$staged_root" || {
+    echo "The verified Evo RomRaider archive is incomplete after extraction." >&2
+    exit 1
+}
+
+: >"$staged_root/.installed-by-subaru-ecu-tools"
+printf '%s\n' "$release_sha256" >"$staged_root/.release-sha256"
+if [[ -e "$install_root" ]]; then
+    backup=${install_root}.backup-$(date +%Y%m%d-%H%M%S)
+    [[ ! -e "$backup" ]] || backup=$backup-$$
+    echo "  -> Preserving the previous Evo RomRaider installation at $backup"
+    mv -- "$install_root" "$backup"
+fi
+mv -- "$staged_root" "$install_root"
+rmdir -- "$stage"
+trap - EXIT HUP INT TERM
+echo "  OK Optional Evo RomRaider MUT-II installed at $install_root"
