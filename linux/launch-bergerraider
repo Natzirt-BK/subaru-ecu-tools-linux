@@ -1,0 +1,65 @@
+#!/bin/sh
+set -eu
+
+: "${XDG_DATA_HOME:=$HOME/.local/share}"
+: "${BERGERRAIDER_HOME:=$XDG_DATA_HOME/bergerraider-ecu-studio-preview-1}"
+: "${BERGERRAIDER_MODE:=editor}"
+: "${OPENPORT_USB_SYSFS_ROOT:=/sys/bus/usb/devices}"
+: "${OPENPORT_USB_DEV_ROOT:=/dev/bus/usb}"
+
+report_error() {
+    printf '%s\n' "$1" >&2
+    if command -v kdialog >/dev/null 2>&1 && \
+       { [ -n "${DISPLAY:-}" ] || [ -n "${WAYLAND_DISPLAY:-}" ]; }; then
+        kdialog --title "BergerRaider could not start" --error "$1" || true
+    fi
+}
+
+openport_accessible_or_absent() {
+    found=false
+    for vendor_file in "$OPENPORT_USB_SYSFS_ROOT"/*/idVendor; do
+        [ -f "$vendor_file" ] || continue
+        [ "$(tr '[:upper:]' '[:lower:]' <"$vendor_file")" = 0403 ] || continue
+        device_dir=${vendor_file%/idVendor}
+        [ -f "$device_dir/idProduct" ] || continue
+        [ "$(tr '[:upper:]' '[:lower:]' <"$device_dir/idProduct")" = cc4d ] || continue
+        found=true
+        read -r busnum <"$device_dir/busnum" || continue
+        read -r devnum <"$device_dir/devnum" || continue
+        case "$busnum:$devnum" in *[!0-9:]*|:|*:|*:*:*) continue ;; esac
+        node=$(printf '%s/%03d/%03d' "$OPENPORT_USB_DEV_ROOT" "$busnum" "$devnum")
+        [ -r "$node" ] && [ -w "$node" ] && return 0
+    done
+    ! $found
+}
+
+if [ ! -f "$BERGERRAIDER_HOME/.installed-by-subaru-ecu-tools" ]; then
+    report_error "BergerRaider is not installed. Open Subaru & Evo ECU Tools Setup and select Optional BergerRaider Preview."
+    exit 1
+fi
+if [ "$BERGERRAIDER_MODE" = logger ] && ! openport_accessible_or_absent; then
+    report_error "The connected OpenPort is not readable and writable. Open Setup, repair USB permissions, then reconnect it."
+    exit 1
+fi
+
+case "$BERGERRAIDER_MODE" in
+    logger) launcher=$BERGERRAIDER_HOME/START_LOGGER_LINUX.sh ;;
+    editor) launcher=$BERGERRAIDER_HOME/START_EDITOR_LINUX.sh ;;
+    *) report_error "BERGERRAIDER_MODE must be logger or editor."; exit 2 ;;
+esac
+if [ ! -x "$launcher" ]; then
+    report_error "The BergerRaider launcher is missing: $launcher. Reinstall the optional component."
+    exit 1
+fi
+
+state_dir=${XDG_STATE_HOME:-$HOME/.local/state}/subaru-ecu-tools-linux
+mkdir -p "$state_dir"
+log=$state_dir/bergerraider-launch.log
+set +e
+"$launcher" >>"$log" 2>&1
+status=$?
+set -e
+if [ "$status" -ne 0 ]; then
+    report_error "BergerRaider exited with status $status. Diagnostic log: $log"
+fi
+exit "$status"

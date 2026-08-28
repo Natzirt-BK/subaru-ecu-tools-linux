@@ -1,0 +1,72 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+data_root=${XDG_DATA_HOME:-$HOME/.local/share}
+cache_root=${XDG_CACHE_HOME:-$HOME/.cache}/subaru-ecu-tools-linux
+install_root=${BERGERRAIDER_INSTALL_ROOT:-$data_root/bergerraider-ecu-studio-preview-1}
+archive=${BERGERRAIDER_ARCHIVE:-$cache_root/BergerRaider_ECU_Studio_Foundation_Preview_1.zip}
+archive_root=BergerRaider_ECU_Studio_Foundation_Preview_1
+release_url=${BERGERRAIDER_URL:-https://github.com/Natzirt-BK/subaru-ecu-tools-linux/releases/download/bergerraider-foundation-preview-1/BergerRaider_ECU_Studio_Foundation_Preview_1.zip}
+release_sha256=${BERGERRAIDER_SHA256:-7b67c97f49b02f9a9a998d4380fa390e7b964eb144756ed3bd82ff7f60140b77}
+source_root=${BERGERRAIDER_SOURCE_ROOT:-}
+
+case "$install_root" in
+    ''|/|"$HOME") echo "Unsafe BergerRaider install path: $install_root" >&2; exit 2 ;;
+esac
+
+complete_install() {
+    local root=$1
+    [[ -x "$root/START_LOGGER_LINUX.sh" && \
+       -x "$root/START_EDITOR_LINUX.sh" && \
+       -x "$root/app/jre32/bin/java" && \
+       -f "$root/app/BergerRaider-32.jar" && \
+       -f "$root/app/lib/linux/32/j2534.so" && \
+       -f "$root/definitions/Evo/RomRaider_Logger/88780008_MUT2_logger.xml" && \
+       -f "$root/definitions/Subaru/Editor/ecu_defs_METRIC.xml" && \
+       -f "$root/definitions/Subaru/Logger/logger_METRIC_EN_v370.xml" ]]
+}
+
+if complete_install "$install_root" && \
+   [[ -f "$install_root/.installed-by-subaru-ecu-tools" ]] && \
+   [[ -f "$install_root/.release-sha256" ]] && \
+   grep -Fxq "$release_sha256" "$install_root/.release-sha256"; then
+    echo "  OK Optional BergerRaider preview is already current."
+    exit 0
+fi
+
+mkdir -p "$cache_root" "$(dirname -- "$install_root")"
+stage=$(mktemp -d "$(dirname -- "$install_root")/.bergerraider-install.XXXXXX")
+trap 'rm -rf -- "$stage"' EXIT HUP INT TERM
+if [[ -n "$source_root" ]]; then
+    [[ -d "$source_root" ]] || {
+        echo "BERGERRAIDER_SOURCE_ROOT is not a directory: $source_root" >&2
+        exit 2
+    }
+    cp -a -- "$source_root" "$stage/$archive_root"
+else
+    if [[ ! -f "$archive" ]] || \
+       ! printf '%s  %s\n' "$release_sha256" "$archive" | sha256sum -c - >/dev/null 2>&1; then
+        echo "  -> Downloading optional BergerRaider foundation preview"
+        curl --fail --location --progress-bar --output "$archive" "$release_url"
+    fi
+    printf '%s  %s\n' "$release_sha256" "$archive" | sha256sum -c - >/dev/null
+    unzip -q "$archive" -d "$stage"
+fi
+staged_root=$stage/$archive_root
+complete_install "$staged_root" || {
+    echo "The verified BergerRaider archive is incomplete after extraction." >&2
+    exit 1
+}
+
+: >"$staged_root/.installed-by-subaru-ecu-tools"
+printf '%s\n' "$release_sha256" >"$staged_root/.release-sha256"
+if [[ -e "$install_root" ]]; then
+    backup=${install_root}.backup-$(date +%Y%m%d-%H%M%S)
+    [[ ! -e "$backup" ]] || backup=$backup-$$
+    echo "  -> Preserving the previous BergerRaider installation at $backup"
+    mv -- "$install_root" "$backup"
+fi
+mv -- "$staged_root" "$install_root"
+rmdir -- "$stage"
+trap - EXIT HUP INT TERM
+echo "  OK Optional BergerRaider preview installed at $install_root"

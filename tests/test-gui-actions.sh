@@ -32,6 +32,7 @@ run_choice clean '2y' '--clean-install --yes'
 run_choice check '3' '--check'
 run_choice uninstall '4y' '--uninstall --yes'
 run_choice evo_mut2 '5y' '--install-evo-romraider'
+run_choice bergerraider '6y' '--install-bergerraider'
 
 printf '1n' | TERM=dumb SUBARU_SETUP_INPUT_DEVICE=/dev/stdin \
     ECU_TOOLS_INSTALLER="$installer" ECU_TOOLS_SKIP_UPDATE_PROMPT=1 \
@@ -41,7 +42,7 @@ printf '1n' | TERM=dumb SUBARU_SETUP_INPUT_DEVICE=/dev/stdin \
 test ! -e "$test_root/cancel.trace"
 
 run_choice invalid_then_check 'x3' '--check'
-grep -F 'Unknown selection. Press 1, 2, 3, 4, 5, or Q.' \
+grep -F 'Unknown selection. Press 1, 2, 3, 4, 5, 6, or Q.' \
     "$test_root/invalid_then_check.output" >/dev/null
 
 mkdir -p "$test_root/data/applications"
@@ -149,6 +150,10 @@ grep -Fx 'Name=MUT-Raider-II Logger' \
     "$repo_root/linux/romraider-evo-mut2-logger.desktop" >/dev/null
 grep -Fx 'Name=MUT-Raider-II Editor' \
     "$repo_root/linux/romraider-evo-mut2-editor.desktop" >/dev/null
+grep -Fx 'Name=BergerRaider Logger (Preview)' \
+    "$repo_root/linux/bergerraider-logger.desktop" >/dev/null
+grep -Fx 'Name=BergerRaider Editor (Preview)' \
+    "$repo_root/linux/bergerraider-editor.desktop" >/dev/null
 grep -F 'read -rsn1 key </dev/tty' "$engine" >/dev/null
 grep -F 'setup_interactive=false' "$engine" >/dev/null
 test "$(grep -F -c '[[ "$setup_interactive" == true && "${SUBARU_SETUP_NO_PAUSE:-0}" != 1 ]] || return 0' "$engine")" -eq 3

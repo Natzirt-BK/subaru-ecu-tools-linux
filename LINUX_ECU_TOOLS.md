@@ -47,6 +47,7 @@ optional Evo MUT-II, and EvoScan flags. The bootstrap checkout lives at
 | EcuFlash Wine prefix | `~/.local/share/ecuflash-proton/` |
 | RomRaider DimeMod | `~/.local/share/romraider-dm20/` |
 | Optional Evo MUT-Raider-II | `~/.local/share/romraider-mut2-evo-88780008/` |
+| Optional BergerRaider preview | `~/.local/share/bergerraider-ecu-studio-preview-1/` |
 | Definitions | `~/.local/share/subaru-evo-ecu-definitions/` |
 | Setup logs | `~/.local/state/subaru-ecu-tools-linux/` |
 | Download cache | `~/.cache/subaru-ecu-tools-linux/` |
@@ -116,6 +117,26 @@ The component is checksum-pinned to the secondary GitHub release
 is disabled, and it does not alter the active Subaru definition manifest.
 Vehicle communication remains unqualified until an owner completes a supervised
 ignition-on logging test.
+
+Migration note: MUT-Raider-II remains available as the known fallback during
+BergerRaider development. After BergerRaider reaches Evo logging feature parity
+and passes supervised real-vehicle qualification, deprecate and then phase out
+the separate MUT-Raider-II installer entry instead of maintaining two Evo forks.
+
+## Optional BergerRaider foundation preview
+
+BergerRaider is a separate experimental Subaru/Evo development checkpoint. It
+includes the shared platform selector, independent DimeMod state, current
+official editor fixes, read-only MUT-II support, both official Subaru
+definitions, and the complete audited Evo definition set. Install it directly
+with:
+
+```bash
+./linux/install-cachyos.sh --install-bergerraider
+```
+
+It uses its own application directory and settings file and does not replace
+RomRaider DimeMod or MUT-Raider-II. Realtime ECU writes are not enabled.
 
 ## EvoScan
 

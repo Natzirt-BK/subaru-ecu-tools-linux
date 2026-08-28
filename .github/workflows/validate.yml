@@ -17,11 +17,12 @@ jobs:
           bash -n bootstrap-cachyos.sh bootstrap-debian.sh linux/build-ecuflash-wine-runtime.sh \
             linux/configure-romraider-definitions linux/install-cachyos.sh \
             linux/install-debian.sh linux/install-romraider-definitions \
-            linux/install-evo-romraider-mut2 linux/play-installer-chiptune \
+            linux/install-evo-romraider-mut2 linux/install-bergerraider-preview \
+            linux/play-installer-chiptune \
             linux/setup-cachyos-gui.sh linux/setup-debian-gui.sh \
             linux/update-cachyos.sh linux/update-debian.sh tests/vm/*.sh
           sh -n linux/launch-ecuflash linux/launch-evoscan linux/launch-romraider \
-            linux/launch-romraider-evo-mut2 \
+            linux/launch-romraider-evo-mut2 linux/launch-bergerraider \
             linux/monitor-openport-state linux/sync-openport-device-state \
             wine-bridge/build-openport-driver.sh \
             tests/*.sh
