@@ -11,7 +11,7 @@ report_error() {
     printf '%s\n' "$1" >&2
     if command -v kdialog >/dev/null 2>&1 && \
        { [ -n "${DISPLAY:-}" ] || [ -n "${WAYLAND_DISPLAY:-}" ]; }; then
-        kdialog --title "Evo RomRaider MUT-II could not start" --error "$1" || true
+        kdialog --title "MUT-Raider-II could not start" --error "$1" || true
     fi
 }
 
@@ -34,7 +34,7 @@ openport_accessible_or_absent() {
 }
 
 if [ ! -f "$EVO_MUT2_HOME/.installed-by-subaru-ecu-tools" ]; then
-    report_error "The optional Evo RomRaider MUT-II package is not installed. Open Subaru & Evo ECU Tools Setup and select Optional Evo RomRaider MUT-II."
+    report_error "The optional Evo MUT-Raider-II package is not installed. Open Subaru & Evo ECU Tools Setup and select Optional Evo MUT-Raider-II."
     exit 1
 fi
 if [ "$EVO_MUT2_MODE" = logger ] && ! openport_accessible_or_absent; then
@@ -60,6 +60,6 @@ set +e
 status=$?
 set -e
 if [ "$status" -ne 0 ]; then
-    report_error "Evo RomRaider MUT-II exited with status $status. Diagnostic log: $log"
+    report_error "MUT-Raider-II exited with status $status. Diagnostic log: $log"
 fi
 exit "$status"

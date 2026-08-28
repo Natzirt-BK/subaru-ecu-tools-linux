@@ -1548,9 +1548,9 @@ if [[ "$mode" == check ]]; then
     if [[ -f "$check_evo_romraider/.installed-by-subaru-ecu-tools" && \
           -x "$check_evo_romraider/START_LOGGER_LINUX.sh" && \
           -f "$check_evo_romraider/app/RomRaider-MUT2-88780008-32.jar" ]]; then
-        ok "Optional NatZirt Evo RomRaider MUT-II package detected"
+        ok "Optional Evo MUT-Raider-II package detected"
     else
-        step "Optional Evo RomRaider MUT-II package is not installed"
+        step "Optional Evo MUT-Raider-II package is not installed"
     fi
     check_definition_manifest="$check_data_root/subaru-ecu-tools-linux/definitions-active.conf"
     if [[ -f "$check_definition_manifest" ]]; then
@@ -1753,7 +1753,7 @@ if $install_definitions; then
 fi
 
 if $install_evo_romraider; then
-    section "Installing optional Evo RomRaider MUT-II"
+    section "Installing optional Evo MUT-Raider-II"
     "$bin_dir/install-evo-romraider-mut2"
     ok "NatZirt Evo MUT-II Editor and Logger installed separately from DimeMod."
 fi
@@ -2020,7 +2020,7 @@ installed_apps=()
 [[ -f "$romraider_home/RomRaider.jar" ]] && \
     installed_apps+=("RomRaider Editor" "RomRaider Logger")
 [[ -f "$evo_romraider_home/app/RomRaider-MUT2-88780008-32.jar" ]] && \
-    installed_apps+=("Evo MUT-II Editor" "Evo MUT-II Logger")
+    installed_apps+=("MUT-Raider-II Editor" "MUT-Raider-II Logger")
 [[ -f "$data_dir/evoscan-exe.path" ]] && installed_apps+=(EvoScan)
 if ((${#installed_apps[@]})); then
     printf -v installed_apps_text '%s, ' "${installed_apps[@]}"

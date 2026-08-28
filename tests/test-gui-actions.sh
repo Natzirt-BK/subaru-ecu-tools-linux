@@ -145,9 +145,9 @@ grep -F -- '--progress-bar' "$repo_root/linux/install-romraider-definitions" >/d
 grep -Fx 'Name=Setup' "$repo_root/linux/subaru-ecu-tools-setup.desktop" >/dev/null
 grep -Fx 'Name=EcuFlash' "$repo_root/linux/ecuflash.desktop" >/dev/null
 grep -Fx 'Name=EvoScan' "$repo_root/linux/evoscan.desktop" >/dev/null
-grep -Fx 'Name=Evo RomRaider MUT-II Logger' \
+grep -Fx 'Name=MUT-Raider-II Logger' \
     "$repo_root/linux/romraider-evo-mut2-logger.desktop" >/dev/null
-grep -Fx 'Name=Evo RomRaider MUT-II Editor' \
+grep -Fx 'Name=MUT-Raider-II Editor' \
     "$repo_root/linux/romraider-evo-mut2-editor.desktop" >/dev/null
 grep -F 'read -rsn1 key </dev/tty' "$engine" >/dev/null
 grep -F 'setup_interactive=false' "$engine" >/dev/null

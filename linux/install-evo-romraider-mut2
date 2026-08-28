@@ -4,10 +4,10 @@ set -euo pipefail
 data_root=${XDG_DATA_HOME:-$HOME/.local/share}
 cache_root=${XDG_CACHE_HOME:-$HOME/.cache}/subaru-ecu-tools-linux
 install_root=${EVO_MUT2_INSTALL_ROOT:-$data_root/romraider-mut2-evo-88780008}
-archive=${EVO_MUT2_ARCHIVE:-$cache_root/RomRaider_MUT2_88780008_Release_v1.0.0.zip}
-archive_root=RomRaider_MUT2_88780008_Release_v1.0.0
-release_url=${EVO_MUT2_URL:-https://github.com/Natzirt-BK/subaru-ecu-tools-linux/releases/download/romraider-mut2-evo-88780008-v1.0.0/RomRaider_MUT2_88780008_Release_v1.0.0.zip}
-release_sha256=${EVO_MUT2_SHA256:-5d59d9259182e61e698f14ea41f1b79afdbdb7d1d7711ac7b47efa36aa88b9da}
+archive=${EVO_MUT2_ARCHIVE:-$cache_root/RomRaider_MUT2_88780008_Release_v1.0.1.zip}
+archive_root=RomRaider_MUT2_88780008_Release_v1.0.1
+release_url=${EVO_MUT2_URL:-https://github.com/Natzirt-BK/subaru-ecu-tools-linux/releases/download/romraider-mut2-evo-88780008-v1.0.1/RomRaider_MUT2_88780008_Release_v1.0.1.zip}
+release_sha256=${EVO_MUT2_SHA256:-27a026afbe25d0759c15d29daa27b7003e9e4de903dde8507aa920457f4c005f}
 source_root=${EVO_MUT2_SOURCE_ROOT:-}
 
 case "$install_root" in
@@ -30,7 +30,7 @@ if complete_install "$install_root" && \
    [[ -f "$install_root/.installed-by-subaru-ecu-tools" ]] && \
    [[ -f "$install_root/.release-sha256" ]] && \
    grep -Fxq "$release_sha256" "$install_root/.release-sha256"; then
-    echo "  OK Optional Evo RomRaider MUT-II is already current."
+    echo "  OK Optional Evo MUT-Raider-II is already current."
     exit 0
 fi
 
@@ -46,7 +46,7 @@ if [[ -n "$source_root" ]]; then
 else
     if [[ ! -f "$archive" ]] || \
        ! printf '%s  %s\n' "$release_sha256" "$archive" | sha256sum -c - >/dev/null 2>&1; then
-        echo "  -> Downloading optional Evo RomRaider MUT-II 88780008 release"
+        echo "  -> Downloading optional Evo MUT-Raider-II 88780008 release"
         curl --fail --location --progress-bar --output "$archive" "$release_url"
     fi
     printf '%s  %s\n' "$release_sha256" "$archive" | sha256sum -c - >/dev/null
@@ -69,4 +69,4 @@ fi
 mv -- "$staged_root" "$install_root"
 rmdir -- "$stage"
 trap - EXIT HUP INT TERM
-echo "  OK Optional Evo RomRaider MUT-II installed at $install_root"
+echo "  OK Optional Evo MUT-Raider-II installed at $install_root"

@@ -4,7 +4,7 @@ set -eu
 repo_root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 test_root=$(mktemp -d)
 trap 'rm -rf -- "$test_root"' EXIT HUP INT TERM
-archive_root=RomRaider_MUT2_88780008_Release_v1.0.0
+archive_root=RomRaider_MUT2_88780008_Release_v1.0.1
 source_root=$test_root/source/$archive_root
 install_root=$test_root/data/romraider-mut2-evo-88780008
 
@@ -36,7 +36,7 @@ test -x "$install_root/START_LOGGER_LINUX.sh"
 test -x "$install_root/app/jre32/bin/java"
 test -f "$install_root/.installed-by-subaru-ecu-tools"
 grep -Fx "$archive_sha" "$install_root/.release-sha256" >/dev/null
-grep -F 'Optional Evo RomRaider MUT-II installed' "$test_root/install.log" >/dev/null
+grep -F 'Optional Evo MUT-Raider-II installed' "$test_root/install.log" >/dev/null
 
 EVO_MUT2_INSTALL_ROOT="$install_root" \
 EVO_MUT2_SOURCE_ROOT="$source_root" \
@@ -45,9 +45,9 @@ EVO_MUT2_SHA256="$archive_sha" \
 grep -F 'already current' "$test_root/recheck.log" >/dev/null
 test "$(find "$test_root/data" -maxdepth 1 -name 'romraider-mut2-evo-88780008.backup-*' | wc -l)" -eq 0
 
-grep -F 'romraider-mut2-evo-88780008-v1.0.0' \
+grep -F 'romraider-mut2-evo-88780008-v1.0.1' \
     "$repo_root/linux/install-evo-romraider-mut2" >/dev/null
-grep -F '5d59d9259182e61e698f14ea41f1b79afdbdb7d1d7711ac7b47efa36aa88b9da' \
+grep -F '27a026afbe25d0759c15d29daa27b7003e9e4de903dde8507aa920457f4c005f' \
     "$repo_root/linux/install-evo-romraider-mut2" >/dev/null
 
 echo 'Optional Evo RomRaider installer tests passed.'

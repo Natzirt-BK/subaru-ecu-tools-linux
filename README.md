@@ -27,7 +27,7 @@ by the bundled 32-bit RomRaider Logger and installs dependencies with APT.
 2. **Clean reinstall** > replace all installer-managed state
 3. **System check** > inspect the current installation
 4. **Uninstall** > remove installer-managed files
-5. **Optional Evo RomRaider MUT-II** > install/update the separate NatZirt Evo fork
+5. **Optional Evo MUT-Raider-II** > install/update the separate NatZirt Evo fork
 
 Use **Clean reinstall** when replacing an older or broken setup. Your ROMs,
 definitions, and logs are preserved.
@@ -40,7 +40,7 @@ definitions, and logs are preserved.
 - the Linux OpenPort Wine bridge and USB permissions
 - RomRaider DimeMod Editor and Logger with official definitions
 
-The optional menu entry installs the NatZirt RomRaider MUT-II fork for Evo 8/9
+The optional menu entry installs the NatZirt `MUT-Raider-II` fork for Evo 8/9
 owners. It uses a separate application directory and settings file, includes
 the audited `88780008` Evo definitions, and does not replace DimeMod or the
 recommended Subaru configuration. Its MUT-II transport is deliberately
