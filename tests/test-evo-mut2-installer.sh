@@ -6,7 +6,6 @@ test_root=$(mktemp -d)
 trap 'rm -rf -- "$test_root"' EXIT HUP INT TERM
 archive_root=RomRaider_MUT2_88780008_Release_v1.0.0
 source_root=$test_root/source/$archive_root
-archive=$test_root/RomRaider_MUT2_88780008_Release_v1.0.0.zip
 install_root=$test_root/data/romraider-mut2-evo-88780008
 
 mkdir -p \
@@ -26,18 +25,10 @@ for executable in START_LOGGER_LINUX.sh START_EDITOR_LINUX.sh app/jre32/bin/java
     chmod +x "$source_root/$executable"
 done
 
-python3 -c 'import os,sys,zipfile
-root,out=sys.argv[1:]
-parent=os.path.dirname(root)
-with zipfile.ZipFile(out,"w",zipfile.ZIP_DEFLATED) as archive:
-    for base,dirs,files in os.walk(root):
-        for name in files:
-            path=os.path.join(base,name)
-            archive.write(path,os.path.relpath(path,parent))' "$source_root" "$archive"
-archive_sha=$(sha256sum "$archive" | cut -d' ' -f1)
+archive_sha=aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 
 EVO_MUT2_INSTALL_ROOT="$install_root" \
-EVO_MUT2_ARCHIVE="$archive" \
+EVO_MUT2_SOURCE_ROOT="$source_root" \
 EVO_MUT2_SHA256="$archive_sha" \
     "$repo_root/linux/install-evo-romraider-mut2" >"$test_root/install.log"
 
@@ -48,7 +39,7 @@ grep -Fx "$archive_sha" "$install_root/.release-sha256" >/dev/null
 grep -F 'Optional Evo RomRaider MUT-II installed' "$test_root/install.log" >/dev/null
 
 EVO_MUT2_INSTALL_ROOT="$install_root" \
-EVO_MUT2_ARCHIVE="$archive" \
+EVO_MUT2_SOURCE_ROOT="$source_root" \
 EVO_MUT2_SHA256="$archive_sha" \
     "$repo_root/linux/install-evo-romraider-mut2" >"$test_root/recheck.log"
 grep -F 'already current' "$test_root/recheck.log" >/dev/null

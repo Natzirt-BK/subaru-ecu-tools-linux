@@ -8,6 +8,7 @@ archive=${EVO_MUT2_ARCHIVE:-$cache_root/RomRaider_MUT2_88780008_Release_v1.0.0.z
 archive_root=RomRaider_MUT2_88780008_Release_v1.0.0
 release_url=${EVO_MUT2_URL:-https://github.com/Natzirt-BK/subaru-ecu-tools-linux/releases/download/romraider-mut2-evo-88780008-v1.0.0/RomRaider_MUT2_88780008_Release_v1.0.0.zip}
 release_sha256=${EVO_MUT2_SHA256:-5d59d9259182e61e698f14ea41f1b79afdbdb7d1d7711ac7b47efa36aa88b9da}
+source_root=${EVO_MUT2_SOURCE_ROOT:-}
 
 case "$install_root" in
     ''|/|"$HOME") echo "Unsafe Evo RomRaider install path: $install_root" >&2; exit 2 ;;
@@ -34,16 +35,23 @@ if complete_install "$install_root" && \
 fi
 
 mkdir -p "$cache_root" "$(dirname -- "$install_root")"
-if [[ ! -f "$archive" ]] || \
-   ! printf '%s  %s\n' "$release_sha256" "$archive" | sha256sum -c - >/dev/null 2>&1; then
-    echo "  -> Downloading optional Evo RomRaider MUT-II 88780008 release"
-    curl --fail --location --progress-bar --output "$archive" "$release_url"
-fi
-printf '%s  %s\n' "$release_sha256" "$archive" | sha256sum -c - >/dev/null
-
 stage=$(mktemp -d "$(dirname -- "$install_root")/.romraider-evo-mut2-install.XXXXXX")
 trap 'rm -rf -- "$stage"' EXIT HUP INT TERM
-unzip -q "$archive" -d "$stage"
+if [[ -n "$source_root" ]]; then
+    [[ -d "$source_root" ]] || {
+        echo "EVO_MUT2_SOURCE_ROOT is not a directory: $source_root" >&2
+        exit 2
+    }
+    cp -a -- "$source_root" "$stage/$archive_root"
+else
+    if [[ ! -f "$archive" ]] || \
+       ! printf '%s  %s\n' "$release_sha256" "$archive" | sha256sum -c - >/dev/null 2>&1; then
+        echo "  -> Downloading optional Evo RomRaider MUT-II 88780008 release"
+        curl --fail --location --progress-bar --output "$archive" "$release_url"
+    fi
+    printf '%s  %s\n' "$release_sha256" "$archive" | sha256sum -c - >/dev/null
+    unzip -q "$archive" -d "$stage"
+fi
 staged_root=$stage/$archive_root
 complete_install "$staged_root" || {
     echo "The verified Evo RomRaider archive is incomplete after extraction." >&2
