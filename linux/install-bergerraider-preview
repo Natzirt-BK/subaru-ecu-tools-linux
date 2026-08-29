@@ -14,7 +14,22 @@ case "$install_root" in
     ''|/|"$HOME") echo "Unsafe BergerRaider install path: $install_root" >&2; exit 2 ;;
 esac
 
-complete_install() {
+modern_install() {
+    local root=$1
+    [[ -x "$root/bin/BergerRaider" && \
+       -f "$root/lib/runtime/release" && \
+       -f "$root/lib/app/BergerRaider.jar" && \
+       -f "$root/lib/app/BergerRaider.cfg" && \
+       -f "$root/lib/app/lib/linux/64/j2534.so" && \
+       -f "$root/config/settings.foz.xml" && \
+       -f "$root/definitions/Evo/88780008_MUT2_logger.xml" && \
+       -f "$root/definitions/Foz/Editor/Z2WC412I_DM23100_RR.xml" && \
+       -f "$root/definitions/Foz/Logger/logger_METRIC_EN_v370.xml" ]] && \
+        grep -Fq 'bergerraider.settings.dir=$APPDIR/../../config/user' \
+            "$root/lib/app/BergerRaider.cfg"
+}
+
+legacy_install() {
     local root=$1
     [[ -x "$root/START_LOGGER_LINUX.sh" && \
        -x "$root/START_EDITOR_LINUX.sh" && \
@@ -24,6 +39,10 @@ complete_install() {
        -f "$root/definitions/Evo/RomRaider_Logger/88780008_MUT2_logger.xml" && \
        -f "$root/definitions/Subaru/Editor/ecu_defs_METRIC.xml" && \
        -f "$root/definitions/Subaru/Logger/logger_METRIC_EN_v370.xml" ]]
+}
+
+complete_install() {
+    modern_install "$1" || legacy_install "$1"
 }
 
 if complete_install "$install_root" && \
@@ -54,9 +73,20 @@ else
 fi
 staged_root=$stage/$archive_root
 complete_install "$staged_root" || {
-    echo "The verified BergerRaider archive is incomplete after extraction." >&2
+    echo "The verified BergerRaider archive is not a supported Java 21 app image or legacy preview." >&2
     exit 1
 }
+
+if modern_install "$staged_root"; then
+    mkdir -p "$staged_root/config/user"
+    if [[ -f "$install_root/config/user/settings.xml" ]]; then
+        cp -- "$install_root/config/user/settings.xml" \
+            "$staged_root/config/user/settings.xml"
+    else
+        cp -- "$staged_root/config/settings.foz.xml" \
+            "$staged_root/config/user/settings.xml"
+    fi
+fi
 
 : >"$staged_root/.installed-by-subaru-ecu-tools"
 printf '%s\n' "$release_sha256" >"$staged_root/.release-sha256"

@@ -43,20 +43,31 @@ if [ "$BERGERRAIDER_MODE" = logger ] && ! openport_accessible_or_absent; then
 fi
 
 case "$BERGERRAIDER_MODE" in
-    logger) launcher=$BERGERRAIDER_HOME/START_LOGGER_LINUX.sh ;;
-    editor) launcher=$BERGERRAIDER_HOME/START_EDITOR_LINUX.sh ;;
+    logger) mode_argument=-logger ;;
+    editor) mode_argument= ;;
     *) report_error "BERGERRAIDER_MODE must be logger or editor."; exit 2 ;;
 esac
-if [ ! -x "$launcher" ]; then
-    report_error "The BergerRaider launcher is missing: $launcher. Reinstall the optional component."
-    exit 1
-fi
 
 state_dir=${XDG_STATE_HOME:-$HOME/.local/state}/subaru-ecu-tools-linux
 mkdir -p "$state_dir"
 log=$state_dir/bergerraider-launch.log
 set +e
-"$launcher" >>"$log" 2>&1
+if [ -x "$BERGERRAIDER_HOME/bin/BergerRaider" ] && \
+   [ -f "$BERGERRAIDER_HOME/lib/runtime/release" ]; then
+    cd "$BERGERRAIDER_HOME" || exit 1
+    "$BERGERRAIDER_HOME/bin/BergerRaider" \
+        $mode_argument >>"$log" 2>&1
+else
+    case "$BERGERRAIDER_MODE" in
+        logger) launcher=$BERGERRAIDER_HOME/START_LOGGER_LINUX.sh ;;
+        editor) launcher=$BERGERRAIDER_HOME/START_EDITOR_LINUX.sh ;;
+    esac
+    if [ ! -x "$launcher" ]; then
+        report_error "The BergerRaider launcher is missing. Reinstall the optional component."
+        exit 1
+    fi
+    "$launcher" >>"$log" 2>&1
+fi
 status=$?
 set -e
 if [ "$status" -ne 0 ]; then

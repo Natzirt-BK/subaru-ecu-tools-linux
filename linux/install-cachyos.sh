@@ -2066,7 +2066,8 @@ installed_apps=()
     installed_apps+=("RomRaider Editor" "RomRaider Logger")
 [[ -f "$evo_romraider_home/app/RomRaider-MUT2-88780008-32.jar" ]] && \
     installed_apps+=("MUT-Raider-II Editor" "MUT-Raider-II Logger")
-[[ -f "$bergerraider_home/app/BergerRaider-32.jar" ]] && \
+[[ -f "$bergerraider_home/lib/app/BergerRaider.jar" || \
+   -f "$bergerraider_home/app/BergerRaider-32.jar" ]] && \
     installed_apps+=("BergerRaider Editor" "BergerRaider Logger")
 [[ -f "$data_dir/evoscan-exe.path" ]] && installed_apps+=(EvoScan)
 if ((${#installed_apps[@]})); then
