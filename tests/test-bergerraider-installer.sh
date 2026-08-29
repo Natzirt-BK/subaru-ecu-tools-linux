@@ -14,6 +14,7 @@ mkdir -p \
     "$source_root/lib/runtime" \
     "$source_root/lib/app/lib/linux/64" \
     "$source_root/config" \
+    "$source_root/customize" \
     "$source_root/logs" \
     "$source_root/roms" \
     "$source_root/repositories" \
@@ -21,7 +22,8 @@ mkdir -p \
     "$source_root/definitions/Evo/release/EcuFlash" \
     "$source_root/definitions/Evo/release/RomRaider" \
     "$source_root/definitions/Foz/Editor" \
-    "$source_root/definitions/Foz/Logger"
+    "$source_root/definitions/Foz/Logger" \
+    "$source_root/definitions/Foz/Profiles"
 touch \
     "$source_root/lib/runtime/release" \
     "$source_root/lib/app/BergerRaider.jar" \
@@ -31,8 +33,14 @@ touch \
     "$source_root/definitions/Evo/release/EcuFlash/evo9base.xml" \
     "$source_root/definitions/Evo/release/RomRaider/88780008_RomRaider_Final_v4.xml" \
     "$source_root/definitions/Foz/Editor/Z2WC412I_DM23100_RR.xml" \
-    "$source_root/definitions/Foz/Logger/logger_METRIC_EN_v370.xml"
-printf '<settings/>\n' >"$source_root/config/settings.foz.xml"
+    "$source_root/definitions/Foz/Logger/logger_METRIC_EN_v370.xml" \
+    "$source_root/definitions/Foz/Profiles/shinji.xml"
+printf '%s\n' \
+    '<settings><logger>' \
+    '<protocol name="SSM" transport="ISO9141" module="ECU" fastpoll="false" library=""/>' \
+    '<profile path="definitions/Foz/Profiles/shinji.xml"/>' \
+    '</logger></settings>' >"$source_root/config/settings.foz.xml"
+printf 'linux=j2534.so\n' >"$source_root/customize/j2534Libraries.properties"
 printf '[JavaOptions]\njava-options=-Dbergerraider.settings.dir=$APPDIR/../../config/user\n' \
     >"$source_root/lib/app/BergerRaider.cfg"
 printf '#!/bin/sh\nprintf "%%s\\n" "$@" >"$BERGERRAIDER_TEST_ARGS"\n' \
@@ -70,14 +78,26 @@ BERGERRAIDER_SHA256="$archive_sha" \
 grep -F 'already current' "$test_root/recheck.log" >/dev/null
 test "$(find "$test_root/data" -maxdepth 1 -name 'bergerraider-ecu-studio.backup-*' | wc -l)" -eq 0
 
-printf '<settings preserved="true"/>\n' \
-    >"$install_root/config/user/settings.xml"
+printf '%s\n' \
+    '<settings preserved="true"><logger>' \
+    '<serial port="ttyS0" refresh="true"/>' \
+    '<protocol name="OBD" transport="ISO15765" module="ECU" fastpoll="false" library=""/>' \
+    '<profile path="definitions/Foz/Profiles/aem-uego-9600.xml"/>' \
+    '</logger></settings>' >"$install_root/config/user/settings.xml"
 updated_sha=dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd
 BERGERRAIDER_INSTALL_ROOT="$install_root" \
 BERGERRAIDER_SOURCE_ROOT="$source_root" \
 BERGERRAIDER_SHA256="$updated_sha" \
     "$repo_root/linux/install-bergerraider" >"$test_root/update.log"
 grep -F 'preserved="true"' "$install_root/config/user/settings.xml" >/dev/null
+grep -F '<serial port="" refresh="true"/>' \
+    "$install_root/config/user/settings.xml" >/dev/null
+grep -F '<protocol name="SSM" transport="ISO9141"' \
+    "$install_root/config/user/settings.xml" >/dev/null
+grep -F '<profile path="definitions/Foz/Profiles/shinji.xml"/>' \
+    "$install_root/config/user/settings.xml" >/dev/null
+grep -F 'Migrated the obsolete Forester OBD logger default' \
+    "$test_root/update.log" >/dev/null
 grep -Fx "$updated_sha" "$install_root/.release-sha256" >/dev/null
 test "$(find "$test_root/data" -maxdepth 1 -name 'bergerraider-ecu-studio.backup-*' | wc -l)" -eq 1
 
@@ -120,7 +140,7 @@ fi
 
 grep -F 'bergerraider-1.1.0-rc1' \
     "$repo_root/linux/install-bergerraider" >/dev/null
-grep -F 'b567c3dbcedfaf741ce186c1aa8d8975d9d281dbdfa61c6bc1e3c49e170d37f1' \
+grep -F 'bca8d6260804bf1a5c9532d290d634628ae16bb45a721d03860debb771a21223' \
     "$repo_root/linux/install-bergerraider" >/dev/null
 
 echo 'BergerRaider installer tests passed.'
