@@ -1163,6 +1163,57 @@ install_managed_user_files() {
     ok "Managed-file audit complete: $checked checked, $updated updated, $current already current."
 }
 
+install_bergerraider_only() {
+    local desktop rendered setup_script documents_dir tools_documents
+
+    section "Preparing BergerRaider launchers"
+    setup_script=$repo_root/linux/setup-cachyos-gui.sh
+    [[ "$distro_family" == debian ]] && setup_script=$repo_root/linux/setup-debian-gui.sh
+    install -d "$bin_dir" "$applications_dir" "$desktop_directories_dir" \
+        "$menus_dir" "$cache_root"
+    install -m 0755 "$repo_root/linux/launch-bergerraider" \
+        "$bin_dir/launch-bergerraider"
+    install -m 0755 "$repo_root/linux/install-bergerraider" \
+        "$bin_dir/install-bergerraider"
+    for desktop in bergerraider-editor bergerraider-logger subaru-ecu-tools-setup; do
+        rendered=$(mktemp "$cache_root/desktop-$desktop.XXXXXX")
+        sed -e "s|@BINDIR@|$bin_dir|g" \
+            -e "s|@SETUP@|$setup_script|g" \
+            "$repo_root/linux/$desktop.desktop" >"$rendered"
+        install -m 0644 "$rendered" "$applications_dir/$desktop.desktop"
+        rm -f -- "$rendered"
+    done
+    install -m 0644 "$repo_root/linux/subaru-ecu-tools.directory" \
+        "$tools_directory_file"
+    install -m 0644 "$repo_root/linux/subaru-ecu-tools.menu" \
+        "$tools_menu_file"
+    command -v update-desktop-database >/dev/null && \
+        update-desktop-database "$applications_dir" >/dev/null 2>&1 || true
+    ok "BergerRaider launchers and application-menu entries installed."
+
+    section "Installing BergerRaider 1.1 release candidate"
+    "$bin_dir/install-bergerraider"
+    ok "BergerRaider installed without requiring the unrelated Wine/OpenPort toolchain."
+
+    if command -v xdg-user-dir >/dev/null 2>&1; then
+        documents_dir=$(xdg-user-dir DOCUMENTS 2>/dev/null || true)
+    fi
+    if [[ -z "${documents_dir:-}" || "$documents_dir" == "$HOME" ]]; then
+        documents_dir="$HOME/Documents"
+    fi
+    tools_documents="$documents_dir/Subaru & Evo ECU Tools/BergerRaider"
+    install -d "$tools_documents"
+    ln -sfn -- "$bergerraider_home/definitions" "$tools_documents/Definitions"
+    ln -sfn -- "$bergerraider_home/RELEASE_NOTES.txt" \
+        "$tools_documents/Release Notes.txt"
+    ok "Easy-access BergerRaider folder: $tools_documents"
+
+    completion_banner
+    summary_row "Applications" "BergerRaider Editor, BergerRaider Logger"
+    summary_row "App menu" "Subaru & Evo ECU Tools"
+    summary_row "Launchers" "$bin_dir"
+}
+
 ecuflash_runtime_url=https://github.com/Natzirt-BK/subaru-ecu-tools-linux/releases/download/ecuflash-winegdk-11.1-validated-1/ecuflash-winegdk-11.1-validated.tar.zst
 ecuflash_runtime_sha256=065b6e7f12c77c717946806c7272fdadfbfcf7d9328593de630c7f7a72dc45c1
 ecuflash_wine_sha256=c249f6017f910365dc51b7a1ba5114004fca12aa4182fdeb6e404b8591658b11
@@ -1494,6 +1545,13 @@ fi
 if [[ "$(uname -m)" != x86_64 ]]; then
     fail "This release requires an x86_64/amd64 host; detected $(uname -m)."
     exit 1
+fi
+
+if $install_bergerraider && ! $install_deps && ! $install_udev && \
+   ! $install_ecuflash && ! $install_romraider && ! $install_evo_romraider && \
+   ! $install_evoscan && ! $install_definitions && ! $clean_install; then
+    install_bergerraider_only
+    exit 0
 fi
 
 section "Checking dependencies"

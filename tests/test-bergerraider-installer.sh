@@ -92,6 +92,32 @@ OPENPORT_USB_DEV_ROOT="$test_root/dev" \
     "$repo_root/linux/launch-bergerraider"
 grep -Fx -- '-logger' "$test_root/java-args" >/dev/null
 
+printf 'ID=cachyos\nPRETTY_NAME="CachyOS test"\n' >"$test_root/os-release"
+mkdir -p "$test_root/full-home"
+HOME="$test_root/full-home" \
+XDG_BIN_HOME="$test_root/full-bin" \
+XDG_CACHE_HOME="$test_root/full-cache" \
+XDG_CONFIG_HOME="$test_root/full-config" \
+XDG_DATA_HOME="$test_root/full-data" \
+XDG_STATE_HOME="$test_root/full-state" \
+ECU_TOOLS_OS_RELEASE="$test_root/os-release" \
+BERGERRAIDER_SOURCE_ROOT="$source_root" \
+BERGERRAIDER_SHA256="$updated_sha" \
+SUBARU_SETUP_NO_PAUSE=1 \
+    "$repo_root/linux/install-cachyos.sh" --install-bergerraider \
+    >"$test_root/full-install.log"
+test -x "$test_root/full-data/bergerraider-ecu-studio/bin/BergerRaider"
+test -x "$test_root/full-bin/launch-bergerraider"
+test -f "$test_root/full-data/applications/bergerraider-editor.desktop"
+test -f "$test_root/full-data/applications/bergerraider-logger.desktop"
+test -L "$test_root/full-home/Documents/Subaru & Evo ECU Tools/BergerRaider/Definitions"
+grep -F 'without requiring the unrelated Wine/OpenPort toolchain' \
+    "$test_root/full-install.log" >/dev/null
+if grep -Fq 'Checking dependencies' "$test_root/full-install.log"; then
+    echo 'BergerRaider-only install unexpectedly entered the shared dependency check.' >&2
+    exit 1
+fi
+
 grep -F 'bergerraider-1.1.0-rc1' \
     "$repo_root/linux/install-bergerraider" >/dev/null
 grep -F '5a42b2720f49c590259a948861ff9785b8566344fbb0b2312a22688ddf711b25' \
