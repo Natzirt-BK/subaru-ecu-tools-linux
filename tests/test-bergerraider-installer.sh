@@ -98,6 +98,7 @@ grep -F '<profile path="definitions/Foz/Profiles/shinji.xml"/>' \
     "$install_root/config/user/settings.xml" >/dev/null
 grep -F 'Migrated the obsolete Forester OBD logger default' \
     "$test_root/update.log" >/dev/null
+test -f "$install_root/logs/preserved.csv"
 grep -Fx "$updated_sha" "$install_root/.release-sha256" >/dev/null
 test "$(find "$test_root/data" -maxdepth 1 -name 'bergerraider-ecu-studio.backup-*' | wc -l)" -eq 1
 

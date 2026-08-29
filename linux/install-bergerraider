@@ -99,6 +99,14 @@ else
         "$staged_root/config/user/settings.xml"
 fi
 migrate_obsolete_foz_logger_defaults "$staged_root/config/user/settings.xml"
+if [[ -d "$install_root" ]]; then
+    for user_dir in logs roms repositories; do
+        if [[ -d "$install_root/$user_dir" ]]; then
+            mkdir -p "$staged_root/$user_dir"
+            cp -a -- "$install_root/$user_dir/." "$staged_root/$user_dir/"
+        fi
+    done
+fi
 
 : >"$staged_root/.installed-by-subaru-ecu-tools"
 printf '%s\n' "$release_sha256" >"$staged_root/.release-sha256"
