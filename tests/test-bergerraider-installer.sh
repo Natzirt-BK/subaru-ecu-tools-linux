@@ -120,7 +120,7 @@ fi
 
 grep -F 'bergerraider-1.1.0-rc1' \
     "$repo_root/linux/install-bergerraider" >/dev/null
-grep -F 'a19aeb0ffbaa93c046892149efd33e0704b9392af1aef5b3ff7dc5f11c0860a6' \
+grep -F 'e2ae6fe2f8b0a40698438aabecc1c19e90a5d0f667fa2796f4056023d70e38fd' \
     "$repo_root/linux/install-bergerraider" >/dev/null
 
 echo 'BergerRaider installer tests passed.'
