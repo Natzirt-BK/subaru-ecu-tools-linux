@@ -8,7 +8,7 @@ legacy_install_root=${BERGERRAIDER_LEGACY_INSTALL_ROOT:-$data_root/bergerraider-
 archive=${BERGERRAIDER_ARCHIVE:-$cache_root/BergerRaider_ECU_Studio_1.1.0_Linux_x64.zip}
 archive_root=BergerRaider_ECU_Studio_1.1.0_Linux_x64
 release_url=${BERGERRAIDER_URL:-https://github.com/Natzirt-BK/subaru-ecu-tools-linux/releases/download/bergerraider-1.1.0-rc1/BergerRaider_ECU_Studio_1.1.0_Linux_x64.zip}
-release_sha256=${BERGERRAIDER_SHA256:-e2ae6fe2f8b0a40698438aabecc1c19e90a5d0f667fa2796f4056023d70e38fd}
+release_sha256=${BERGERRAIDER_SHA256:-0cad0dad9d93a0d688808eefe1a5481d8da76acc1658bf80b6e5db3f754d9692}
 source_root=${BERGERRAIDER_SOURCE_ROOT:-}
 
 case "$install_root" in
