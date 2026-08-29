@@ -36,7 +36,7 @@ On Debian, use `./linux/install-debian.sh`, `./linux/setup-debian-gui.sh`, and
 engine, while the explicit Debian names make manual maintenance unambiguous.
 
 Run `./linux/install-cachyos.sh --help` for advanced component, definition,
-optional Evo MUT-II, and EvoScan flags. The bootstrap checkout lives at
+BergerRaider, and EvoScan flags. The bootstrap checkout lives at
 `~/.local/src/subaru-ecu-tools-linux` by default.
 
 ## Managed locations
@@ -46,7 +46,6 @@ optional Evo MUT-II, and EvoScan flags. The bootstrap checkout lives at
 | Project data and Wine runtime | `~/.local/share/subaru-ecu-tools-linux/` |
 | EcuFlash Wine prefix | `~/.local/share/ecuflash-proton/` |
 | RomRaider DimeMod | `~/.local/share/romraider-dm20/` |
-| Optional Evo MUT-Raider-II | `~/.local/share/romraider-mut2-evo-88780008/` |
 | BergerRaider 1.1 RC | `~/.local/share/bergerraider-ecu-studio/` |
 | Definitions | `~/.local/share/subaru-evo-ecu-definitions/` |
 | Setup logs | `~/.local/state/subaru-ecu-tools-linux/` |
@@ -100,29 +99,6 @@ Community stable, beta, alpha, alternative units, and custom XML imports remain
 available through advanced installer flags. Experimental definitions can contain
 incorrect addresses; verify them independently.
 
-## Optional Evo MUT-Raider-II
-
-The Setup menu offers the separate `MUT-Raider-II` NatZirt build for Mitsubishi
-Evo 8/9 owners. Its Logger footer is watermarked `Fork by NatZirt`.
-It installs alongside DimeMod and contains architecture-matched 32-bit Java,
-RomRaider, and Linux J2534 components plus the audited `88780008` Editor,
-Logger, EcuFlash, and OpenPort definitions. Install it directly with:
-
-```bash
-./linux/install-cachyos.sh --install-evo-romraider
-```
-
-The component is checksum-pinned to the secondary GitHub release
-`romraider-mut2-evo-88780008-v1.0.1`. Its logger path is read-only, auto-connect
-is disabled, and it does not alter the active Subaru definition manifest.
-Vehicle communication remains unqualified until an owner completes a supervised
-ignition-on logging test.
-
-Migration note: MUT-Raider-II remains available as the known fallback during
-BergerRaider development. After BergerRaider reaches Evo logging feature parity
-and passes supervised real-vehicle qualification, deprecate and then phase out
-the separate MUT-Raider-II installer entry instead of maintaining two Evo forks.
-
 ## BergerRaider 1.1 release candidate
 
 BergerRaider is a separate experimental Subaru/Evo development checkpoint. It
@@ -136,7 +112,7 @@ with:
 ```
 
 It uses its own application directory and settings file and does not replace
-RomRaider DimeMod or MUT-Raider-II. Realtime ECU writes are not enabled.
+RomRaider DimeMod. Realtime ECU writes are not enabled.
 
 ## EvoScan
 

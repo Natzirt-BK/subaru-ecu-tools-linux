@@ -27,8 +27,7 @@ by the bundled 32-bit RomRaider Logger and installs dependencies with APT.
 2. **Clean reinstall** > replace all installer-managed state
 3. **System check** > inspect the current installation
 4. **Uninstall** > remove installer-managed files
-5. **Optional Evo MUT-Raider-II** > install/update the separate NatZirt Evo fork
-6. **BergerRaider 1.1 RC** > install the Java 21 Subaru/Evo studio
+5. **BergerRaider 1.1 RC** > install the Java 21 Subaru/Evo studio
 
 Use **Clean reinstall** when replacing an older or broken setup. Your ROMs,
 definitions, and logs are preserved.
@@ -41,17 +40,11 @@ definitions, and logs are preserved.
 - the Linux OpenPort Wine bridge and USB permissions
 - RomRaider DimeMod Editor and Logger with official definitions
 
-The optional menu entry installs the NatZirt `MUT-Raider-II` fork for Evo 8/9
-owners. It uses a separate application directory and settings file, includes
-the audited `88780008` Evo definitions, and does not replace DimeMod or the
-recommended Subaru configuration. Its MUT-II transport is deliberately
-read-only; live vehicle timing still requires owner validation.
-
 BergerRaider 1.1 RC adds the shared Subaru/Evo platform, a self-contained Java
 21 x64 runtime, versioned settings, read-only Evo MUT-II support, offline CSV
 analysis, and the finalized 88780008 EcuFlash/RomRaider definition pair. DimeMod
-and MUT-Raider-II remain temporary fallbacks until connected vehicle
-qualification is complete. Guarded realtime write support is not enabled.
+remains the Subaru fallback and EvoScan remains the Evo fallback until connected
+vehicle qualification is complete. Guarded realtime write support is not enabled.
 
 All applications appear together under **Subaru & Evo ECU Tools** in your
 application menu. On Arch the OpenPort fallback group is `uucp`; on Debian it is

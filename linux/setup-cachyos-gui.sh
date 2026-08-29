@@ -97,9 +97,7 @@ draw_menu() {
     menu_line '[3] SYSTEM CHECK' "$cyan$bold"
     menu_line '    Diagnose installation and a connected OpenPort.'
     menu_line '[4] UNINSTALL                    [Q] EXIT' "$cyan$bold"
-    menu_line '[5] OPTIONAL EVO MUT-RAIDER-II' "$purple$bold"
-    menu_line '    Install the separate NatZirt Evo 8/9 logger fork.'
-    menu_line '[6] BERGERRAIDER 1.1 RC' "$purple$bold"
+    menu_line '[5] BERGERRAIDER 1.1 RC' "$purple$bold"
     menu_line '    Install the Java 21 Subaru/Evo release candidate.'
     printf '  %b╰──────────────────────────────────────────────────────╯%b\n\n' "$blue$bold" "$reset"
     printf '%b  Select an option: %b' "$yellow$bold" "$reset"
@@ -127,7 +125,7 @@ while true; do
     case "$choice" in
         1|2|3|4|5|6|q|Q) break ;;
         *)
-            printf '%b  Unknown selection.%b Press 1, 2, 3, 4, 5, 6, or Q.\n\n' \
+            printf '%b  Unknown selection.%b Press 1, 2, 3, 4, 5, or Q.\n\n' \
                 "$red$bold" "$reset" >&2
             ;;
     esac
@@ -153,13 +151,7 @@ case "$choice" in
         exec "$installer" --uninstall --yes
         ;;
     5)
-        printf '  Installs alongside DimeMod and does not replace Subaru settings.\n\n'
-        confirm 'Install or update the optional Evo MUT-Raider-II fork?' || exit 0
-        start_installer_music
-        exec "$installer" --install-evo-romraider
-        ;;
-    6)
-        printf '  Release candidate; fallbacks remain installed through vehicle qualification.\n\n'
+        printf '  Release candidate; validated tools remain installed through vehicle qualification.\n\n'
         confirm 'Install or update BergerRaider 1.1 RC?' || exit 0
         start_installer_music
         exec "$installer" --install-bergerraider

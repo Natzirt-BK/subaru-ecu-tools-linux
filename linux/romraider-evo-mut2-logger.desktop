@@ -1,9 +1,0 @@
-[Desktop Entry]
-Type=Application
-Name=MUT-Raider-II Logger
-Comment=Optional Evo MUT-II logger, Fork by NatZirt
-Exec=env EVO_MUT2_MODE=logger @BINDIR@/launch-romraider-evo-mut2
-Icon=applications-engineering
-Terminal=false
-Categories=X-Subaru-Evo-ECU-Tools;
-StartupNotify=true

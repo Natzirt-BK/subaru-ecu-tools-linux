@@ -1,9 +1,0 @@
-[Desktop Entry]
-Type=Application
-Name=MUT-Raider-II Editor
-Comment=Optional NatZirt build for Mitsubishi Evo ROM 88780008
-Exec=env EVO_MUT2_MODE=editor @BINDIR@/launch-romraider-evo-mut2
-Icon=applications-engineering
-Terminal=false
-Categories=X-Subaru-Evo-ECU-Tools;
-StartupNotify=true

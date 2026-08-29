@@ -32,9 +32,9 @@ pass 'public repository cloned'
 
 section 'Repository tests'
 bash -n bootstrap-cachyos.sh bootstrap-debian.sh linux/*.sh \
-    linux/install-evo-romraider-mut2 linux/install-bergerraider tests/vm/*.sh
+    linux/install-bergerraider tests/vm/*.sh
 sh -n linux/launch-ecuflash linux/launch-evoscan linux/launch-romraider \
-    linux/launch-romraider-evo-mut2 linux/launch-bergerraider \
+    linux/launch-bergerraider \
     linux/monitor-openport-state linux/sync-openport-device-state \
     wine-bridge/build-openport-driver.sh tests/*.sh
 for test_script in tests/test-*.sh; do "$test_script"; done

@@ -4,8 +4,6 @@
   existing shortcuts working
 - `install-cachyos.sh` — installation, repair, checks, and removal engine
 - `update-cachyos.sh` — refreshes managed files and validates EcuFlash/OpenPort
-- `install-evo-romraider-mut2` — checksum-pinned optional NatZirt Evo fork installer
-- `launch-romraider-evo-mut2` — isolated Evo MUT-II Editor/Logger launcher
 - `install-bergerraider` — checksum-pinned BergerRaider Java 21 release-candidate installer
 - `launch-bergerraider` — isolated BergerRaider Editor/Logger launcher
 - `launch-*` — installed application launchers

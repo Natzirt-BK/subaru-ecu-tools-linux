@@ -7,7 +7,6 @@ install_deps=false
 install_udev=false
 install_ecuflash=false
 install_romraider=false
-install_evo_romraider=false
 install_bergerraider=false
 install_evoscan=false
 install_definitions=false
@@ -650,7 +649,6 @@ usage() {
   --install-udev   Install the OpenPort 2.0 udev rule with sudo
   --install-ecuflash  Download and open Tactrix's official EcuFlash installer
   --install-romraider  Install RomRaider DimeMod with a bundled 32-bit JRE
-  --install-evo-romraider  Install the optional NatZirt Evo MUT-II RomRaider fork
   --install-bergerraider   Install the BergerRaider 1.1 release candidate
   --install-definitions SOURCE  Install RomRaider definitions (official, stable, beta, alpha)
   --definition-units UNITS     metric, standard, or imperial (default: metric)
@@ -666,8 +664,8 @@ usage() {
   -h, --help       Show this help
 
 The default builds the bridge and installs support files under ~/.local.
-RomRaider DimeMod is installed only when selected. The Evo MUT-II fork and
-BergerRaider release candidate are separate opt-in components and never replace DimeMod.
+RomRaider DimeMod is installed only when selected. BergerRaider is a separate
+opt-in component and never replaces DimeMod.
 Setup never supplies ROMs or vehicle firmware.
 EOF
 }
@@ -680,7 +678,6 @@ while (($#)); do
         --install-udev) install_udev=true ;;
         --install-ecuflash) install_ecuflash=true ;;
         --install-romraider) install_romraider=true ;;
-        --install-evo-romraider) install_evo_romraider=true ;;
         --install-bergerraider) install_bergerraider=true ;;
         --install-definitions)
             shift; (($#)) || { echo "--install-definitions requires a source." >&2; exit 2; }
@@ -814,7 +811,6 @@ offer_error_report() {
             "$state_dir/ecuflash-openport-registration.log" \
             "$cache_root/ecuflash-openport-registration.log" \
             "$state_dir/romraider-launch.log" \
-            "$state_dir/evo-mut2-launch.log" \
             "$HOME/.RomRaider/romraider_sout.log"; do
             [[ -s "$extra_log" ]] || continue
             case "$extra_log" in
@@ -895,6 +891,7 @@ wait_before_close() {
     ui_box_line "$color_cyan" '[ INPUT ] Press Enter to close this setup terminal...'
     printf '%b║%b  > ' "$color_purple$color_bold" "$color_reset"
     read -r _ </dev/tty || true
+    printf '\n'
 }
 stop_setup_music() {
     local music_pid=${SUBARU_SETUP_MUSIC_PID:-}
@@ -939,7 +936,7 @@ cache_root="${XDG_CACHE_HOME:-$HOME/.cache}/subaru-ecu-tools-linux"
 ecuflash_prefix="${ECUFLASH_WINEPREFIX:-$data_root/ecuflash-proton}"
 default_source_dir="$HOME/.local/src/subaru-ecu-tools-linux"
 romraider_home="$data_root/romraider-dm20"
-evo_romraider_home="$data_root/romraider-mut2-evo-88780008"
+obsolete_mut_raider_home="$data_root/romraider-mut2-evo-88780008"
 bergerraider_home="$data_root/bergerraider-ecu-studio"
 definitions_home="$data_root/subaru-evo-ecu-definitions"
 
@@ -990,6 +987,9 @@ if $clean_install; then
     if [[ -f "$romraider_home/.installed-by-subaru-ecu-tools" ]]; then
         rm -rf -- "$romraider_home"
     fi
+    if [[ -f "$obsolete_mut_raider_home/.installed-by-subaru-ecu-tools" ]]; then
+        rm -rf -- "$obsolete_mut_raider_home"
+    fi
     ok "Old installer-managed application and runtime state removed."
 fi
 
@@ -1013,9 +1013,6 @@ create_documents_shortcuts() {
         "$tools_documents/EcuFlash" \
         "$tools_documents/EvoScan" \
         "$tools_documents/Diagnostic Logs"
-    if [[ -f "$evo_romraider_home/.installed-by-subaru-ecu-tools" ]]; then
-        install -d "$tools_documents/Evo RomRaider MUT-II"
-    fi
     if [[ -f "$bergerraider_home/.installed-by-subaru-ecu-tools" ]]; then
         install -d "$tools_documents/BergerRaider"
     fi
@@ -1055,10 +1052,6 @@ create_documents_shortcuts() {
         "${active_editor_definition:-/path/that/does/not/exist}"
     add_documents_link "$tools_documents/RomRaider Logger/Active Definition.xml" \
         "${active_logger_definition:-/path/that/does/not/exist}"
-    add_documents_link "$tools_documents/Evo RomRaider MUT-II/Definitions" \
-        "$evo_romraider_home/definitions"
-    add_documents_link "$tools_documents/Evo RomRaider MUT-II/Release Notes.md" \
-        "$evo_romraider_home/RELEASE_NOTES.md"
     add_documents_link "$tools_documents/BergerRaider/Definitions" \
         "$bergerraider_home/definitions"
     add_documents_link "$tools_documents/BergerRaider/Release Notes.txt" \
@@ -1108,7 +1101,6 @@ install_managed_user_files() {
     }
 
     for source in launch-ecuflash launch-evoscan launch-romraider \
-        launch-romraider-evo-mut2 install-evo-romraider-mut2 \
         launch-bergerraider install-bergerraider \
         sync-openport-device-state monitor-openport-state \
         configure-romraider-definitions install-romraider-definitions; do
@@ -1124,14 +1116,7 @@ install_managed_user_files() {
         "$data_dir/registry/openport2-device-absent.reg" 0644
     desktop_names=(ecuflash evoscan romraider-editor romraider-logger
         subaru-ecu-tools-setup)
-    if $install_evo_romraider || \
-       [[ -f "$evo_romraider_home/.installed-by-subaru-ecu-tools" ]]; then
-        desktop_names+=(romraider-evo-mut2-editor romraider-evo-mut2-logger)
-    else
-        rm -f -- \
-            "$applications_dir/romraider-evo-mut2-editor.desktop" \
-            "$applications_dir/romraider-evo-mut2-logger.desktop"
-    fi
+    remove_obsolete_mut_raider
     if $install_bergerraider || \
        [[ -f "$bergerraider_home/.installed-by-subaru-ecu-tools" ]]; then
         desktop_names+=(bergerraider-editor bergerraider-logger)
@@ -1163,6 +1148,38 @@ install_managed_user_files() {
     ok "Managed-file audit complete: $checked checked, $updated updated, $current already current."
 }
 
+remove_obsolete_mut_raider() {
+    local documents_dir obsolete_documents obsolete_file removed=false
+
+    for obsolete_file in \
+        "$bin_dir/launch-romraider-evo-mut2" \
+        "$bin_dir/install-evo-romraider-mut2" \
+        "$applications_dir/romraider-evo-mut2-editor.desktop" \
+        "$applications_dir/romraider-evo-mut2-logger.desktop"; do
+        if [[ -e "$obsolete_file" || -L "$obsolete_file" ]]; then
+            rm -f -- "$obsolete_file"
+            removed=true
+        fi
+    done
+    if [[ -f "$obsolete_mut_raider_home/.installed-by-subaru-ecu-tools" ]]; then
+        rm -rf -- "$obsolete_mut_raider_home"
+        removed=true
+    fi
+    if command -v xdg-user-dir >/dev/null 2>&1; then
+        documents_dir=$(xdg-user-dir DOCUMENTS 2>/dev/null || true)
+    fi
+    if [[ -z "${documents_dir:-}" || "$documents_dir" == "$HOME" ]]; then
+        documents_dir="$HOME/Documents"
+    fi
+    obsolete_documents="$documents_dir/Subaru & Evo ECU Tools/Evo RomRaider MUT-II"
+    [[ -L "$obsolete_documents/Definitions" ]] && \
+        rm -f -- "$obsolete_documents/Definitions"
+    [[ -L "$obsolete_documents/Release Notes.md" ]] && \
+        rm -f -- "$obsolete_documents/Release Notes.md"
+    rmdir -- "$obsolete_documents" 2>/dev/null && removed=true || true
+    $removed && ok "Removed obsolete installer-managed Evo logger files."
+}
+
 install_bergerraider_only() {
     local desktop rendered setup_script documents_dir tools_documents
 
@@ -1171,6 +1188,7 @@ install_bergerraider_only() {
     [[ "$distro_family" == debian ]] && setup_script=$repo_root/linux/setup-debian-gui.sh
     install -d "$bin_dir" "$applications_dir" "$desktop_directories_dir" \
         "$menus_dir" "$cache_root"
+    remove_obsolete_mut_raider
     install -m 0755 "$repo_root/linux/launch-bergerraider" \
         "$bin_dir/launch-bergerraider"
     install -m 0755 "$repo_root/linux/install-bergerraider" \
@@ -1461,9 +1479,9 @@ if [[ "$mode" == uninstall ]]; then
     else
         echo "Separately installed RomRaider DimeMod, ROMs, definitions, logs, and shared packages are preserved."
     fi
-    if [[ -f "$evo_romraider_home/.installed-by-subaru-ecu-tools" ]]; then
-        printf '  %s\n' "$evo_romraider_home"
-        echo "The optional installer-managed Evo MUT-II package will also be removed."
+    if [[ -f "$obsolete_mut_raider_home/.installed-by-subaru-ecu-tools" ]]; then
+        printf '  %s\n' "$obsolete_mut_raider_home"
+        echo "The obsolete installer-managed Evo logger fork will also be removed."
     fi
     if [[ -f "$bergerraider_home/.installed-by-subaru-ecu-tools" ]]; then
         printf '  %s\n' "$bergerraider_home"
@@ -1506,8 +1524,8 @@ if [[ "$mode" == uninstall ]]; then
     if [[ -f "$romraider_home/.installed-by-subaru-ecu-tools" ]]; then
         rm -rf -- "$romraider_home"
     fi
-    if [[ -f "$evo_romraider_home/.installed-by-subaru-ecu-tools" ]]; then
-        rm -rf -- "$evo_romraider_home"
+    if [[ -f "$obsolete_mut_raider_home/.installed-by-subaru-ecu-tools" ]]; then
+        rm -rf -- "$obsolete_mut_raider_home"
     fi
     if [[ -f "$bergerraider_home/.installed-by-subaru-ecu-tools" ]]; then
         rm -rf -- "$bergerraider_home"
@@ -1548,7 +1566,7 @@ if [[ "$(uname -m)" != x86_64 ]]; then
 fi
 
 if $install_bergerraider && ! $install_deps && ! $install_udev && \
-   ! $install_ecuflash && ! $install_romraider && ! $install_evo_romraider && \
+   ! $install_ecuflash && ! $install_romraider && \
    ! $install_evoscan && ! $install_definitions && ! $clean_install; then
     install_bergerraider_only
     exit 0
@@ -1640,14 +1658,6 @@ if [[ "$mode" == check ]]; then
         ok "RomRaider DimeMod with bundled 32-bit Java detected"
     else
         warn "NOT INSTALLED: complete RomRaider DimeMod Linux package"
-    fi
-    check_evo_romraider="$check_data_root/romraider-mut2-evo-88780008"
-    if [[ -f "$check_evo_romraider/.installed-by-subaru-ecu-tools" && \
-          -x "$check_evo_romraider/START_LOGGER_LINUX.sh" && \
-          -f "$check_evo_romraider/app/RomRaider-MUT2-88780008-32.jar" ]]; then
-        ok "Optional Evo MUT-Raider-II package detected"
-    else
-        step "Optional Evo MUT-Raider-II package is not installed"
     fi
     check_definition_manifest="$check_data_root/subaru-ecu-tools-linux/definitions-active.conf"
     if [[ -f "$check_definition_manifest" ]]; then
@@ -1849,16 +1859,10 @@ if $install_definitions; then
     fi
 fi
 
-if $install_evo_romraider; then
-    section "Installing optional Evo MUT-Raider-II"
-    "$bin_dir/install-evo-romraider-mut2"
-    ok "NatZirt Evo MUT-II Editor and Logger installed separately from DimeMod."
-fi
-
 if $install_bergerraider; then
     section "Installing BergerRaider 1.1 release candidate"
     "$bin_dir/install-bergerraider"
-    ok "BergerRaider installed separately from DimeMod and MUT-Raider-II."
+    ok "BergerRaider installed separately from DimeMod."
 fi
 
 if $install_ecuflash; then
@@ -2122,8 +2126,6 @@ installed_apps=()
     installed_apps+=(EcuFlash)
 [[ -f "$romraider_home/RomRaider.jar" ]] && \
     installed_apps+=("RomRaider Editor" "RomRaider Logger")
-[[ -f "$evo_romraider_home/app/RomRaider-MUT2-88780008-32.jar" ]] && \
-    installed_apps+=("MUT-Raider-II Editor" "MUT-Raider-II Logger")
 [[ -f "$bergerraider_home/lib/app/BergerRaider.jar" || \
    -f "$bergerraider_home/app/BergerRaider-32.jar" ]] && \
     installed_apps+=("BergerRaider Editor" "BergerRaider Logger")
