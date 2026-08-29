@@ -111,7 +111,7 @@ test -x "$test_root/full-bin/launch-bergerraider"
 test -f "$test_root/full-data/applications/bergerraider-editor.desktop"
 test -f "$test_root/full-data/applications/bergerraider-logger.desktop"
 test -L "$test_root/full-home/Documents/Subaru & Evo ECU Tools/BergerRaider/Definitions"
-grep -F 'without requiring the unrelated Wine/OpenPort toolchain' \
+grep -F 'PREPARING BERGERRAIDER LAUNCHERS' \
     "$test_root/full-install.log" >/dev/null
 if grep -Fq 'Checking dependencies' "$test_root/full-install.log"; then
     echo 'BergerRaider-only install unexpectedly entered the shared dependency check.' >&2

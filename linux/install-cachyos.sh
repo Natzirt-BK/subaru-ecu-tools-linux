@@ -1177,7 +1177,10 @@ remove_obsolete_mut_raider() {
     [[ -L "$obsolete_documents/Release Notes.md" ]] && \
         rm -f -- "$obsolete_documents/Release Notes.md"
     rmdir -- "$obsolete_documents" 2>/dev/null && removed=true || true
-    $removed && ok "Removed obsolete installer-managed Evo logger files."
+    if $removed; then
+        ok "Removed obsolete installer-managed Evo logger files."
+    fi
+    return 0
 }
 
 install_bergerraider_only() {
