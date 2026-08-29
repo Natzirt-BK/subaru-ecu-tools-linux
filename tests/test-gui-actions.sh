@@ -150,9 +150,9 @@ grep -Fx 'Name=MUT-Raider-II Logger' \
     "$repo_root/linux/romraider-evo-mut2-logger.desktop" >/dev/null
 grep -Fx 'Name=MUT-Raider-II Editor' \
     "$repo_root/linux/romraider-evo-mut2-editor.desktop" >/dev/null
-grep -Fx 'Name=BergerRaider Logger (Preview)' \
+grep -Fx 'Name=BergerRaider Logger' \
     "$repo_root/linux/bergerraider-logger.desktop" >/dev/null
-grep -Fx 'Name=BergerRaider Editor (Preview)' \
+grep -Fx 'Name=BergerRaider Editor' \
     "$repo_root/linux/bergerraider-editor.desktop" >/dev/null
 grep -F 'read -rsn1 key </dev/tty' "$engine" >/dev/null
 grep -F 'setup_interactive=false' "$engine" >/dev/null

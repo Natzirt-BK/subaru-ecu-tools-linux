@@ -2,7 +2,7 @@
 set -eu
 
 : "${XDG_DATA_HOME:=$HOME/.local/share}"
-: "${BERGERRAIDER_HOME:=$XDG_DATA_HOME/bergerraider-ecu-studio-preview-1}"
+: "${BERGERRAIDER_HOME:=$XDG_DATA_HOME/bergerraider-ecu-studio}"
 : "${BERGERRAIDER_MODE:=editor}"
 : "${OPENPORT_USB_SYSFS_ROOT:=/sys/bus/usb/devices}"
 : "${OPENPORT_USB_DEV_ROOT:=/dev/bus/usb}"
@@ -34,7 +34,7 @@ openport_accessible_or_absent() {
 }
 
 if [ ! -f "$BERGERRAIDER_HOME/.installed-by-subaru-ecu-tools" ]; then
-    report_error "BergerRaider is not installed. Open Subaru & Evo ECU Tools Setup and select Optional BergerRaider Preview."
+    report_error "BergerRaider is not installed. Open Subaru & Evo ECU Tools Setup and select BergerRaider."
     exit 1
 fi
 if [ "$BERGERRAIDER_MODE" = logger ] && ! openport_accessible_or_absent; then

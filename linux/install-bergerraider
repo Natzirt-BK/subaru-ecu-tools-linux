@@ -3,11 +3,12 @@ set -euo pipefail
 
 data_root=${XDG_DATA_HOME:-$HOME/.local/share}
 cache_root=${XDG_CACHE_HOME:-$HOME/.cache}/subaru-ecu-tools-linux
-install_root=${BERGERRAIDER_INSTALL_ROOT:-$data_root/bergerraider-ecu-studio-preview-1}
-archive=${BERGERRAIDER_ARCHIVE:-$cache_root/BergerRaider_ECU_Studio_Foundation_Preview_1.zip}
-archive_root=BergerRaider_ECU_Studio_Foundation_Preview_1
-release_url=${BERGERRAIDER_URL:-https://github.com/Natzirt-BK/subaru-ecu-tools-linux/releases/download/bergerraider-foundation-preview-1/BergerRaider_ECU_Studio_Foundation_Preview_1.zip}
-release_sha256=${BERGERRAIDER_SHA256:-7b67c97f49b02f9a9a998d4380fa390e7b964eb144756ed3bd82ff7f60140b77}
+install_root=${BERGERRAIDER_INSTALL_ROOT:-$data_root/bergerraider-ecu-studio}
+legacy_install_root=${BERGERRAIDER_LEGACY_INSTALL_ROOT:-$data_root/bergerraider-ecu-studio-preview-1}
+archive=${BERGERRAIDER_ARCHIVE:-$cache_root/BergerRaider_ECU_Studio_1.1.0_Linux_x64.zip}
+archive_root=BergerRaider_ECU_Studio_1.1.0_Linux_x64
+release_url=${BERGERRAIDER_URL:-https://github.com/Natzirt-BK/subaru-ecu-tools-linux/releases/download/bergerraider-1.1.0-rc1/BergerRaider_ECU_Studio_1.1.0_Linux_x64.zip}
+release_sha256=${BERGERRAIDER_SHA256:-5a42b2720f49c590259a948861ff9785b8566344fbb0b2312a22688ddf711b25}
 source_root=${BERGERRAIDER_SOURCE_ROOT:-}
 
 case "$install_root" in
@@ -23,33 +24,20 @@ modern_install() {
        -f "$root/lib/app/lib/linux/64/j2534.so" && \
        -f "$root/config/settings.foz.xml" && \
        -f "$root/definitions/Evo/88780008_MUT2_logger.xml" && \
+       -f "$root/definitions/Evo/release/EcuFlash/88780008_Final_v6.xml" && \
+       -f "$root/definitions/Evo/release/EcuFlash/evo9base.xml" && \
+       -f "$root/definitions/Evo/release/RomRaider/88780008_RomRaider_Final_v4.xml" && \
        -f "$root/definitions/Foz/Editor/Z2WC412I_DM23100_RR.xml" && \
        -f "$root/definitions/Foz/Logger/logger_METRIC_EN_v370.xml" ]] && \
         grep -Fq 'bergerraider.settings.dir=$APPDIR/../../config/user' \
             "$root/lib/app/BergerRaider.cfg"
 }
 
-legacy_install() {
-    local root=$1
-    [[ -x "$root/START_LOGGER_LINUX.sh" && \
-       -x "$root/START_EDITOR_LINUX.sh" && \
-       -x "$root/app/jre32/bin/java" && \
-       -f "$root/app/BergerRaider-32.jar" && \
-       -f "$root/app/lib/linux/32/j2534.so" && \
-       -f "$root/definitions/Evo/RomRaider_Logger/88780008_MUT2_logger.xml" && \
-       -f "$root/definitions/Subaru/Editor/ecu_defs_METRIC.xml" && \
-       -f "$root/definitions/Subaru/Logger/logger_METRIC_EN_v370.xml" ]]
-}
-
-complete_install() {
-    modern_install "$1" || legacy_install "$1"
-}
-
-if complete_install "$install_root" && \
+if modern_install "$install_root" && \
    [[ -f "$install_root/.installed-by-subaru-ecu-tools" ]] && \
    [[ -f "$install_root/.release-sha256" ]] && \
    grep -Fxq "$release_sha256" "$install_root/.release-sha256"; then
-    echo "  OK Optional BergerRaider preview is already current."
+    echo "  OK BergerRaider 1.1.0 release candidate is already current."
     exit 0
 fi
 
@@ -65,27 +53,28 @@ if [[ -n "$source_root" ]]; then
 else
     if [[ ! -f "$archive" ]] || \
        ! printf '%s  %s\n' "$release_sha256" "$archive" | sha256sum -c - >/dev/null 2>&1; then
-        echo "  -> Downloading optional BergerRaider foundation preview"
+        echo "  -> Downloading BergerRaider 1.1.0 release candidate"
         curl --fail --location --progress-bar --output "$archive" "$release_url"
     fi
     printf '%s  %s\n' "$release_sha256" "$archive" | sha256sum -c - >/dev/null
     unzip -q "$archive" -d "$stage"
 fi
 staged_root=$stage/$archive_root
-complete_install "$staged_root" || {
-    echo "The verified BergerRaider archive is not a supported Java 21 app image or legacy preview." >&2
+modern_install "$staged_root" || {
+    echo "The verified BergerRaider archive is not a complete Java 21 application image." >&2
     exit 1
 }
 
-if modern_install "$staged_root"; then
-    mkdir -p "$staged_root/config/user"
-    if [[ -f "$install_root/config/user/settings.xml" ]]; then
-        cp -- "$install_root/config/user/settings.xml" \
-            "$staged_root/config/user/settings.xml"
-    else
-        cp -- "$staged_root/config/settings.foz.xml" \
-            "$staged_root/config/user/settings.xml"
-    fi
+mkdir -p "$staged_root/config/user"
+if [[ -f "$install_root/config/user/settings.xml" ]]; then
+    cp -- "$install_root/config/user/settings.xml" \
+        "$staged_root/config/user/settings.xml"
+elif [[ -f "$legacy_install_root/config/user/settings.xml" ]]; then
+    cp -- "$legacy_install_root/config/user/settings.xml" \
+        "$staged_root/config/user/settings.xml"
+else
+    cp -- "$staged_root/config/settings.foz.xml" \
+        "$staged_root/config/user/settings.xml"
 fi
 
 : >"$staged_root/.installed-by-subaru-ecu-tools"
@@ -99,4 +88,14 @@ fi
 mv -- "$staged_root" "$install_root"
 rmdir -- "$stage"
 trap - EXIT HUP INT TERM
-echo "  OK Optional BergerRaider preview installed at $install_root"
+if [[ "$legacy_install_root" != "$install_root" && \
+      -f "$legacy_install_root/.installed-by-subaru-ecu-tools" ]]; then
+    for user_dir in logs roms repositories; do
+        if [[ -d "$legacy_install_root/$user_dir" ]]; then
+            cp -a -- "$legacy_install_root/$user_dir/." "$install_root/$user_dir/"
+        fi
+    done
+    rm -rf -- "$legacy_install_root"
+    echo "  -> Removed the obsolete installer-managed foundation preview after migration."
+fi
+echo "  OK BergerRaider 1.1.0 release candidate installed at $install_root"

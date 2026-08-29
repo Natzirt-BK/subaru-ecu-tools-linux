@@ -6,7 +6,7 @@
 - `update-cachyos.sh` — refreshes managed files and validates EcuFlash/OpenPort
 - `install-evo-romraider-mut2` — checksum-pinned optional NatZirt Evo fork installer
 - `launch-romraider-evo-mut2` — isolated Evo MUT-II Editor/Logger launcher
-- `install-bergerraider-preview` — checksum-pinned BergerRaider preview installer
+- `install-bergerraider` — checksum-pinned BergerRaider Java 21 release-candidate installer
 - `launch-bergerraider` — isolated BergerRaider Editor/Logger launcher
 - `launch-*` — installed application launchers
 - `sync-openport-device-state` — mirrors physical USB presence into Wine

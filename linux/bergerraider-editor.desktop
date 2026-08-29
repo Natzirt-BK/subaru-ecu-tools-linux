@@ -1,6 +1,6 @@
 [Desktop Entry]
 Type=Application
-Name=BergerRaider Editor (Preview)
+Name=BergerRaider Editor
 Comment=Experimental Subaru and Evo ECU calibration studio
 Exec=env BERGERRAIDER_MODE=editor @BINDIR@/launch-bergerraider
 Icon=applications-engineering

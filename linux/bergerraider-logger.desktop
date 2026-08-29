@@ -1,6 +1,6 @@
 [Desktop Entry]
 Type=Application
-Name=BergerRaider Logger (Preview)
+Name=BergerRaider Logger
 Comment=Experimental read-only Evo MUT-II and Subaru logger studio
 Exec=env BERGERRAIDER_MODE=logger @BINDIR@/launch-bergerraider
 Icon=applications-engineering

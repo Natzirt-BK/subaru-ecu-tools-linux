@@ -651,7 +651,7 @@ usage() {
   --install-ecuflash  Download and open Tactrix's official EcuFlash installer
   --install-romraider  Install RomRaider DimeMod with a bundled 32-bit JRE
   --install-evo-romraider  Install the optional NatZirt Evo MUT-II RomRaider fork
-  --install-bergerraider   Install the optional BergerRaider foundation preview
+  --install-bergerraider   Install the BergerRaider 1.1 release candidate
   --install-definitions SOURCE  Install RomRaider definitions (official, stable, beta, alpha)
   --definition-units UNITS     metric, standard, or imperial (default: metric)
   --definition-language LANG   en or de (default: en)
@@ -667,7 +667,7 @@ usage() {
 
 The default builds the bridge and installs support files under ~/.local.
 RomRaider DimeMod is installed only when selected. The Evo MUT-II fork and
-BergerRaider preview are separate opt-in components and never replace DimeMod.
+BergerRaider release candidate are separate opt-in components and never replace DimeMod.
 Setup never supplies ROMs or vehicle firmware.
 EOF
 }
@@ -940,13 +940,13 @@ ecuflash_prefix="${ECUFLASH_WINEPREFIX:-$data_root/ecuflash-proton}"
 default_source_dir="$HOME/.local/src/subaru-ecu-tools-linux"
 romraider_home="$data_root/romraider-dm20"
 evo_romraider_home="$data_root/romraider-mut2-evo-88780008"
-bergerraider_home="$data_root/bergerraider-ecu-studio-preview-1"
+bergerraider_home="$data_root/bergerraider-ecu-studio"
 definitions_home="$data_root/subaru-evo-ecu-definitions"
 
 if $clean_install; then
     section "Clean reinstall"
     warn "This removes the installer-managed EcuFlash/EvoScan prefix, Wine runtime, bridge, launchers, cache, and recommended RomRaider package."
-    echo "ROMs, definitions, logs, separately installed software, and both optional preview packages are preserved."
+    echo "ROMs, definitions, logs, separately installed software, and optional application packages are preserved."
     if ! $assume_yes; then
         read_yes_no "Continue with the clean reinstall?" no || {
             echo "Clean reinstall cancelled."
@@ -970,7 +970,7 @@ if $clean_install; then
         "$bin_dir/launch-romraider-evo-mut2" \
         "$bin_dir/install-evo-romraider-mut2" \
         "$bin_dir/launch-bergerraider" \
-        "$bin_dir/install-bergerraider-preview" \
+        "$bin_dir/install-bergerraider" \
         "$bin_dir/sync-openport-device-state" \
         "$bin_dir/monitor-openport-state" \
         "$bin_dir/configure-romraider-definitions" \
@@ -1017,7 +1017,7 @@ create_documents_shortcuts() {
         install -d "$tools_documents/Evo RomRaider MUT-II"
     fi
     if [[ -f "$bergerraider_home/.installed-by-subaru-ecu-tools" ]]; then
-        install -d "$tools_documents/BergerRaider Preview"
+        install -d "$tools_documents/BergerRaider"
     fi
 
     if [[ -f "$data_dir/evoscan-exe.path" ]]; then
@@ -1059,10 +1059,10 @@ create_documents_shortcuts() {
         "$evo_romraider_home/definitions"
     add_documents_link "$tools_documents/Evo RomRaider MUT-II/Release Notes.md" \
         "$evo_romraider_home/RELEASE_NOTES.md"
-    add_documents_link "$tools_documents/BergerRaider Preview/Definitions" \
+    add_documents_link "$tools_documents/BergerRaider/Definitions" \
         "$bergerraider_home/definitions"
-    add_documents_link "$tools_documents/BergerRaider Preview/Release Notes.md" \
-        "$bergerraider_home/RELEASE_NOTES.md"
+    add_documents_link "$tools_documents/BergerRaider/Release Notes.txt" \
+        "$bergerraider_home/RELEASE_NOTES.txt"
     add_documents_link "$tools_documents/EcuFlash/Definitions" \
         "$ecuflash_prefix/drive_c/Program Files (x86)/OpenECU/EcuFlash/rommetadata"
     add_documents_link "$tools_documents/EvoScan/Installed Program" \
@@ -1109,7 +1109,7 @@ install_managed_user_files() {
 
     for source in launch-ecuflash launch-evoscan launch-romraider \
         launch-romraider-evo-mut2 install-evo-romraider-mut2 \
-        launch-bergerraider install-bergerraider-preview \
+        launch-bergerraider install-bergerraider \
         sync-openport-device-state monitor-openport-state \
         configure-romraider-definitions install-romraider-definitions; do
         update_managed_file "$repo_root/linux/$source" "$bin_dir/$source" 0755
@@ -1378,7 +1378,7 @@ if [[ "$mode" == uninstall ]]; then
         "$bin_dir/launch-romraider-evo-mut2" \
         "$bin_dir/install-evo-romraider-mut2" \
         "$bin_dir/launch-bergerraider" \
-        "$bin_dir/install-bergerraider-preview" \
+        "$bin_dir/install-bergerraider" \
         "$bin_dir/sync-openport-device-state" \
         "$bin_dir/monitor-openport-state" \
         "$bin_dir/configure-romraider-definitions" \
@@ -1416,7 +1416,7 @@ if [[ "$mode" == uninstall ]]; then
     fi
     if [[ -f "$bergerraider_home/.installed-by-subaru-ecu-tools" ]]; then
         printf '  %s\n' "$bergerraider_home"
-        echo "The optional installer-managed BergerRaider preview will also be removed."
+        echo "The installer-managed BergerRaider release candidate will also be removed."
     fi
 
     if ! $assume_yes; then
@@ -1433,7 +1433,7 @@ if [[ "$mode" == uninstall ]]; then
         "$bin_dir/launch-romraider-evo-mut2" \
         "$bin_dir/install-evo-romraider-mut2" \
         "$bin_dir/launch-bergerraider" \
-        "$bin_dir/install-bergerraider-preview" \
+        "$bin_dir/install-bergerraider" \
         "$bin_dir/sync-openport-device-state" \
         "$bin_dir/monitor-openport-state" \
         "$bin_dir/configure-romraider-definitions" \
@@ -1798,8 +1798,8 @@ if $install_evo_romraider; then
 fi
 
 if $install_bergerraider; then
-    section "Installing optional BergerRaider foundation preview"
-    "$bin_dir/install-bergerraider-preview"
+    section "Installing BergerRaider 1.1 release candidate"
+    "$bin_dir/install-bergerraider"
     ok "BergerRaider installed separately from DimeMod and MUT-Raider-II."
 fi
 
