@@ -14,10 +14,22 @@ On CachyOS or Arch Linux, paste this into a terminal:
 curl -fsSL https://raw.githubusercontent.com/Natzirt-BK/subaru-ecu-tools-linux/master/bootstrap-cachyos.sh | bash
 ```
 
+To install or update only BergerRaider for testing, use:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Natzirt-BK/subaru-ecu-tools-linux/master/bootstrap-cachyos.sh | bash -s -- --install-bergerraider
+```
+
 On Debian 13 Stable (amd64), use:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/Natzirt-BK/subaru-ecu-tools-linux/master/bootstrap-debian.sh | bash
+```
+
+For a BergerRaider-only Debian test install, use:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Natzirt-BK/subaru-ecu-tools-linux/master/bootstrap-debian.sh | bash -s -- --install-bergerraider
 ```
 
 Debian setup enables the official `i386` multiarch repository support needed
