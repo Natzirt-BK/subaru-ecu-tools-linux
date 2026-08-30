@@ -14,7 +14,7 @@ permissions:
 
 env:
   SOURCE_ARCHIVE: RomRaider2_ECU_Studio_1.1.0_Source.tar.gz
-  SOURCE_SHA256: 1c6cd94fe0ce8be9b590d11755b4507cfcfe1115c618679808eceaa322d401e1
+  SOURCE_SHA256: 06a04c5b9503de6b22939f42390849837e8ae5a450f8b4bf88b7ede2c9a5049d
   ROMRAIDER2_SOURCE_REVISION: 005a16cf9d450870f5a1fa9d18f48bd3d3640209
   SOURCE_URL: https://github.com/Natzirt-BK/subaru-ecu-tools-linux/releases/download/romraider2-1.1.0-rc1/RomRaider2_ECU_Studio_1.1.0_Source.tar.gz
 
