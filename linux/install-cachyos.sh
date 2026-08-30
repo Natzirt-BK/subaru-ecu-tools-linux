@@ -914,7 +914,8 @@ log_result() {
         echo "Share this diagnostic log when requesting help: $log_file"
         offer_error_report
     else
-        ok "Run log saved: $log_file"
+        ok "Run log saved."
+        summary_row "Run log" "${log_file##*/}"
         confirm_success
     fi
     wait_before_close
@@ -1213,7 +1214,8 @@ install_bergerraider_only() {
     ok "BergerRaider launchers and application-menu entries installed."
 
     section "Installing BergerRaider 1.1 release candidate"
-    "$bin_dir/install-bergerraider"
+    step "Verifying the pinned BergerRaider application image."
+    BERGERRAIDER_QUIET=1 "$bin_dir/install-bergerraider"
     ok "BergerRaider installed without requiring the unrelated Wine/OpenPort toolchain."
 
     if command -v xdg-user-dir >/dev/null 2>&1; then
@@ -1864,7 +1866,8 @@ fi
 
 if $install_bergerraider; then
     section "Installing BergerRaider 1.1 release candidate"
-    "$bin_dir/install-bergerraider"
+    step "Verifying the pinned BergerRaider application image."
+    BERGERRAIDER_QUIET=1 "$bin_dir/install-bergerraider"
     ok "BergerRaider installed separately from DimeMod."
 fi
 

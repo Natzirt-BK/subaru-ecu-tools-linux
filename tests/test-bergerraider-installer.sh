@@ -140,6 +140,13 @@ if grep -Fq 'Checking dependencies' "$test_root/full-install.log"; then
     echo 'BergerRaider-only install unexpectedly entered the shared dependency check.' >&2
     exit 1
 fi
+grep -F '[ RUN  ] Verifying the pinned BergerRaider application image.' \
+    "$test_root/full-install.log" >/dev/null
+if grep -q '^  OK BergerRaider 1.1.0 release candidate' \
+        "$test_root/full-install.log"; then
+    echo 'Nested BergerRaider installer output escaped the setup console.' >&2
+    exit 1
+fi
 
 grep -F 'bergerraider-1.1.0-rc1' \
     "$repo_root/linux/install-bergerraider" >/dev/null

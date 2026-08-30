@@ -10,6 +10,11 @@ archive_root=BergerRaider_ECU_Studio_1.1.0_Linux_x64
 release_url=${BERGERRAIDER_URL:-https://github.com/Natzirt-BK/subaru-ecu-tools-linux/releases/download/bergerraider-1.1.0-rc1/BergerRaider_ECU_Studio_1.1.0_Linux_x64.zip}
 release_sha256=${BERGERRAIDER_SHA256:-b1abdf62c60196c45d54e48cb1467548b76b4e93f8fe12d30f5d00fa214517c7}
 source_root=${BERGERRAIDER_SOURCE_ROOT:-}
+quiet=${BERGERRAIDER_QUIET:-0}
+
+notice() {
+    [[ "$quiet" == 1 ]] || printf '%s\n' "$*"
+}
 
 case "$install_root" in
     ''|/|"$HOME") echo "Unsafe BergerRaider install path: $install_root" >&2; exit 2 ;;
@@ -53,14 +58,14 @@ migrate_obsolete_foz_logger_defaults() {
         -e 's#<protocol name="OBD" transport="(ISO15765|ISO9141)" module="ECU" fastpoll="false" library="[^"]*"/>#<protocol name="SSM" transport="ISO9141" module="ECU" fastpoll="false" library=""/>#' \
         -e 's#<profile path="definitions/Foz/Profiles/aem-uego-9600.xml"/>#<profile path="definitions/Foz/Profiles/shinji.xml"/>#' \
         "$settings"
-    echo "  -> Migrated the obsolete Forester OBD logger default to SSM/ISO9141."
+    notice "  -> Migrated the obsolete Forester OBD logger default to SSM/ISO9141."
 }
 
 if modern_install "$install_root" && \
    [[ -f "$install_root/.installed-by-subaru-ecu-tools" ]] && \
    [[ -f "$install_root/.release-sha256" ]] && \
    grep -Fxq "$release_sha256" "$install_root/.release-sha256"; then
-    echo "  OK BergerRaider 1.1.0 release candidate is already current."
+    notice "  OK BergerRaider 1.1.0 release candidate is already current."
     exit 0
 fi
 
@@ -76,8 +81,13 @@ if [[ -n "$source_root" ]]; then
 else
     if [[ ! -f "$archive" ]] || \
        ! printf '%s  %s\n' "$release_sha256" "$archive" | sha256sum -c - >/dev/null 2>&1; then
-        echo "  -> Downloading BergerRaider 1.1.0 release candidate"
-        curl --fail --location --progress-bar --output "$archive" "$release_url"
+        notice "  -> Downloading BergerRaider 1.1.0 release candidate"
+        if [[ "$quiet" == 1 ]]; then
+            curl --fail --location --silent --show-error \
+                --output "$archive" "$release_url"
+        else
+            curl --fail --location --progress-bar --output "$archive" "$release_url"
+        fi
     fi
     printf '%s  %s\n' "$release_sha256" "$archive" | sha256sum -c - >/dev/null
     unzip -q "$archive" -d "$stage"
@@ -114,7 +124,7 @@ printf '%s\n' "$release_sha256" >"$staged_root/.release-sha256"
 if [[ -e "$install_root" ]]; then
     backup=${install_root}.backup-$(date +%Y%m%d-%H%M%S)
     [[ ! -e "$backup" ]] || backup=$backup-$$
-    echo "  -> Preserving the previous BergerRaider installation at $backup"
+    notice "  -> Preserving the previous BergerRaider installation at $backup"
     mv -- "$install_root" "$backup"
 fi
 mv -- "$staged_root" "$install_root"
@@ -128,6 +138,6 @@ if [[ "$legacy_install_root" != "$install_root" && \
         fi
     done
     rm -rf -- "$legacy_install_root"
-    echo "  -> Removed the obsolete installer-managed foundation preview after migration."
+    notice "  -> Removed the obsolete installer-managed foundation preview after migration."
 fi
-echo "  OK BergerRaider 1.1.0 release candidate installed at $install_root"
+notice "  OK BergerRaider 1.1.0 release candidate installed at $install_root"
