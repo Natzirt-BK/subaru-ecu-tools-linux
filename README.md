@@ -1,6 +1,6 @@
 # Ecu Tools by NatZirt
 
-Ecu Tools by NatZirt brings Subaru and Mitsubishi Lancer Evolution ECU editing,
+Subaru and Mitsubishi Lancer Evolution ECU editing,
 logging, and diagnostic software to Linux through one supported setup. It
 installs the applications, compatibility runtime, OpenPort 2.0 support,
 definitions, USB permissions, and desktop launchers that users would otherwise
@@ -9,9 +9,9 @@ have to assemble manually.
 The project also distributes **RomRaider2**, a much-needed modernization of
 RomRaider that preserves useful work from the DimeMod fork while adding a new
 interface, current runtime, safer diagnostics, improved logging, and Lancer
-Evolution VIII/IX support.
+Evolution support.
 
-Maintained by **NatZirt (Tristan Bukenberger)**. This is an independent community
+Maintained by **NatZirt**. This is an independent community
 project and is not affiliated with Tactrix, Subaru, Mitsubishi, or the official
 RomRaider project.
 
@@ -146,14 +146,13 @@ editing or logging.
 
 ## OpenPort behavior on Linux
 
-The installer checks the real USB state instead of trusting a status label.
+The installer checks the USB state.
 When connected, the J2534 probe opens and closes the adapter. When disconnected,
-it must report device-not-connected. The EcuFlash launcher synchronizes Wine's
-device state before startup and reports later USB changes; restart EcuFlash
-after plugging or unplugging the cable.
+it must report device not connected. The EcuFlash launcher synchronizes Wine's
+device state before startup and reports later USB changes. **Restart EcuFlash
+after plugging or unplugging the cable.**
 
-`[In Use]` is not automatically an error under Wine. It can mean that Wine has
-opened the adapter for EcuFlash. The J2534 probe distinguishes that state from
+The J2534 probe distinguishes states from
 missing or denied USB access.
 
 ## Diagnostic reports
@@ -164,17 +163,15 @@ Setup logs are stored under:
 ~/.local/state/subaru-ecu-tools-linux/
 ```
 
-Press **R** after a problem to create a filtered local report. Nothing is
-uploaded automatically. Review the report before attaching it to a
+Press **R** after a problem to create a filtered local report. Review the report before attaching it to a
 [GitHub issue](https://github.com/Natzirt-BK/subaru-ecu-tools-linux/issues).
 Do not publish the raw setup log without reviewing it.
 
 ## Safety
 
-Cable detection does not prove that an ECU operation is safe. Begin with a
+Begin with a
 supervised read-only connection and logging test, verify the exact ROM and
-definition, maintain a recovery path, and never interrupt a flash. Installer
-tests do not read, write, or flash an ECU.
+definition, maintain a recovery path, and never interrupt a flash.
 
 Advanced commands and implementation details are in the
 [technical reference](LINUX_ECU_TOOLS.md). The installer project is available
