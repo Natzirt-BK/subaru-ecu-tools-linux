@@ -937,9 +937,44 @@ cache_root="${XDG_CACHE_HOME:-$HOME/.cache}/subaru-ecu-tools-linux"
 ecuflash_prefix="${ECUFLASH_WINEPREFIX:-$data_root/ecuflash-proton}"
 default_source_dir="$HOME/.local/src/subaru-ecu-tools-linux"
 romraider_home="$data_root/romraider-dm20"
-obsolete_mut_raider_home="$data_root/romraider-mut2-evo-88780008"
+legacy_evo_logger_home="$data_root/romraider-mut2-evo-88780008"
 bergerraider_home="$data_root/bergerraider-ecu-studio"
 definitions_home="$data_root/subaru-evo-ecu-definitions"
+
+remove_legacy_evo_logger() {
+    local documents_dir legacy_documents legacy_file removed=false
+
+    for legacy_file in \
+        "$bin_dir/launch-romraider-evo-mut2" \
+        "$bin_dir/install-evo-romraider-mut2" \
+        "$applications_dir/romraider-evo-mut2-editor.desktop" \
+        "$applications_dir/romraider-evo-mut2-logger.desktop"; do
+        if [[ -e "$legacy_file" || -L "$legacy_file" ]]; then
+            rm -f -- "$legacy_file"
+            removed=true
+        fi
+    done
+    if [[ -f "$legacy_evo_logger_home/.installed-by-subaru-ecu-tools" ]]; then
+        rm -rf -- "$legacy_evo_logger_home"
+        removed=true
+    fi
+    if command -v xdg-user-dir >/dev/null 2>&1; then
+        documents_dir=$(xdg-user-dir DOCUMENTS 2>/dev/null || true)
+    fi
+    if [[ -z "${documents_dir:-}" || "$documents_dir" == "$HOME" ]]; then
+        documents_dir="$HOME/Documents"
+    fi
+    legacy_documents="$documents_dir/Subaru & Evo ECU Tools/Evo RomRaider MUT-II"
+    [[ -L "$legacy_documents/Definitions" ]] && \
+        rm -f -- "$legacy_documents/Definitions"
+    [[ -L "$legacy_documents/Release Notes.md" ]] && \
+        rm -f -- "$legacy_documents/Release Notes.md"
+    rmdir -- "$legacy_documents" 2>/dev/null && removed=true || true
+    if $removed; then
+        ok "Removed legacy installer-managed Evo logger files."
+    fi
+    return 0
+}
 
 if $clean_install; then
     section "Clean reinstall"
@@ -965,8 +1000,6 @@ if $clean_install; then
         "$bin_dir/launch-ecuflash" \
         "$bin_dir/launch-evoscan" \
         "$bin_dir/launch-romraider" \
-        "$bin_dir/launch-romraider-evo-mut2" \
-        "$bin_dir/install-evo-romraider-mut2" \
         "$bin_dir/launch-bergerraider" \
         "$bin_dir/install-bergerraider" \
         "$bin_dir/sync-openport-device-state" \
@@ -977,8 +1010,6 @@ if $clean_install; then
         "$applications_dir/evoscan.desktop" \
         "$applications_dir/romraider-editor.desktop" \
         "$applications_dir/romraider-logger.desktop" \
-        "$applications_dir/romraider-evo-mut2-editor.desktop" \
-        "$applications_dir/romraider-evo-mut2-logger.desktop" \
         "$applications_dir/bergerraider-editor.desktop" \
         "$applications_dir/bergerraider-logger.desktop" \
         "$applications_dir/subaru-ecu-tools-setup.desktop" \
@@ -988,9 +1019,7 @@ if $clean_install; then
     if [[ -f "$romraider_home/.installed-by-subaru-ecu-tools" ]]; then
         rm -rf -- "$romraider_home"
     fi
-    if [[ -f "$obsolete_mut_raider_home/.installed-by-subaru-ecu-tools" ]]; then
-        rm -rf -- "$obsolete_mut_raider_home"
-    fi
+    remove_legacy_evo_logger
     ok "Old installer-managed application and runtime state removed."
 fi
 
@@ -1117,7 +1146,7 @@ install_managed_user_files() {
         "$data_dir/registry/openport2-device-absent.reg" 0644
     desktop_names=(ecuflash evoscan romraider-editor romraider-logger
         subaru-ecu-tools-setup)
-    remove_obsolete_mut_raider
+    remove_legacy_evo_logger
     if $install_bergerraider || \
        [[ -f "$bergerraider_home/.installed-by-subaru-ecu-tools" ]]; then
         desktop_names+=(bergerraider-editor bergerraider-logger)
@@ -1149,41 +1178,6 @@ install_managed_user_files() {
     ok "Managed-file audit complete: $checked checked, $updated updated, $current already current."
 }
 
-remove_obsolete_mut_raider() {
-    local documents_dir obsolete_documents obsolete_file removed=false
-
-    for obsolete_file in \
-        "$bin_dir/launch-romraider-evo-mut2" \
-        "$bin_dir/install-evo-romraider-mut2" \
-        "$applications_dir/romraider-evo-mut2-editor.desktop" \
-        "$applications_dir/romraider-evo-mut2-logger.desktop"; do
-        if [[ -e "$obsolete_file" || -L "$obsolete_file" ]]; then
-            rm -f -- "$obsolete_file"
-            removed=true
-        fi
-    done
-    if [[ -f "$obsolete_mut_raider_home/.installed-by-subaru-ecu-tools" ]]; then
-        rm -rf -- "$obsolete_mut_raider_home"
-        removed=true
-    fi
-    if command -v xdg-user-dir >/dev/null 2>&1; then
-        documents_dir=$(xdg-user-dir DOCUMENTS 2>/dev/null || true)
-    fi
-    if [[ -z "${documents_dir:-}" || "$documents_dir" == "$HOME" ]]; then
-        documents_dir="$HOME/Documents"
-    fi
-    obsolete_documents="$documents_dir/Subaru & Evo ECU Tools/Evo RomRaider MUT-II"
-    [[ -L "$obsolete_documents/Definitions" ]] && \
-        rm -f -- "$obsolete_documents/Definitions"
-    [[ -L "$obsolete_documents/Release Notes.md" ]] && \
-        rm -f -- "$obsolete_documents/Release Notes.md"
-    rmdir -- "$obsolete_documents" 2>/dev/null && removed=true || true
-    if $removed; then
-        ok "Removed obsolete installer-managed Evo logger files."
-    fi
-    return 0
-}
-
 install_bergerraider_only() {
     local desktop rendered setup_script documents_dir tools_documents
 
@@ -1192,7 +1186,7 @@ install_bergerraider_only() {
     [[ "$distro_family" == debian ]] && setup_script=$repo_root/linux/setup-debian-gui.sh
     install -d "$bin_dir" "$applications_dir" "$desktop_directories_dir" \
         "$menus_dir" "$cache_root"
-    remove_obsolete_mut_raider
+    remove_legacy_evo_logger
     install -m 0755 "$repo_root/linux/launch-bergerraider" \
         "$bin_dir/launch-bergerraider"
     install -m 0755 "$repo_root/linux/install-bergerraider" \
@@ -1449,8 +1443,6 @@ if [[ "$mode" == uninstall ]]; then
         "$bin_dir/launch-ecuflash" \
         "$bin_dir/launch-evoscan" \
         "$bin_dir/launch-romraider" \
-        "$bin_dir/launch-romraider-evo-mut2" \
-        "$bin_dir/install-evo-romraider-mut2" \
         "$bin_dir/launch-bergerraider" \
         "$bin_dir/install-bergerraider" \
         "$bin_dir/sync-openport-device-state" \
@@ -1466,8 +1458,6 @@ if [[ "$mode" == uninstall ]]; then
         "$applications_dir/evoscan.desktop" \
         "$applications_dir/romraider-editor.desktop" \
         "$applications_dir/romraider-logger.desktop" \
-        "$applications_dir/romraider-evo-mut2-editor.desktop" \
-        "$applications_dir/romraider-evo-mut2-logger.desktop" \
         "$applications_dir/bergerraider-editor.desktop" \
         "$applications_dir/bergerraider-logger.desktop" \
         "$applications_dir/subaru-ecu-tools-setup.desktop" \
@@ -1484,9 +1474,9 @@ if [[ "$mode" == uninstall ]]; then
     else
         echo "Separately installed RomRaider DimeMod, ROMs, definitions, logs, and shared packages are preserved."
     fi
-    if [[ -f "$obsolete_mut_raider_home/.installed-by-subaru-ecu-tools" ]]; then
-        printf '  %s\n' "$obsolete_mut_raider_home"
-        echo "The obsolete installer-managed Evo logger fork will also be removed."
+    if [[ -f "$legacy_evo_logger_home/.installed-by-subaru-ecu-tools" ]]; then
+        printf '  %s\n' "$legacy_evo_logger_home"
+        echo "Legacy installer-managed Evo logger files will also be removed."
     fi
     if [[ -f "$bergerraider_home/.installed-by-subaru-ecu-tools" ]]; then
         printf '  %s\n' "$bergerraider_home"
@@ -1504,8 +1494,6 @@ if [[ "$mode" == uninstall ]]; then
         "$bin_dir/launch-ecuflash" \
         "$bin_dir/launch-evoscan" \
         "$bin_dir/launch-romraider" \
-        "$bin_dir/launch-romraider-evo-mut2" \
-        "$bin_dir/install-evo-romraider-mut2" \
         "$bin_dir/launch-bergerraider" \
         "$bin_dir/install-bergerraider" \
         "$bin_dir/sync-openport-device-state" \
@@ -1516,8 +1504,6 @@ if [[ "$mode" == uninstall ]]; then
         "$applications_dir/evoscan.desktop" \
         "$applications_dir/romraider-editor.desktop" \
         "$applications_dir/romraider-logger.desktop" \
-        "$applications_dir/romraider-evo-mut2-editor.desktop" \
-        "$applications_dir/romraider-evo-mut2-logger.desktop" \
         "$applications_dir/bergerraider-editor.desktop" \
         "$applications_dir/bergerraider-logger.desktop" \
         "$applications_dir/subaru-ecu-tools-setup.desktop" \
@@ -1529,9 +1515,7 @@ if [[ "$mode" == uninstall ]]; then
     if [[ -f "$romraider_home/.installed-by-subaru-ecu-tools" ]]; then
         rm -rf -- "$romraider_home"
     fi
-    if [[ -f "$obsolete_mut_raider_home/.installed-by-subaru-ecu-tools" ]]; then
-        rm -rf -- "$obsolete_mut_raider_home"
-    fi
+    remove_legacy_evo_logger
     if [[ -f "$bergerraider_home/.installed-by-subaru-ecu-tools" ]]; then
         rm -rf -- "$bergerraider_home"
     fi
