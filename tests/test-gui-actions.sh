@@ -28,6 +28,10 @@ run_choice() {
 }
 
 run_choice recommended '1y' '--yes-all'
+grep -F 'EcuFlash 1.44 + validated Wine/OpenPort stack.' \
+    "$test_root/recommended.output" >/dev/null
+grep -F 'Verify deps, bridge hashes + live cable access.' \
+    "$test_root/recommended.output" >/dev/null
 run_choice clean '2y' '--clean-install --yes'
 run_choice check '3' '--check'
 run_choice uninstall '4y' '--uninstall --yes'

@@ -94,14 +94,16 @@ menu_line() {
 draw_menu() {
     printf '  %b╭─ SETUP MENU ─────────────────────────────────────────╮%b\n' "$blue$bold" "$reset"
     menu_line '[1] INSTALL / REPAIR                  RECOMMENDED' "$cyan$bold"
-    menu_line '    Install or update all managed components.'
+    menu_line '    EcuFlash 1.44 + validated Wine/OpenPort stack.'
+    menu_line '    RomRaider DimeMod, definitions, USB + launchers.'
+    menu_line '    Verify deps, bridge hashes + live cable access.'
     menu_line '[2] CLEAN REINSTALL' "$cyan$bold"
-    menu_line '    Rebuild managed files and the Wine environment.'
+    menu_line '    Rebuild the managed EcuFlash/RomRaider stack.'
     menu_line '[3] SYSTEM CHECK' "$cyan$bold"
-    menu_line '    Diagnose installation and a connected OpenPort.'
+    menu_line '    Check EcuFlash, J2534, launchers + OpenPort USB.'
     menu_line '[4] UNINSTALL                    [Q] EXIT' "$cyan$bold"
     menu_line '[5] RomRaider2 1.1 RC' "$purple$bold"
-    menu_line '    Install the Java 21 Subaru/Evo release candidate.'
+    menu_line '    Install the separate Java 21 ECU Studio release.'
     printf '  %b╰──────────────────────────────────────────────────────╯%b\n\n' "$blue$bold" "$reset"
     printf '%b  Select an option: %b' "$yellow$bold" "$reset"
 }

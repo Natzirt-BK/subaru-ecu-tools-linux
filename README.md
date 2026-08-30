@@ -44,6 +44,13 @@ by the bundled 32-bit RomRaider Logger and installs dependencies with APT.
 Use **Clean reinstall** when replacing an older or broken setup. Your ROMs,
 definitions, and logs are preserved.
 
+The recommended option installs EcuFlash 1.44.4870 with the validated
+WineGDK/OpenPort J2534 stack, RomRaider DimeMod Editor and Logger, official
+definitions, desktop launchers, USB permissions, and required host packages.
+It verifies dependency state, packaged hashes, Wine bridge registration,
+device-not-connected behavior, and live OpenPort access when the cable is
+available.
+
 ## What gets installed
 
 - EcuFlash 1.44.4870 from Tactrix (Official)
@@ -51,6 +58,13 @@ definitions, and logs are preserved.
 - the official Tactrix OpenPort 2.0 J2534 library
 - the Linux OpenPort Wine bridge and USB permissions
 - RomRaider DimeMod Editor and Logger with official definitions
+
+The large checksum-pinned WineGDK dependency is published separately as the
+[Validated EcuFlash WineGDK 11.1 runtime](https://github.com/Natzirt-BK/subaru-ecu-tools-linux/releases/tag/ecuflash-winegdk-11.1-validated-1).
+The supported Linux installation command downloads that runtime automatically,
+installs distribution packages, builds the tracked OpenPort bridge, downloads
+the official EcuFlash installer from Tactrix, and validates the completed
+stack. Users do not need to assemble those pieces manually.
 
 RomRaider2 1.1 RC adds the shared Subaru/Evo platform, a self-contained Java
 21 x64 runtime, versioned settings, read-only Evo MUT-II support, and offline
@@ -103,7 +117,7 @@ Setup saves its output under:
 ~/.local/state/subaru-ecu-tools-linux/
 ```
 
-On failure, press `Y` to create a diagnostic report. Setup does not upload it or
+On failure, press `R` to create a diagnostic report. Setup does not upload it or
 create a GitHub issue. The report keeps a bounded installer excerpt and basic
 platform information while filtering usernames, hostnames, paths, email and
 network addresses, USB serials, device topology, and URL queries. Review the
@@ -115,10 +129,10 @@ Report problems at:
 
 ## Safety
 
-Cable detection does not necessarily guarantee that an ECU write is safe. Begin with a
-write test, verify the exact ROM ID and definition, keep a
-recovery path, and never interrupt a flash. The installer and its tests never
-read, write, or flash an ECU.
+Cable detection does not guarantee that an ECU write is safe. Begin with a
+read-only connection and logging test, verify the exact ROM ID and definition,
+keep a recovery path, and never interrupt a flash. The installer and its tests
+never read, write, or flash an ECU.
 
 Technical details and advanced commands are in
 [LINUX_ECU_TOOLS.md](LINUX_ECU_TOOLS.md). The project is licensed under the
