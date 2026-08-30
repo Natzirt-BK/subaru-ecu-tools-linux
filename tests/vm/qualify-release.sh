@@ -33,7 +33,7 @@ pass 'public repository cloned'
 section 'Repository tests'
 bash -n bootstrap-cachyos.sh bootstrap-debian.sh linux/*.sh \
     linux/install-romraider2 tests/vm/*.sh
-sh -n linux/launch-ecuflash linux/launch-evoscan linux/launch-romraider \
+sh -n linux/launch-ecuflash linux/launch-romraider \
     linux/launch-romraider2 \
     linux/monitor-openport-state linux/sync-openport-device-state \
     wine-bridge/build-openport-driver.sh tests/*.sh

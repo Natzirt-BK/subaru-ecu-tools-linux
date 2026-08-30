@@ -58,9 +58,9 @@ CSV analysis. Its
 OpenPort 2.0 Subaru SSM/ISO9141 path has completed a sustained in-car logging
 test. The GitHub project and RomRaider2 release are software-only: vehicle
 ROMs, definitions, profiles, logs, and owner-specific tuning material are not
-included. DimeMod remains the Subaru fallback and EvoScan remains the Evo fallback
-until their remaining external-sensor and MUT-II vehicle qualification gates
-pass. Guarded realtime write support is not enabled.
+included. DimeMod remains available as a Subaru compatibility fallback.
+RomRaider2 is the supported Evo logging path; the old EvoScan installer
+integration has been retired. Guarded realtime write support is not enabled.
 
 All applications appear together under **Subaru & Evo ECU Tools** in your
 application menu. On Arch the OpenPort fallback group is `uucp`; on Debian it is
@@ -125,11 +125,6 @@ Cable detection does not necessarily guarantee that an ECU write is safe. Begin 
 write test, verify the exact ROM ID and definition, keep a
 recovery path, and never interrupt a flash. The installer and its tests never
 read, write, or flash an ECU.
-
-EvoScan support is available only through the advanced command line with a
-purchaser-supplied installer. It is not part of the recommended setup, and
-Linux vehicle communication remains unvalidated because no reliable hardware
-qualification result is available.
 
 Technical details and advanced commands are in
 [LINUX_ECU_TOOLS.md](LINUX_ECU_TOOLS.md). The project is licensed under the

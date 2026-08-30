@@ -144,7 +144,8 @@ grep -F -- '--progress-bar' "$repo_root/linux/install-romraider-definitions" >/d
 ! grep -F 'echo "  Launchers: $bin_dir"' "$engine" >/dev/null
 grep -Fx 'Name=Setup' "$repo_root/linux/subaru-ecu-tools-setup.desktop" >/dev/null
 grep -Fx 'Name=EcuFlash' "$repo_root/linux/ecuflash.desktop" >/dev/null
-grep -Fx 'Name=EvoScan' "$repo_root/linux/evoscan.desktop" >/dev/null
+[ ! -e "$repo_root/linux/evoscan.desktop" ]
+[ ! -e "$repo_root/linux/launch-evoscan" ]
 grep -Fx 'Name=RomRaider2 Logger' \
     "$repo_root/linux/romraider2-logger.desktop" >/dev/null
 grep -Fx 'Name=RomRaider2 Editor' \
@@ -210,8 +211,8 @@ grep -F 'ECUFLASH_TEST_STOP_MARKER="$post_probe_marker"' "$engine" >/dev/null
 grep -F 'ECUFLASH_LOG_NOT_OLDER_THAN' "$repo_root/tests/vm/verify-installed.sh" >/dev/null
 grep -F '"$data_dir/winedll/i386-windows/op20pt32.dll"' "$engine" >/dev/null
 grep -F -- '-print 2>/dev/null | sed -n' "$engine" >/dev/null
-grep -F 'evoscan_wine="${EVOSCAN_WINE:-$ecuflash_runtime_dir/files/bin/wine}"' \
-    "$engine" >/dev/null
+! grep -F -- '--evoscan-installer' "$engine" >/dev/null
+grep -F 'remove_retired_evoscan_files' "$engine" >/dev/null
 ! grep -F '$wine_runtime_dir/bin/wine' "$engine" >/dev/null
 grep -F 'stop_wine_prefix "$update_wine" "$ecuflash_prefix" "$update_refresh_log"' \
     "$engine" >/dev/null

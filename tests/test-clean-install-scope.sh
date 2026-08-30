@@ -15,13 +15,17 @@ mkdir -p \
     "$test_root/cache/subaru-ecu-tools-linux" \
     "$test_root/state/subaru-ecu-tools-linux" \
     "$test_root/home/Documents/Subaru & Evo ECU Tools/Evo RomRaider MUT-II" \
+    "$test_root/home/Documents/Subaru & Evo ECU Tools/EvoScan" \
     "$test_root/home/ROMs"
 touch \
     "$test_root/bin/launch-ecuflash" \
+    "$test_root/bin/launch-evoscan" \
     "$test_root/bin/launch-romraider-evo-mut2" \
     "$test_root/bin/install-evo-romraider-mut2" \
     "$test_root/data/applications/romraider-evo-mut2-editor.desktop" \
     "$test_root/data/applications/romraider-evo-mut2-logger.desktop" \
+    "$test_root/data/applications/evoscan.desktop" \
+    "$test_root/data/subaru-ecu-tools-linux/evoscan-exe.path" \
     "$test_root/data/subaru-ecu-tools-linux/runtime/stale" \
     "$test_root/data/ecuflash-proton/stale-registry" \
     "$test_root/data/romraider-dm20/separately-installed" \
@@ -33,6 +37,8 @@ ln -s "$test_root/data/romraider-mut2-evo-88780008" \
     "$test_root/home/Documents/Subaru & Evo ECU Tools/Evo RomRaider MUT-II/Definitions"
 ln -s "$test_root/data/romraider-mut2-evo-88780008/RELEASE_NOTES.md" \
     "$test_root/home/Documents/Subaru & Evo ECU Tools/Evo RomRaider MUT-II/Release Notes.md"
+ln -s "$test_root/data/ecuflash-proton/drive_c/EvoScan.exe" \
+    "$test_root/home/Documents/Subaru & Evo ECU Tools/EvoScan/Installed Program"
 printf '%s\n' 'ID=arch' 'PRETTY_NAME="Test Arch"' >"$test_root/os-release"
 
 cat >"$test_root/bin/pacman" <<'EOF'
@@ -63,13 +69,16 @@ set -e
 [ ! -e "$test_root/data/subaru-ecu-tools-linux" ]
 [ ! -e "$test_root/data/ecuflash-proton" ]
 [ ! -e "$test_root/bin/launch-ecuflash" ]
+[ ! -e "$test_root/bin/launch-evoscan" ]
 [ ! -e "$test_root/bin/launch-romraider-evo-mut2" ]
 [ ! -e "$test_root/bin/install-evo-romraider-mut2" ]
 [ ! -e "$test_root/data/applications/romraider-evo-mut2-editor.desktop" ]
 [ ! -e "$test_root/data/applications/romraider-evo-mut2-logger.desktop" ]
+[ ! -e "$test_root/data/applications/evoscan.desktop" ]
 [ -e "$test_root/data/romraider-dm20/separately-installed" ]
 [ ! -e "$test_root/data/romraider-mut2-evo-88780008" ]
 [ ! -e "$test_root/home/Documents/Subaru & Evo ECU Tools/Evo RomRaider MUT-II" ]
+[ ! -e "$test_root/home/Documents/Subaru & Evo ECU Tools/EvoScan" ]
 [ -e "$test_root/data/subaru-evo-ecu-definitions/user-definition.xml" ]
 [ -e "$test_root/state/subaru-ecu-tools-linux/existing.log" ]
 [ -e "$test_root/home/ROMs/user-rom.bin" ]

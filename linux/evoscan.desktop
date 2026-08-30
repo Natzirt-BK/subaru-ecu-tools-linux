@@ -1,9 +1,0 @@
-[Desktop Entry]
-Type=Application
-Name=EvoScan
-Comment=Launch purchaser-installed EvoScan with experimental Linux support
-Exec=@BINDIR@/launch-evoscan
-Icon=applications-engineering
-Terminal=false
-Categories=X-Subaru-Evo-ECU-Tools;
-StartupNotify=true

@@ -35,8 +35,8 @@ On Debian, use `./linux/install-debian.sh`, `./linux/setup-debian-gui.sh`, and
 `./linux/update-debian.sh`. Both distro entry points use the same installation
 engine, while the explicit Debian names make manual maintenance unambiguous.
 
-Run `./linux/install-cachyos.sh --help` for advanced component, definition,
-RomRaider2, and EvoScan flags. The bootstrap checkout lives at
+Run `./linux/install-cachyos.sh --help` for advanced component, definition, and
+RomRaider2 flags. The bootstrap checkout lives at
 `~/.local/src/subaru-ecu-tools-linux` by default.
 
 ## Managed locations
@@ -113,18 +113,6 @@ with:
 
 It uses its own application directory and settings file and does not replace
 RomRaider DimeMod. Realtime ECU writes are not enabled.
-
-## EvoScan
-
-EvoScan is paid software and is never redistributed. Advanced setup can install
-a purchaser-supplied EXE or MSI:
-
-```bash
-./linux/install-cachyos.sh --evoscan-installer /path/to/installer.exe
-```
-
-Startup support is experimental. Vehicle communication on Linux is not
-validated.
 
 ## Diagnostics
 

@@ -8,7 +8,6 @@ install_udev=false
 install_ecuflash=false
 install_romraider=false
 install_romraider2=false
-install_evoscan=false
 install_definitions=false
 definition_source=official
 definition_units=metric
@@ -18,18 +17,12 @@ vehicle_year=
 vehicle_model=
 custom_editor_definition=
 custom_logger_definition=
-evoscan_installer=${EVOSCAN_INSTALLER:-}
 assume_yes=false
 clean_install=false
 setup_interactive=false
 if [[ -t 0 || -t 1 || -t 2 ]]; then
     setup_interactive=true
 fi
-if [[ -n "$evoscan_installer" ]]; then
-    install_evoscan=true
-    install_ecuflash=true
-fi
-
 os_release_file=${ECU_TOOLS_OS_RELEASE:-/etc/os-release}
 if [[ ! -r "$os_release_file" ]]; then
     echo "Cannot identify this Linux distribution: $os_release_file" >&2
@@ -656,7 +649,6 @@ usage() {
   --vehicle-make/--vehicle-year/--vehicle-model VALUE  Record vehicle guidance
   --custom-editor-definition FILE  Import an experimental Editor XML
   --custom-logger-definition FILE  Import an experimental Logger XML
-  --evoscan-installer FILE  Install a purchaser-supplied EvoScan EXE or MSI (experimental)
   --yes-all        Select all recommended installation components
   --clean-install  Remove installer-managed app/runtime state, then install recommended tools
   --uninstall      Remove files installed by Subaru & Evo ECU Tools
@@ -695,13 +687,6 @@ while (($#)); do
         --custom-logger-definition)
             shift; custom_logger_definition=${1:?--custom-logger-definition requires a file}
             install_definitions=true; install_romraider=true
-            ;;
-        --evoscan-installer)
-            shift
-            (($#)) || { echo "--evoscan-installer requires a file path." >&2; exit 2; }
-            evoscan_installer=$1
-            install_evoscan=true
-            install_ecuflash=true
             ;;
         --yes-all) install_deps=true; install_udev=true; install_ecuflash=true; install_romraider=true; install_definitions=true ;;
         --clean-install)
@@ -953,6 +938,36 @@ remove_retired_romraider2_names() {
     done
 }
 
+remove_retired_evoscan_files() {
+    local documents_dir evoscan_documents retired removed=false
+
+    for retired in \
+        "$bin_dir/launch-evoscan" \
+        "$applications_dir/evoscan.desktop" \
+        "$data_dir/evoscan-exe.path"; do
+        if [[ -e "$retired" || -L "$retired" ]]; then
+            rm -f -- "$retired"
+            removed=true
+        fi
+    done
+    if command -v xdg-user-dir >/dev/null 2>&1; then
+        documents_dir=$(xdg-user-dir DOCUMENTS 2>/dev/null || true)
+    fi
+    if [[ -z "${documents_dir:-}" || "$documents_dir" == "$HOME" ]]; then
+        documents_dir="$HOME/Documents"
+    fi
+    evoscan_documents="$documents_dir/Subaru & Evo ECU Tools/EvoScan"
+    [[ -L "$evoscan_documents/Installed Program" ]] && {
+        rm -f -- "$evoscan_documents/Installed Program"
+        removed=true
+    }
+    rmdir -- "$evoscan_documents" 2>/dev/null && removed=true || true
+    if $removed; then
+        ok "Removed retired installer-managed EvoScan files."
+    fi
+    return 0
+}
+
 remove_legacy_evo_logger() {
     local documents_dir legacy_documents legacy_file removed=false
 
@@ -990,7 +1005,7 @@ remove_legacy_evo_logger() {
 
 if $clean_install; then
     section "Clean reinstall"
-    warn "This removes the installer-managed EcuFlash/EvoScan prefix, Wine runtime, bridge, launchers, cache, and recommended RomRaider package."
+    warn "This removes the installer-managed EcuFlash prefix, Wine runtime, bridge, launchers, cache, and recommended RomRaider package."
     echo "ROMs, definitions, logs, separately installed software, and optional application packages are preserved."
     if ! $assume_yes; then
         read_yes_no "Continue with the clean reinstall?" no || {
@@ -1033,11 +1048,12 @@ if $clean_install; then
         rm -rf -- "$romraider_home"
     fi
     remove_legacy_evo_logger
+    remove_retired_evoscan_files
     ok "Old installer-managed application and runtime state removed."
 fi
 
 create_documents_shortcuts() {
-    local documents_dir tools_documents link target documents_evoscan_exe=
+    local documents_dir tools_documents link target
     local active_editor_definition= active_logger_definition= documents_line
 
     if command -v xdg-user-dir >/dev/null 2>&1; then
@@ -1054,15 +1070,11 @@ create_documents_shortcuts() {
         "$tools_documents/RomRaider Editor" \
         "$tools_documents/RomRaider Logger" \
         "$tools_documents/EcuFlash" \
-        "$tools_documents/EvoScan" \
         "$tools_documents/Diagnostic Logs"
     if [[ -f "$romraider2_home/.installed-by-subaru-ecu-tools" ]]; then
         install -d "$tools_documents/RomRaider2"
     fi
 
-    if [[ -f "$data_dir/evoscan-exe.path" ]]; then
-        IFS= read -r documents_evoscan_exe <"$data_dir/evoscan-exe.path" || true
-    fi
     if [[ -f "$data_dir/definitions-active.conf" ]]; then
         while IFS= read -r documents_line; do
             case "$documents_line" in
@@ -1099,8 +1111,6 @@ create_documents_shortcuts() {
         "$romraider2_home/RELEASE_NOTES.txt"
     add_documents_link "$tools_documents/EcuFlash/Definitions" \
         "$ecuflash_prefix/drive_c/Program Files (x86)/OpenECU/EcuFlash/rommetadata"
-    add_documents_link "$tools_documents/EvoScan/Installed Program" \
-        "${documents_evoscan_exe:-/path/that/does/not/exist}"
     add_documents_link "$tools_documents/Diagnostic Logs/Setup Logs" "$state_dir"
     add_documents_link "$tools_documents/Diagnostic Logs/RomRaider Logs" "$HOME/.RomRaider"
     printf '%s\n' \
@@ -1141,7 +1151,7 @@ install_managed_user_files() {
         fi
     }
 
-    for source in launch-ecuflash launch-evoscan launch-romraider \
+    for source in launch-ecuflash launch-romraider \
         launch-romraider2 install-romraider2 \
         sync-openport-device-state monitor-openport-state \
         configure-romraider-definitions install-romraider-definitions; do
@@ -1157,10 +1167,11 @@ install_managed_user_files() {
         "$data_dir/registry/openport2-device-present.reg" 0644
     update_managed_file "$repo_root/wine-bridge/openport2-device-absent.reg" \
         "$data_dir/registry/openport2-device-absent.reg" 0644
-    desktop_names=(ecuflash evoscan romraider-editor romraider-logger
+    desktop_names=(ecuflash romraider-editor romraider-logger
         subaru-ecu-tools-setup)
     remove_legacy_evo_logger
     remove_retired_romraider2_names
+    remove_retired_evoscan_files
     if $install_romraider2 || \
        [[ -f "$romraider2_home/.installed-by-subaru-ecu-tools" ]]; then
         desktop_names+=(romraider2-editor romraider2-logger)
@@ -1552,17 +1563,6 @@ if [[ "$mode" == uninstall ]]; then
     exit 0
 fi
 
-if $install_evoscan; then
-    [[ -f "$evoscan_installer" ]] || {
-        fail "The selected EvoScan installer does not exist: $evoscan_installer"
-        exit 1
-    }
-    file --brief "$evoscan_installer" | grep -Eq 'PE32|MSI|Microsoft|Composite Document' || {
-        fail "The selected file is not a Windows EXE/MSI installer: $evoscan_installer"
-        exit 1
-    }
-fi
-
 if [[ "$distro_family" == unsupported ]]; then
     fail "Supported hosts are CachyOS/Arch and Debian-family amd64; detected $distro_label."
     exit 1
@@ -1574,7 +1574,8 @@ fi
 
 if $install_romraider2 && ! $install_deps && ! $install_udev && \
    ! $install_ecuflash && ! $install_romraider && \
-   ! $install_evoscan && ! $install_definitions && ! $clean_install; then
+   ! $install_definitions && ! $clean_install; then
+    remove_retired_evoscan_files
     install_romraider2_only
     exit 0
 fi
@@ -1654,13 +1655,9 @@ command -v cc >/dev/null || { echo "MISSING: C compiler"; checks_failed=1; }
 if [[ "$mode" == check ]]; then
     check_data_root="${XDG_DATA_HOME:-$HOME/.local/share}"
     check_ecuflash="$check_data_root/ecuflash-proton/drive_c/Program Files (x86)/OpenECU/EcuFlash/ecuflash.exe"
-    check_evoscan=$(find "$check_data_root/ecuflash-proton/drive_c" -type f \
-        -iname 'EvoScan*.exe' ! -iname '*setup*' ! -iname '*unins*' -print -quit 2>/dev/null || true)
     check_romraider="$check_data_root/romraider-dm20"
     [[ -f "$check_ecuflash" ]] && ok "EcuFlash installed" || \
         warn "NOT INSTALLED: EcuFlash"
-    [[ -n "$check_evoscan" ]] && ok "EvoScan installed (experimental Linux support)" || \
-        warn "NOT INSTALLED: EvoScan (optional, purchaser-supplied installer required)"
     if [[ -f "$check_romraider/RomRaider.jar" && -x "$check_romraider/jre32/bin/java" ]]; then
         ok "RomRaider DimeMod with bundled 32-bit Java detected"
     else
@@ -2074,59 +2071,6 @@ if $install_ecuflash; then
     fi
 fi
 
-if $install_evoscan; then
-    section "Installing EvoScan (experimental Linux support)"
-    evoscan_wine="${EVOSCAN_WINE:-$ecuflash_runtime_dir/files/bin/wine}"
-    evoscan_install_log="$cache_root/evoscan-installer.log"
-    step "Opening the purchaser-supplied EvoScan installer"
-    set +e
-    if [[ "${evoscan_installer,,}" == *.msi ]]; then
-        WINEPREFIX="$ecuflash_prefix" WINEDEBUG=-all \
-            WINEDLLOVERRIDES="winemenubuilder.exe=d" \
-            "$evoscan_wine" msiexec /i "$evoscan_installer" \
-            >"$evoscan_install_log" 2>&1
-    else
-        WINEPREFIX="$ecuflash_prefix" WINEDEBUG=-all \
-            WINEDLLOVERRIDES="winemenubuilder.exe=d" \
-            "$evoscan_wine" "$evoscan_installer" >"$evoscan_install_log" 2>&1
-    fi
-    evoscan_install_status=$?
-    set -e
-    if [[ $evoscan_install_status -ne 0 ]]; then
-        fail "The EvoScan installer exited with status $evoscan_install_status."
-        echo "Diagnostic log: $evoscan_install_log" >&2
-        exit 1
-    fi
-
-    evoscan_exe=$(find "$ecuflash_prefix/drive_c" -type f \
-        -iname 'EvoScan*.exe' ! -iname '*setup*' ! -iname '*unins*' \
-        -printf '%p\n' 2>/dev/null | sort -Vr | sed -n '1p')
-    if [[ -z "$evoscan_exe" ]]; then
-        fail "EvoScan installation finished, but no EvoScan executable was found."
-        echo "Diagnostic log: $evoscan_install_log" >&2
-        exit 1
-    fi
-    printf '%s\n' "$evoscan_exe" >"$data_dir/evoscan-exe.path"
-
-    step "Testing EvoScan startup for 15 seconds; complete activation if prompted"
-    evoscan_smoke_log="$cache_root/evoscan-startup.log"
-    set +e
-    (
-        cd "$(dirname -- "$evoscan_exe")" || exit 1
-        timeout 15s env WINEPREFIX="$ecuflash_prefix" \
-            WINEDLLPATH="$data_dir/winedll" WINEDEBUG=-all \
-            "$evoscan_wine" "$evoscan_exe"
-    ) >"$evoscan_smoke_log" 2>&1
-    evoscan_smoke_status=$?
-    set -e
-    if [[ $evoscan_smoke_status -ne 124 ]]; then
-        fail "EvoScan failed its experimental startup test (status $evoscan_smoke_status)."
-        echo "Diagnostic log: $evoscan_smoke_log" >&2
-        exit 1
-    fi
-    ok "EvoScan remained running for the complete experimental startup test."
-fi
-
 create_documents_shortcuts
 completion_banner
 installed_apps=()
@@ -2137,7 +2081,6 @@ installed_apps=()
 [[ -f "$romraider2_home/lib/app/RomRaider2.jar" || \
    -f "$romraider2_home/app/RomRaider2-32.jar" ]] && \
     installed_apps+=("RomRaider2 Editor" "RomRaider2 Logger")
-[[ -f "$data_dir/evoscan-exe.path" ]] && installed_apps+=(EvoScan)
 if ((${#installed_apps[@]})); then
     printf -v installed_apps_text '%s, ' "${installed_apps[@]}"
     summary_row "Applications" "${installed_apps_text%, }"
@@ -2151,9 +2094,6 @@ if ! $install_udev; then
 fi
 if [[ ":$PATH:" != *":$bin_dir:"* ]]; then
     warn "Add $bin_dir to PATH only when launching tools from a terminal."
-fi
-if [[ -f "$data_dir/evoscan-exe.path" ]]; then
-    warn "EvoScan Linux support remains experimental."
 fi
 printf '\n'
 ok "Open applications from the Subaru & Evo ECU Tools menu."
