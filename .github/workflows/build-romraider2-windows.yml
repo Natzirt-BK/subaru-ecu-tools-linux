@@ -14,7 +14,8 @@ permissions:
 
 env:
   SOURCE_ARCHIVE: RomRaider2_ECU_Studio_1.1.0_Source.tar.gz
-  SOURCE_SHA256: fc7920684632a16cd274a3b67e48000f1581ca31a93e2eaa348f04f65530796d
+  SOURCE_SHA256: cf16f730a4cd453057acbbdbac8f26985413390b2ef23a030225be82f4e4f7b4
+  ROMRAIDER2_SOURCE_REVISION: 49598c8c49694f2077689edc69048e6a9c54a35b
   SOURCE_URL: https://github.com/Natzirt-BK/subaru-ecu-tools-linux/releases/download/romraider2-1.1.0-rc1/RomRaider2_ECU_Studio_1.1.0_Source.tar.gz
 
 jobs:
@@ -84,9 +85,21 @@ jobs:
           ant clean build-windows
           ./packaging/java21/build-windows-app-image.ps1
           ./packaging/java21/build-windows-release.ps1
+          $releaseRoot = "build/releases-windows/RomRaider2_ECU_Studio_1.1.0_Windows_x64"
+          $archive = "$releaseRoot.zip"
+          $archiveHash = "$archive.sha256"
+          $version = Get-Content -LiteralPath "$releaseRoot/VERSION.txt" -Raw
+          if ($version -notmatch [regex]::Escape("Source commit: $env:ROMRAIDER2_SOURCE_REVISION")) {
+            throw "Windows release provenance does not match the authenticated source revision."
+          }
+          $expectedArchiveHash = ((Get-Content -LiteralPath $archiveHash -Raw).Trim() -split '\s+')[0]
+          $actualArchiveHash = (Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($actualArchiveHash -ne $expectedArchiveHash) {
+            throw "Windows release ZIP checksum mismatch."
+          }
           New-Item -ItemType Directory -Force -Path ../dist | Out-Null
-          Copy-Item -LiteralPath build/releases-windows/RomRaider2_ECU_Studio_1.1.0_Windows_x64.zip -Destination ../dist
-          Copy-Item -LiteralPath build/releases-windows/RomRaider2_ECU_Studio_1.1.0_Windows_x64.zip.sha256 -Destination ../dist
+          Copy-Item -LiteralPath $archive -Destination ../dist
+          Copy-Item -LiteralPath $archiveHash -Destination ../dist
       - name: Upload workflow artifact
         uses: actions/upload-artifact@v4
         with:
