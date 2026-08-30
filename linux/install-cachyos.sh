@@ -98,8 +98,8 @@ installer_banner() {
     [[ "${SUBARU_SETUP_MUSIC_PID:-}" =~ ^[0-9]+$ ]] && \
         audio_label='AUDIO :: [M] MUTE'
     printf '\n%b╔%s╗%b\n' "$color_purple$color_bold" "$ui_rule" "$color_reset"
-    ui_box_line "$color_cyan$color_bold" 'ECU TOOLS // LINUX'
-    ui_box_line "$color_green$color_bold" 'SECURE SETUP CONSOLE              [ ECU I/O :: LOCKED ]'
+    ui_box_line "$color_cyan$color_bold" 'Ecu Tools by NatZirt // Linux'
+    ui_box_line "$color_green$color_bold" 'SUBARU + LANCER EVOLUTION ECU SOFTWARE'
     printf '%b╠%s╣%b\n' "$color_purple$color_bold" "$ui_rule" "$color_reset"
     ui_box_line "$color_blue$color_bold" \
         "MODE :: $mode_label     $audio_label     DIAGNOSTICS :: ACTIVE"
@@ -114,7 +114,7 @@ section() {
     ((ui_stage+=1))
     printf '%b╠%s╣%b\n' "$color_purple$color_bold" "$ui_rule" "$color_reset"
     ui_box_line "$color_cyan$color_bold" \
-        "NODE $(printf '%02d' "$ui_stage") // ${*^^}"
+        "STEP $(printf '%02d' "$ui_stage") // ${*^^}"
     printf '%b╟%s╢%b\n' "$color_purple" "${ui_rule//═/─}" "$color_reset"
 }
 step() { ui_box_line "$color_blue" "[ RUN  ] $*"; }
@@ -125,7 +125,7 @@ summary_row() { ui_box_line "$color_cyan" "[ DATA ] $1 :: $2"; }
 completion_banner() {
     printf '%b╠%s╣%b\n' "$color_green$color_bold" "$ui_rule" "$color_reset"
     ui_box_line "$color_green$color_bold" \
-        'ACCESS GRANTED // SETUP COMPLETE // ALL REQUESTED TASKS FINISHED'
+        'SETUP COMPLETE // ALL REQUESTED TASKS FINISHED'
 }
 
 if [[ "${ECU_TOOLS_UI_SELF_TEST:-0}" == 1 ]]; then
@@ -449,7 +449,7 @@ usage() {
   --custom-logger-definition FILE  Import an experimental Logger XML
   --yes-all        Select all recommended installation components
   --clean-install  Remove installer-managed app/runtime state, then install recommended tools
-  --uninstall      Remove files installed by Subaru & Evo ECU Tools
+  --uninstall      Remove files installed by Ecu Tools by NatZirt
   --yes            Do not prompt before --clean-install or --uninstall
   -h, --help       Show this help
 
@@ -533,7 +533,7 @@ offer_error_report() {
     printf '%s\n' "$user_description" | \
         "$repo_root/linux/redact-diagnostics" >"$description_file"
     {
-        echo 'ECU Tools setup report'
+        echo 'Ecu Tools by NatZirt setup report'
         echo 'Personal data is filtered; this file was not uploaded.'
         echo
         if [[ -s "$description_file" ]]; then
@@ -652,7 +652,7 @@ log_result() {
     trap - EXIT
     if ((status)); then
         echo
-        fail "ECU Tools stopped with status $status."
+        fail "Ecu Tools by NatZirt stopped with status $status."
         summary_row "Raw log" "${log_file##*/}"
         offer_error_report
         wait_for_y_to_close
@@ -824,7 +824,7 @@ create_documents_shortcuts() {
     if [[ -z "${documents_dir:-}" || "$documents_dir" == "$HOME" ]]; then
         documents_dir="$HOME/Documents"
     fi
-    tools_documents="$documents_dir/Subaru & Evo ECU Tools"
+    tools_documents="$documents_dir/Ecu Tools by NatZirt"
     install -d \
         "$definitions_home/editor" \
         "$definitions_home/logger" \
@@ -876,7 +876,7 @@ create_documents_shortcuts() {
     add_documents_link "$tools_documents/Diagnostic Logs/Setup Logs" "$state_dir"
     add_documents_link "$tools_documents/Diagnostic Logs/RomRaider Logs" "$HOME/.RomRaider"
     printf '%s\n' \
-        'These folders are shortcuts to the files used by Subaru & Evo ECU Tools.' \
+        'These folders are shortcuts to files used by Ecu Tools by NatZirt.' \
         'Changes made through these shortcuts affect the real definitions and logs.' \
         'RomRaider normally configures definition paths automatically.' \
         'Do not select a definition by model year alone; verify the exact ROM ID.' \
@@ -961,7 +961,7 @@ install_managed_user_files() {
         "$tools_menu_file" 0644
     command -v update-desktop-database >/dev/null && \
         update-desktop-database "$applications_dir" >/dev/null 2>&1 || true
-    ok "Application menu folder: ECU Tools"
+    ok "Application menu folder: Ecu Tools by NatZirt"
     ok "Managed-file audit complete: $checked checked, $updated updated, $current already current."
 }
 
@@ -1008,14 +1008,14 @@ install_romraider2_only() {
     if [[ -z "${documents_dir:-}" || "$documents_dir" == "$HOME" ]]; then
         documents_dir="$HOME/Documents"
     fi
-    tools_documents="$documents_dir/Subaru & Evo ECU Tools/RomRaider2"
+    tools_documents="$documents_dir/Ecu Tools by NatZirt/RomRaider2"
     install -d "$tools_documents"
     ln -sfn -- "$romraider2_home/RELEASE_NOTES.txt" \
         "$tools_documents/Release Notes.txt"
     ok "Easy-access RomRaider2 folder: $tools_documents"
 
     summary_row "Applications" "RomRaider2 Editor, RomRaider2 Logger"
-    summary_row "App menu" "ECU Tools"
+    summary_row "App menu" "Ecu Tools by NatZirt"
     summary_row "Launchers" "$bin_dir"
 }
 
@@ -1225,7 +1225,7 @@ if [[ "$mode" == update ]]; then
 fi
 
 if [[ "$mode" == uninstall ]]; then
-    section "Remove ECU Tools"
+    section "Remove Ecu Tools by NatZirt"
     warn "The following project-managed files will be removed:"
     printf '  %s\n' \
         "$bin_dir/launch-ecuflash" \
@@ -1273,7 +1273,7 @@ if [[ "$mode" == uninstall ]]; then
     fi
 
     if ! $assume_yes; then
-        read_yes_no "Remove these ECU Tools files?" no || {
+        read_yes_no "Remove these Ecu Tools by NatZirt files?" no || {
             echo "Uninstall cancelled."
             exit 0
         }
@@ -1319,7 +1319,7 @@ if [[ "$mode" == uninstall ]]; then
     if [[ "$repo_root" == "$default_source_dir" ]]; then
         rm -rf -- "$default_source_dir"
     fi
-    ok "ECU Tools removal completed."
+    ok "Ecu Tools by NatZirt removal completed."
     echo "The final removal log is outside the installed paths: $log_file"
     exit 0
 fi
@@ -1854,7 +1854,7 @@ if ((${#installed_apps[@]})); then
     printf -v installed_apps_text '%s, ' "${installed_apps[@]}"
     summary_row "Applications" "${installed_apps_text%, }"
 fi
-summary_row "App menu" "ECU Tools"
+summary_row "App menu" "Ecu Tools by NatZirt"
 summary_row "Launchers" "$bin_dir"
 summary_row "Wine bridge" "$data_dir/winedll"
 summary_row "Desktop files" "$applications_dir"
@@ -1865,5 +1865,5 @@ if [[ ":$PATH:" != *":$bin_dir:"* ]]; then
     warn "Add $bin_dir to PATH only when launching tools from a terminal."
 fi
 printf '\n'
-ok "Open applications from the ECU Tools menu."
+ok "Open applications from the Ecu Tools by NatZirt menu."
 step "Begin with cable discovery and a supervised read-only ECU test."

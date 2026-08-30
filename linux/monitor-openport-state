@@ -42,7 +42,7 @@ while sleep "$OPENPORT_POLL_SECONDS"; do
             else
                 message='OpenPort disconnected. EcuFlash Task Info does not refresh live; do not begin or continue an ECU operation.'
             fi
-            notify-send --app-name='ECU Tools' \
+            notify-send --app-name='Ecu Tools by NatZirt' \
                 --urgency=normal --expire-time=10000 'EcuFlash OpenPort status' \
                 "$message" >/dev/null 2>&1 || true
         fi

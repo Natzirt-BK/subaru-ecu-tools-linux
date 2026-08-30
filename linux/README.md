@@ -1,4 +1,4 @@
-# Linux installer files
+# Ecu Tools by NatZirt installer files
 
 - `setup-cachyos-gui.sh` — terminal setup menu; the historical filename keeps
   existing shortcuts working

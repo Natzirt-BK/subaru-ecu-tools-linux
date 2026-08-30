@@ -82,7 +82,7 @@ if [ "$openport_access_state" = inaccessible ] && \
         }
         exit 0
     fi
-    report_error "The connected OpenPort is not readable/writable. Desktop uaccess did not grant access and your account is not in the $openport_group fallback group. Open Setup from the ECU Tools menu, select OpenPort USB permissions, then reconnect it."
+    report_error "The connected OpenPort is not readable/writable. Desktop uaccess did not grant access and your account is not in the $openport_group fallback group. Open Ecu Tools Setup, select OpenPort USB permissions, then reconnect it."
     exit 1
 fi
 if [ "$openport_access_state" = inaccessible ]; then
@@ -97,7 +97,7 @@ if ! command -v "$ECUFLASH_WINE" >/dev/null 2>&1 && [ ! -x "$ECUFLASH_WINE" ]; t
 fi
 if [ ! -f "$ECUFLASH_DIR/ecuflash.exe" ]; then
     echo "EcuFlash is not installed in $ECUFLASH_DIR" >&2
-    echo "Open Setup from the ECU Tools menu and select EcuFlash." >&2
+    echo "Open Ecu Tools Setup and select EcuFlash." >&2
     exit 1
 fi
 
@@ -118,7 +118,7 @@ launch_log="$state_dir/ecuflash-launch.log"
 launch_lock="$state_dir/ecuflash-launch.lock"
 wine_server="$(dirname -- "$ECUFLASH_WINE")/wineserver"
 if [ ! -f "$bridge_windows" ] || [ ! -f "$bridge_unix" ]; then
-    report_error "The OpenPort Wine bridge is missing. Run Setup from the ECU Tools menu."
+    report_error "The OpenPort Wine bridge is missing. Run Ecu Tools Setup."
     exit 1
 fi
 if ! printf '%s  %s\n' "$bridge_j2534_vendor_sha256" "$bridge_j2534_vendor" | sha256sum -c - >/dev/null 2>&1; then
@@ -131,11 +131,11 @@ if [ ! -f "$bridge_registry/openport-driver-wine.reg" ] || \
    [ ! -f "$bridge_registry/openport2-device-absent.reg" ] || \
    [ ! -x "$bridge_state_sync" ] || \
    [ ! -x "$bridge_state_monitor" ]; then
-    report_error "The OpenPort Wine registry files are missing. Open Setup from the ECU Tools menu and update first."
+    report_error "The OpenPort Wine registry files are missing. Open Ecu Tools Setup and update first."
     exit 1
 fi
 if [ ! -x "$bridge_device_probe" ]; then
-    report_error "The OpenPort service probe is missing. Open Setup from the ECU Tools menu and update first."
+    report_error "The OpenPort service probe is missing. Open Ecu Tools Setup and update first."
     exit 1
 fi
 bridge_fingerprint=$(sha256sum \

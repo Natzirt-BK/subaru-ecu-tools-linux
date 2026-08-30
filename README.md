@@ -1,139 +1,176 @@
-# ECU Tools for Linux
+# Ecu Tools by NatZirt
 
-This enables EcuFlash and RomRaider on CachyOS, Arch Linux, and Debian 13
-(amd64) with a Tactrix OpenPort 2.0. The installer configures the host,
-checksum-pinned runtime, Wine bridge, launchers, and definitions.
+Ecu Tools by NatZirt brings Subaru and Mitsubishi Lancer Evolution ECU editing,
+logging, and diagnostic software to Linux through one supported setup. It
+installs the applications, compatibility runtime, OpenPort 2.0 support,
+definitions, USB permissions, and desktop launchers that users would otherwise
+have to assemble manually.
 
-Set up by **Tristan Bukenberger**.
+The project also distributes **RomRaider2**, a much-needed modernization of
+RomRaider that preserves useful work from the DimeMod fork while adding a new
+interface, current runtime, safer diagnostics, improved logging, and Lancer
+Evolution VIII/IX support.
 
-## Install
+Maintained by **NatZirt (Tristan Bukenberger)**. This is an independent community
+project and is not affiliated with Tactrix, Subaru, Mitsubishi, or the official
+RomRaider project.
 
-On CachyOS or Arch Linux, paste this into a terminal:
+## Downloads and installation
+
+Windows 10/11 x64 users can download the self-contained RomRaider2 portable ZIP
+from the [current release page](https://github.com/Natzirt-BK/subaru-ecu-tools-linux/releases/tag/romraider2-1.1.0-rc1).
+Java 21 is included; extract the ZIP and launch `RomRaider2.exe` or
+`RomRaider2 Logger.exe`.
+
+On CachyOS or Arch Linux, paste this command into a terminal:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/Natzirt-BK/subaru-ecu-tools-linux/master/bootstrap-cachyos.sh | bash
 ```
 
-To install or update only RomRaider2 for testing, use:
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/Natzirt-BK/subaru-ecu-tools-linux/master/bootstrap-cachyos.sh | bash -s -- --install-romraider2
-```
-
-On Debian 13 Stable (amd64), use:
+On Debian 13 Stable x64, use:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/Natzirt-BK/subaru-ecu-tools-linux/master/bootstrap-debian.sh | bash
 ```
 
-For a RomRaider2-only Debian test install, use:
+The Setup menu provides:
+
+1. **Install / repair** — EcuFlash, the validated Linux OpenPort stack,
+   RomRaider DimeMod, definitions, dependencies, USB access, and launchers.
+2. **Clean reinstall** — rebuild installer-managed software while preserving
+   ROMs, definitions, and logs.
+3. **System check** — verify applications, dependencies, J2534, and OpenPort USB
+   access without installing anything.
+4. **Uninstall** — remove installer-managed software.
+5. **RomRaider2 1.1 RC** — install or update RomRaider2 separately.
+
+To install only RomRaider2 on CachyOS or Arch Linux:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Natzirt-BK/subaru-ecu-tools-linux/master/bootstrap-cachyos.sh | bash -s -- --install-romraider2
+```
+
+On Debian 13 Stable x64:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/Natzirt-BK/subaru-ecu-tools-linux/master/bootstrap-debian.sh | bash -s -- --install-romraider2
 ```
 
-Debian setup enables the official `i386` multiarch repository support needed
-by the bundled 32-bit RomRaider Logger and installs dependencies with APT.
+## Linux software stack
 
-1. **Install / repair** > normal setup and updates
-2. **Clean reinstall** > replace all installer-managed state
-3. **System check** > inspect the current installation
-4. **Uninstall** > remove installer-managed files
-5. **RomRaider2 1.1 RC** > install the Java 21 Subaru/Evo studio
+The recommended installation includes:
 
-Use **Clean reinstall** when replacing an older or broken setup. Your ROMs,
-definitions, and logs are preserved.
+- Tactrix EcuFlash 1.44.4870.
+- The official Tactrix OpenPort 2.0 J2534 library.
+- A Linux OpenPort Wine bridge and distribution-specific USB permissions.
+- A checksum-pinned WineGDK 11.1 runtime validated with EcuFlash.
+- RomRaider DimeMod Editor and Logger with current public definitions.
+- Application-menu entries and launchers under **Ecu Tools by NatZirt**.
 
-The recommended option installs EcuFlash 1.44.4870 with the validated
-WineGDK/OpenPort J2534 stack, RomRaider DimeMod Editor and Logger, official
-definitions, desktop launchers, USB permissions, and required host packages.
-It verifies dependency state, packaged hashes, Wine bridge registration,
-device-not-connected behavior, and live OpenPort access when the cable is
-available.
+The large Wine dependency is maintained in the
+[validated EcuFlash runtime release](https://github.com/Natzirt-BK/subaru-ecu-tools-linux/releases/tag/ecuflash-winegdk-11.1-validated-1)
+and is downloaded automatically. The installer also obtains the official
+EcuFlash installer from Tactrix, builds the OpenPort bridge, and validates the
+completed stack.
 
-## What gets installed
+## What RomRaider2 adds
 
-- EcuFlash 1.44.4870 from Tactrix (Official)
-- the validated WineGDK 11.1 runtime published with this project
-- the official Tactrix OpenPort 2.0 J2534 library
-- the Linux OpenPort Wine bridge and USB permissions
-- RomRaider DimeMod Editor and Logger with official definitions
+- A modern tabbed calibration workspace with favorites, recent and changed-map
+  navigation, persistent tab order, and recently closed map recovery.
+- Fast table filtering and unified search across maps, logger parameters, DTCs,
+  settings, and commands.
+- ROM comparison, grouped undo/redo, selected-cell revert, change summaries,
+  notes, and integrity-checked crash-recovery snapshots.
+- An optional interactive 3D map surface integrated with the active table.
+- Integrated live-data cards, traces, and a datalog workspace driven by real
+  logger samples.
+- Offline RomRaider CSV analysis with linked tables, graphs, statistics, range
+  selection, and 0.25x–8x playback.
+- Dark, light, system, and high-contrast themes; 75%–300% interface scaling; and
+  Compact, Touch, Garage, Dyno, and In-Car display modes.
+- Integrated window controls and responsive resizing.
+- A shared Subaru and Lancer Evolution VIII/IX platform model with a read-only
+  Mitsubishi MUT-II logging foundation.
+- Versioned settings, privacy-safe diagnostics, and self-contained Java 21 x64
+  packages for Linux and Windows.
 
-The large checksum-pinned WineGDK dependency is published separately as the
-[Validated EcuFlash WineGDK 11.1 runtime](https://github.com/Natzirt-BK/subaru-ecu-tools-linux/releases/tag/ecuflash-winegdk-11.1-validated-1).
-The supported Linux installation command downloads that runtime automatically,
-installs distribution packages, builds the tracked OpenPort bridge, downloads
-the official EcuFlash installer from Tactrix, and validates the completed
-stack. Users do not need to assemble those pieces manually.
+## What RomRaider2 fixes
 
-RomRaider2 1.1 RC adds the shared Subaru/Evo platform, a self-contained Java
-21 x64 runtime, versioned settings, read-only Evo MUT-II support, and offline
-CSV analysis. Its
-OpenPort 2.0 Subaru SSM/ISO9141 path has completed a sustained in-car logging
-test. The GitHub project and RomRaider2 release are software-only: vehicle
-ROMs, definitions, profiles, logs, and owner-specific tuning material are not
-included. DimeMod remains available as a Subaru compatibility fallback.
-RomRaider2 is the supported Evo logging path; the old EvoScan installer
-integration has been retired. Guarded realtime write support is not enabled.
+Compared with the inherited RomRaider/DimeMod build:
 
-All applications appear together under **ECU Tools** in your
-application menu. On Arch the OpenPort fallback group is `uucp`; on Debian it is
-`dialout`. Active desktop sessions normally receive access through `uaccess`.
+- Calibration tabs respond across the complete tab header.
+- The 3D map stays closed until requested and follows the pointer correctly on
+  both drag axes.
+- Window resizing includes the edges and bottom corner; status-bar text stays
+  aligned and unclipped.
+- OpenPort/J2534 reception waits for complete messages and resynchronizes when
+  Subaru SSM queries change, preventing the observed logging gaps.
+- J2534 logging no longer shows an irrelevant serial COM-port selector.
+- External serial sensors validate their configuration and reconnect after a
+  port change; unsupported Windows-only plugins are hidden on Linux.
+- Missing-definition guidance opens the current SubaruDefs project instead of
+  sending users to an outdated forum download.
+- Error dialogs no longer expose raw exception details or upload reports.
+- End-of-life Java and logging components were replaced with audited Java 21,
+  JNA, jSerialComm, and Log4j dependencies.
 
-After installation, **Setup** offers to update the project before showing its
-menu. Setup prepares the computer; it never reads or writes to your ECU.
+## Definitions and vehicle files
 
-Press **M** in the Setup terminal to mute sound. The bundled track is
-checksum-verified and credited in
-[`linux/installer-music-CREDITS.md`](linux/installer-music-CREDITS.md).
+The repository and RomRaider2 release archives contain software only. They do
+not include private ROMs, owner definitions, logger profiles, captured logs, or
+vehicle-specific tuning files. The Linux installer can download current public
+RomRaider definitions, and RomRaider2 links users to the current SubaruDefs
+project when definitions are not configured.
 
-## OpenPort validation
+Never select a definition by model year alone. Verify the exact ROM ID before
+editing or logging.
 
-The installer checks the physical USB state. With the cable disconnected, the
-J2534 probe must report device-not-connected. With it connected, the probe must
-open and close the real adapter. An EcuFlash status-bar label by itself is not proof
-that the cable is connected. The guided plug/unplug test is recommended but can
-be skipped if the adapter is unavailable at the time of install.
+## Validation status
 
-EcuFlash checks the cable when it starts and does not refresh Task Info
-after a USB change. The launcher watches the real Linux USB state and shows a
-desktop notice when the cable is plugged in or removed. If the USB state
-changes, restart EcuFlash before working with an ECU.
+- EcuFlash 1.44 and the packaged Linux OpenPort/Wine stack have passed live
+  adapter discovery and read/write validation.
+- RomRaider2 has completed OpenPort/J2534 Subaru ECU identification and sustained
+  in-car SSM/ISO9141 logging.
+- Mitsubishi MUT-II logging still requires connected-vehicle qualification.
+- The Windows portable package passes automated build, structure, and startup
+  checks; connected Windows hardware testing remains pending.
+- RomRaider2 RC1 does not enable ECU memory writing or flashing. EcuFlash remains
+  the established flashing application in the Linux toolset.
 
-Note: `[In Use]` is not automatically an error under Wine. It often means Wine has
-the USB device open for EcuFlash. The installer confirms the connection with a
-real J2534 open/version/close test.
+## OpenPort behavior on Linux
 
-The packaged runtime is the same WineGDK build used for successful local
-EcuFlash read/write validation. It originated as a Linux gaming compatibility
-runtime and proved to be the most reliable tested option. Its release includes
-licenses, source commits, patches, package versions, and source checksums.
+The installer checks the real USB state instead of trusting a status label.
+When connected, the J2534 probe opens and closes the adapter. When disconnected,
+it must report device-not-connected. The EcuFlash launcher synchronizes Wine's
+device state before startup and reports later USB changes; restart EcuFlash
+after plugging or unplugging the cable.
 
-## If setup fails please report
+`[In Use]` is not automatically an error under Wine. It can mean that Wine has
+opened the adapter for EcuFlash. The J2534 probe distinguishes that state from
+missing or denied USB access.
 
-Setup saves its output under:
+## Diagnostic reports
+
+Setup logs are stored under:
 
 ```text
 ~/.local/state/subaru-ecu-tools-linux/
 ```
 
-On failure, press `R` to create a diagnostic report. Setup does not upload it or
-create a GitHub issue. The report keeps a bounded installer excerpt and basic
-platform information while filtering usernames, hostnames, paths, email and
-network addresses, USB serials, device topology, and URL queries. Review the
-file before attaching it to a public issue. Do not share the raw log without
-checking it yourself.
-
-Report problems at:
-[GitHub Issues](https://github.com/Natzirt-BK/subaru-ecu-tools-linux/issues)
+Press **R** after a problem to create a filtered local report. Nothing is
+uploaded automatically. Review the report before attaching it to a
+[GitHub issue](https://github.com/Natzirt-BK/subaru-ecu-tools-linux/issues).
+Do not publish the raw setup log without reviewing it.
 
 ## Safety
 
-Cable detection does not guarantee that an ECU write is safe. Begin with a
-read-only connection and logging test, verify the exact ROM ID and definition,
-keep a recovery path, and never interrupt a flash. The installer and its tests
-never read, write, or flash an ECU.
+Cable detection does not prove that an ECU operation is safe. Begin with a
+supervised read-only connection and logging test, verify the exact ROM and
+definition, maintain a recovery path, and never interrupt a flash. Installer
+tests do not read, write, or flash an ECU.
 
-Technical details and advanced commands are in
-[LINUX_ECU_TOOLS.md](LINUX_ECU_TOOLS.md). The project is licensed under the
-[MIT License](LICENSE).
+Advanced commands and implementation details are in the
+[technical reference](LINUX_ECU_TOOLS.md). The installer project is available
+under the [MIT License](LICENSE); bundled and downloaded applications retain
+their own licenses and attribution.

@@ -61,7 +61,7 @@ printf 'y' | TERM=dumb SUBARU_SETUP_INPUT_DEVICE=/dev/stdin \
     ECU_TOOLS_UPDATER="$updater" TEST_UPDATE_TRACE="$test_root/update.trace" \
     "$repo_root/linux/setup-cachyos-gui.sh" >"$test_root/update.output" 2>&1
 grep -Fx -- '--continue-setup' "$test_root/update.trace" >/dev/null
-grep -F 'Update ECU Tools before continuing?' \
+grep -F 'Update Ecu Tools by NatZirt before continuing?' \
     "$test_root/update.output" >/dev/null
 
 printf 'n3' | TERM=dumb SUBARU_SETUP_INPUT_DEVICE=/dev/stdin \

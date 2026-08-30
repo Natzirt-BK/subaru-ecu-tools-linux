@@ -77,7 +77,7 @@ if [ "$ROMRAIDER_MODE" = logger ] && \
         }
         exit 0
     fi
-    report_error "The connected OpenPort is not readable/writable. Desktop uaccess did not grant access and your account is not in the $openport_group fallback group. Open Setup from the ECU Tools menu, select USB permissions, then reconnect it."
+    report_error "The connected OpenPort is not readable/writable. Desktop uaccess did not grant access and your account is not in the $openport_group fallback group. Open Ecu Tools Setup, select USB permissions, then reconnect it."
     exit 1
 fi
 if [ "$ROMRAIDER_MODE" = logger ] && \
@@ -103,14 +103,14 @@ if [ -d "$injector_bundle_root/Injector" ] && [ ! -e "$injector_bundle_root/inje
 fi
 required_bundle="$ROMRAIDER_HOME/i18n/com/romraider/logger/ecu/ui/tab/injector/InjectorTabImpl.properties"
 if [ ! -f "$required_bundle" ]; then
-    report_error "The RomRaider DimeMod language resources are incomplete: $required_bundle. Open Setup from the ECU Tools menu and select RomRaider DimeMod."
+    report_error "The RomRaider DimeMod language resources are incomplete: $required_bundle. Open Ecu Tools Setup and select RomRaider DimeMod."
     exit 1
 fi
 
 definition_configurator="${XDG_BIN_HOME:-$HOME/.local/bin}/configure-romraider-definitions"
 if [ -x "$definition_configurator" ]; then
     "$definition_configurator" || {
-        report_error "Installed RomRaider definitions could not be configured. Open Setup from the ECU Tools menu again."
+        report_error "Installed RomRaider definitions could not be configured. Open Ecu Tools Setup again."
         exit 1
     }
 fi

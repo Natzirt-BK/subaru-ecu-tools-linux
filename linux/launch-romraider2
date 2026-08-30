@@ -34,7 +34,7 @@ openport_accessible_or_absent() {
 }
 
 if [ ! -f "$ROMRAIDER2_HOME/.installed-by-subaru-ecu-tools" ]; then
-    report_error "RomRaider2 is not installed. Open Setup from the ECU Tools menu and select RomRaider2."
+    report_error "RomRaider2 is not installed. Open Ecu Tools Setup from the Ecu Tools by NatZirt menu and select RomRaider2."
     exit 1
 fi
 if [ "$ROMRAIDER2_MODE" = logger ] && ! openport_accessible_or_absent; then

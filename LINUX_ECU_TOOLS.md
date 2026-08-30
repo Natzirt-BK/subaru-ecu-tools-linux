@@ -1,4 +1,4 @@
-# Technical reference
+# Ecu Tools by NatZirt technical reference
 
 The README covers normal setup. This page is for manual commands,
 troubleshooting, and maintenance.
@@ -101,11 +101,10 @@ incorrect addresses; verify them independently.
 
 ## RomRaider2 1.1 release candidate
 
-RomRaider2 is a separate Subaru/Evo release candidate. It
-includes the shared platform selector, independent DimeMod state, current
-official editor fixes, read-only MUT-II support, both official Subaru
-definitions, and the complete audited Evo definition set. Install it directly
-with:
+RomRaider2 is a separate Subaru and Lancer Evolution VIII/IX release candidate.
+It includes the shared platform selector, independent DimeMod state, current
+upstream editor fixes, and a read-only MUT-II logging foundation. Definitions
+and vehicle files are intentionally not bundled. Install it directly with:
 
 ```bash
 ./linux/install-cachyos.sh --install-romraider2
@@ -122,16 +121,11 @@ Every run updates:
 ~/.local/state/subaru-ecu-tools-linux/latest.log
 ```
 
-Failure reports include recent setup and application logs, source revision,
-checksums, USB/permission details, and a bounded host/runtime snapshot. The
-snapshot may identify the username, hostname, home paths, local network
-addresses, hardware/USB identifiers, adapter serial, groups, and relevant
-packages/processes. It intentionally excludes credentials, tokens, SSH keys,
-browser data, and the unfiltered environment. Upload uses the authenticated
-GitHub CLI and requires explicit confirmation. If upload fails, the complete
-Markdown report remains beside the setup logs. If a report exceeds GitHub's
-issue-body limit, setup uploads bounded first/last excerpts and retains the
-complete version locally.
+Failure reports contain a bounded, filtered installer excerpt and basic
+platform information. The filter removes usernames, hostnames, home paths,
+email and network addresses, USB serials and topology, and URL queries. Reports
+are saved locally and never uploaded automatically. Review a report before
+attaching it to a public issue; do not share the unfiltered setup log.
 
 Common checks:
 

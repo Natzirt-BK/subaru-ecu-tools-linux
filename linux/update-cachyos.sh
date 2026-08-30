@@ -20,7 +20,7 @@ if [[ ! -d "$source_dir/.git" ]]; then
     exit 1
 fi
 
-echo "==> Downloading Subaru & Evo ECU Tools updates"
+echo "==> Downloading Ecu Tools by NatZirt updates"
 before_revision=$(git -C "$source_dir" rev-parse --short HEAD)
 git -C "$source_dir" fetch --prune origin master
 if git -C "$source_dir" merge-base --is-ancestor HEAD origin/master &&

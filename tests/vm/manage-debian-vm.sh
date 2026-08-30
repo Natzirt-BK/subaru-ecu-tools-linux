@@ -132,7 +132,7 @@ setup_vm() {
         printf '%s\n' 'manage_etc_hosts: true'
         printf '%s\n' 'users:'
         printf '%s\n' "  - name: $vm_user"
-        printf '%s\n' '    gecos: Subaru ECU Tools Test User'
+        printf '%s\n' '    gecos: Ecu Tools Test User'
         printf '%s\n' '    groups: [sudo, dialout]'
         printf '%s\n' '    shell: /bin/bash'
         printf '%s\n' '    sudo: ALL=(ALL) NOPASSWD:ALL'
@@ -241,7 +241,7 @@ mark_clean() {
         exit 1
     }
     virsh -c qemu:///system snapshot-create-as "$vm_name" "$snapshot_name" \
-        'Fresh Debian 13 Stable GNOME test user before ECU Tools installation'
+        'Fresh Debian 13 Stable GNOME test user before Ecu Tools installation'
 }
 
 reset_vm() {

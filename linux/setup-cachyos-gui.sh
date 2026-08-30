@@ -11,7 +11,7 @@ export ECU_TOOLS_FORCE_COLOR=${ECU_TOOLS_FORCE_COLOR:-1}
 export ECU_TOOLS_MENU_LAUNCHER=${ECU_TOOLS_MENU_LAUNCHER:-$script_dir/setup-cachyos-gui.sh}
 
 if [[ ! -x "$installer" ]]; then
-    printf 'Cannot find the ECU Tools installer: %s\n' "$installer" >&2
+    printf 'Cannot find the Ecu Tools by NatZirt installer: %s\n' "$installer" >&2
     exit 1
 fi
 
@@ -40,9 +40,9 @@ draw_banner() {
     printf '%b' "$blue$bold"
     cat <<'EOF'
        ╭──────────────────────────────────────────────╮
-       │              ECU TOOLS // LINUX              │
+       │         Ecu Tools by NatZirt // Linux        │
        ├──────────────────────────────────────────────┤
-       │        INSTALL • REPAIR • DIAGNOSTICS        │
+       │   SUBARU • LANCER EVOLUTION • ECU SOFTWARE   │
        ╰──────────────────────────────────────────────╯
 EOF
     printf '%b           ◆ ◆ ◆ ◆ ◆ ◆ ◆ ◆ ◆ ◆ ◆ ◆%b\n\n' "$purple" "$reset"
@@ -94,16 +94,17 @@ menu_line() {
 draw_menu() {
     printf '  %b╭─ SETUP MENU ─────────────────────────────────────────╮%b\n' "$blue$bold" "$reset"
     menu_line '[1] INSTALL / REPAIR                  RECOMMENDED' "$cyan$bold"
-    menu_line '    EcuFlash 1.44 + validated Wine/OpenPort stack.'
-    menu_line '    RomRaider DimeMod, definitions, USB + launchers.'
-    menu_line '    Verify deps, bridge hashes + live cable access.'
+    menu_line '    EcuFlash 1.44 for Subaru/Mitsubishi ECUs.'
+    menu_line '    RomRaider DimeMod, definitions + OpenPort.'
+    menu_line '    Checks dependencies, files + live cable access.'
     menu_line '[2] CLEAN REINSTALL' "$cyan$bold"
     menu_line '    Rebuild the managed EcuFlash/RomRaider stack.'
     menu_line '[3] SYSTEM CHECK' "$cyan$bold"
     menu_line '    Check EcuFlash, J2534, launchers + OpenPort USB.'
     menu_line '[4] UNINSTALL                    [Q] EXIT' "$cyan$bold"
     menu_line '[5] RomRaider2 1.1 RC' "$purple$bold"
-    menu_line '    Install the separate Java 21 ECU Studio release.'
+    menu_line '    Modern RomRaider update for Subaru + Evo VIII/IX.'
+    menu_line '    Includes new editor, logger + analysis features.'
     printf '  %b╰──────────────────────────────────────────────────────╯%b\n\n' "$blue$bold" "$reset"
     printf '%b  Select an option: %b' "$yellow$bold" "$reset"
 }
@@ -113,7 +114,7 @@ if [[ -f "$installed_setup" && "${ECU_TOOLS_SKIP_UPDATE_PROMPT:-0}" != 1 ]]; the
     printf '  %bRecommended:%b check for installer and compatibility updates first.\n' \
         "$green$bold" "$reset"
     printf '  Y = update now (recommended); N = continue without updating (not recommended).\n\n'
-    if confirm 'Update ECU Tools before continuing?'; then
+    if confirm 'Update Ecu Tools by NatZirt before continuing?'; then
         [[ -x "$updater" ]] || {
             printf 'Cannot find the updater: %s\n' "$updater" >&2
             exit 1

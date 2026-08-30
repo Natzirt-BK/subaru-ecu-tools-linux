@@ -5,12 +5,16 @@ repo_root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 test_root=$(mktemp -d)
 trap 'rm -rf -- "$test_root"' EXIT HUP INT TERM
 
-grep -Fx 'Name=ECU Tools' "$repo_root/linux/subaru-ecu-tools.directory" >/dev/null
+grep -Fx 'Name=Ecu Tools by NatZirt' "$repo_root/linux/subaru-ecu-tools.directory" >/dev/null
 if grep -Fq 'Name=Subaru & Evo ECU Tools' \
         "$repo_root/linux/subaru-ecu-tools.directory"; then
     echo 'The retired application-menu name is still active.' >&2
     exit 1
 fi
+grep -F 'Ecu Tools by NatZirt // Linux' \
+    "$repo_root/linux/setup-cachyos-gui.sh" >/dev/null
+grep -F 'SUBARU • LANCER EVOLUTION • ECU SOFTWARE' \
+    "$repo_root/linux/setup-cachyos-gui.sh" >/dev/null
 
 TERM=xterm timeout 10 script -q -e -c \
     "ECU_TOOLS_UI_WIDTH=70 ECU_TOOLS_UI_SELF_TEST=1 '$repo_root/linux/install-cachyos.sh'" \

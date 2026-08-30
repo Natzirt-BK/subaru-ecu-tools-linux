@@ -172,7 +172,7 @@ mark_clean() {
     }
     eject_iso
     virsh -c qemu:///system snapshot-create-as "$vm_name" "$snapshot_name" \
-        'Fresh CachyOS ordinary user before Subaru ECU Tools installation'
+        'Fresh CachyOS ordinary user before Ecu Tools installation'
 }
 
 reset_vm() {

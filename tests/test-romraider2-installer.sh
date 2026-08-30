@@ -114,7 +114,7 @@ test -x "$test_root/full-data/romraider2-ecu-studio/bin/RomRaider2"
 test -x "$test_root/full-bin/launch-romraider2"
 test -f "$test_root/full-data/applications/romraider2-editor.desktop"
 test -f "$test_root/full-data/applications/romraider2-logger.desktop"
-test ! -e "$test_root/full-home/Documents/Subaru & Evo ECU Tools/RomRaider2/Definitions"
+test ! -e "$test_root/full-home/Documents/Ecu Tools by NatZirt/RomRaider2/Definitions"
 grep -F 'PREPARING ROMRAIDER2 LAUNCHERS' \
     "$test_root/full-install.log" >/dev/null
 if grep -Fq 'Checking dependencies' "$test_root/full-install.log"; then
@@ -131,7 +131,7 @@ fi
 
 grep -F 'romraider2-1.1.0-rc1' \
     "$repo_root/linux/install-romraider2" >/dev/null
-grep -F 'c80a2c66efa419bfd46511f4a0c32bc882e647ccc975bf1333bc626551065964' \
+grep -F 'e86d5972a09069a6399a3354381e578665dab48ce9b59e93c2370518ec08c882' \
     "$repo_root/linux/install-romraider2" >/dev/null
 
 echo 'RomRaider2 installer tests passed.'
