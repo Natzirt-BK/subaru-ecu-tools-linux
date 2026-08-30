@@ -1,0 +1,101 @@
+name: Build RomRaider2 Windows x64 preview
+
+on:
+  workflow_dispatch:
+    inputs:
+      publish_release:
+        description: Publish the verified ZIP to the RC1 GitHub release
+        required: true
+        type: boolean
+        default: true
+
+permissions:
+  contents: write
+
+env:
+  SOURCE_ARCHIVE: RomRaider2_ECU_Studio_1.1.0_Source.tar.gz
+  SOURCE_SHA256: 392852dc704d8bb2134533b0d465364ce4ab29dc0f0ea2b77643f09c044babfa
+  SOURCE_URL: https://github.com/Natzirt-BK/subaru-ecu-tools-linux/releases/download/romraider2-1.1.0-rc1/RomRaider2_ECU_Studio_1.1.0_Source.tar.gz
+
+jobs:
+  source-and-tests:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "21"
+          architecture: x64
+      - name: Install build tools
+        run: sudo apt-get update && sudo apt-get install -y ant xvfb
+      - name: Fetch and authenticate source
+        run: |
+          curl --fail --location --silent --show-error --output "$SOURCE_ARCHIVE" "$SOURCE_URL"
+          echo "$SOURCE_SHA256  $SOURCE_ARCHIVE" | sha256sum --check --strict
+          mkdir source
+          tar -xzf "$SOURCE_ARCHIVE" -C source --strip-components=1
+      - name: Reject vehicle content
+        run: |
+          if find source -type f \( -iname '*.bin' -o -iname '*.hex' -o -iname '*.srf' -o -iname '*.rom' \) -print -quit | grep -q .; then
+            echo "Vehicle content found in the public source archive." >&2
+            exit 1
+          fi
+          if find source -type f -iname '*.xml' -print | grep -Eqi '(evo|forester|z2wc|88780008|braden|tristan|shinji)'; then
+            echo "Owner- or vehicle-specific definition found in the public source archive." >&2
+            exit 1
+          fi
+      - name: Verify dependencies and run Java suite
+        working-directory: source
+        run: |
+          packaging/java21/verify-audited-dependencies.sh
+          xvfb-run -a ant clean unittest build-linux
+          packaging/java21/audit-runtime-modules.sh build/linux/lib/RomRaider2.jar
+
+  windows-x64-package:
+    needs: source-and-tests
+    runs-on: windows-latest
+    steps:
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "21"
+          architecture: x64
+      - name: Install Ant
+        shell: pwsh
+        run: choco install ant --no-progress -y
+      - name: Fetch and authenticate source
+        shell: pwsh
+        run: |
+          Invoke-WebRequest -Uri $env:SOURCE_URL -OutFile $env:SOURCE_ARCHIVE
+          $actual = (Get-FileHash -LiteralPath $env:SOURCE_ARCHIVE -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($actual -ne $env:SOURCE_SHA256) {
+            throw "Source archive hash mismatch. Expected $env:SOURCE_SHA256; got $actual"
+          }
+          New-Item -ItemType Directory -Path source | Out-Null
+          tar -xzf $env:SOURCE_ARCHIVE -C source --strip-components=1
+      - name: Build and verify Windows x64 preview
+        shell: pwsh
+        working-directory: source
+        run: |
+          ant clean build-windows
+          ./packaging/java21/build-windows-app-image.ps1
+          ./packaging/java21/build-windows-release.ps1
+          New-Item -ItemType Directory -Force -Path ../dist | Out-Null
+          Copy-Item -LiteralPath build/releases-windows/RomRaider2_ECU_Studio_1.1.0_Windows_x64.zip -Destination ../dist
+          Copy-Item -LiteralPath build/releases-windows/RomRaider2_ECU_Studio_1.1.0_Windows_x64.zip.sha256 -Destination ../dist
+      - name: Upload workflow artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: RomRaider2-Windows-x64-preview
+          path: dist/*
+          if-no-files-found: error
+      - name: Publish RC1 release assets
+        if: ${{ inputs.publish_release }}
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release upload romraider2-1.1.0-rc1 `
+            dist/RomRaider2_ECU_Studio_1.1.0_Windows_x64.zip `
+            dist/RomRaider2_ECU_Studio_1.1.0_Windows_x64.zip.sha256 `
+            --clobber --repo $env:GITHUB_REPOSITORY
