@@ -8,7 +8,7 @@ legacy_install_root=${BERGERRAIDER_LEGACY_INSTALL_ROOT:-$data_root/bergerraider-
 archive=${BERGERRAIDER_ARCHIVE:-$cache_root/BergerRaider_ECU_Studio_1.1.0_Linux_x64.zip}
 archive_root=BergerRaider_ECU_Studio_1.1.0_Linux_x64
 release_url=${BERGERRAIDER_URL:-https://github.com/Natzirt-BK/subaru-ecu-tools-linux/releases/download/bergerraider-1.1.0-rc1/BergerRaider_ECU_Studio_1.1.0_Linux_x64.zip}
-release_sha256=${BERGERRAIDER_SHA256:-b1abdf62c60196c45d54e48cb1467548b76b4e93f8fe12d30f5d00fa214517c7}
+release_sha256=${BERGERRAIDER_SHA256:-5005aa996ddf1aa66d5d5b74935bb0a09c3f76dd8baa5a8876793ebb34e4b511}
 source_root=${BERGERRAIDER_SOURCE_ROOT:-}
 quiet=${BERGERRAIDER_QUIET:-0}
 
@@ -27,38 +27,26 @@ modern_install() {
        -f "$root/lib/app/BergerRaider.jar" && \
        -f "$root/lib/app/BergerRaider.cfg" && \
        -f "$root/lib/app/lib/linux/64/j2534.so" && \
-       -f "$root/config/settings.foz.xml" && \
-       -f "$root/customize/j2534Libraries.properties" && \
-       -f "$root/definitions/Evo/88780008_MUT2_logger.xml" && \
-       -f "$root/definitions/Evo/release/EcuFlash/88780008_Final_v6.xml" && \
-       -f "$root/definitions/Evo/release/EcuFlash/evo9base.xml" && \
-       -f "$root/definitions/Evo/release/RomRaider/88780008_RomRaider_Final_v4.xml" && \
-       -f "$root/definitions/Foz/Editor/Z2WC412I_DM23100_RR.xml" && \
-       -f "$root/definitions/Foz/Logger/logger_METRIC_EN_v370.xml" && \
-       -f "$root/definitions/Foz/Profiles/foz-6mt-swap-validation.xml" && \
-       -f "$root/definitions/Foz/Profiles/shinji.xml" ]] && \
+       -f "$root/config/settings.default.xml" && \
+       -f "$root/customize/j2534Libraries.properties" ]] && \
         grep -Fq 'bergerraider.settings.dir=$APPDIR/../../config/user' \
             "$root/lib/app/BergerRaider.cfg" && \
-        grep -Fq '<protocol name="SSM" transport="ISO9141"' \
-            "$root/config/settings.foz.xml" && \
-        grep -Fq '<profile path="definitions/Foz/Profiles/shinji.xml"/>' \
-            "$root/config/settings.foz.xml" && \
+        ! grep -Eq 'ecudefinitionfile|<definition |<profile ' \
+            "$root/config/settings.default.xml" && \
         grep -Fq 'linux=j2534.so' \
             "$root/customize/j2534Libraries.properties"
 }
 
-migrate_obsolete_foz_logger_defaults() {
+migrate_retired_bundled_content_defaults() {
     local settings=$1
-    grep -Eq '<protocol name="OBD" transport="(ISO15765|ISO9141)" module="ECU"' \
-        "$settings" || return 0
-    grep -Fq '<profile path="definitions/Foz/Profiles/aem-uego-9600.xml"/>' \
-        "$settings" || return 0
+    grep -Eq 'definitions/(Foz|Evo)/' "$settings" || return 0
     sed -Ei \
-        -e 's#<serial port="ttyS0" refresh="true"/>#<serial port="" refresh="true"/>#' \
-        -e 's#<protocol name="OBD" transport="(ISO15765|ISO9141)" module="ECU" fastpoll="false" library="[^"]*"/>#<protocol name="SSM" transport="ISO9141" module="ECU" fastpoll="false" library=""/>#' \
-        -e 's#<profile path="definitions/Foz/Profiles/aem-uego-9600.xml"/>#<profile path="definitions/Foz/Profiles/shinji.xml"/>#' \
+        -e '/<ecudefinitionfile name="definitions\/(Foz|Evo)\//d' \
+        -e 's#<def_dir path="definitions\/(Foz|Evo)/[^"]*"/>#<def_dir path="definitions"/>#' \
+        -e 's#<definition path="definitions\/(Foz|Evo)/[^"]*"/>#<definition path=""/>#' \
+        -e 's#<profile path="definitions\/(Foz|Evo)/[^"]*"/>#<profile path=""/>#' \
         "$settings"
-    notice "  -> Migrated the obsolete Forester OBD logger default to SSM/ISO9141."
+    notice "  -> Cleared references to retired bundled vehicle content."
 }
 
 if modern_install "$install_root" && \
@@ -106,10 +94,10 @@ elif [[ -f "$legacy_install_root/config/user/settings.xml" ]]; then
     cp -- "$legacy_install_root/config/user/settings.xml" \
         "$staged_root/config/user/settings.xml"
 else
-    cp -- "$staged_root/config/settings.foz.xml" \
+    cp -- "$staged_root/config/settings.default.xml" \
         "$staged_root/config/user/settings.xml"
 fi
-migrate_obsolete_foz_logger_defaults "$staged_root/config/user/settings.xml"
+migrate_retired_bundled_content_defaults "$staged_root/config/user/settings.xml"
 if [[ -d "$install_root" ]]; then
     for user_dir in logs roms repositories; do
         if [[ -d "$install_root/$user_dir" ]]; then

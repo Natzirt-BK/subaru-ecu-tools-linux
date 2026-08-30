@@ -115,7 +115,7 @@ grep -F 'track_artist='"'"'Eric Skiff'"'" \
     "$repo_root/linux/play-installer-chiptune" >/dev/null
 grep -F 'Creative Commons Attribution 4.0' \
     "$repo_root/linux/installer-music-CREDITS.md" >/dev/null
-grep -F 'music_volume=${ECU_TOOLS_MUSIC_VOLUME:-0.12}' \
+grep -F 'music_volume=${ECU_TOOLS_MUSIC_VOLUME:-0.144}' \
     "$repo_root/linux/play-installer-chiptune" >/dev/null
 grep -F 'm|M)' "$repo_root/linux/play-installer-chiptune" >/dev/null
 grep -q '^pause_setup_music_keys()' "$engine"

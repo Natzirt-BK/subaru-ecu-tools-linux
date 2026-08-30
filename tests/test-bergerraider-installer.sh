@@ -17,30 +17,15 @@ mkdir -p \
     "$source_root/customize" \
     "$source_root/logs" \
     "$source_root/roms" \
-    "$source_root/repositories" \
-    "$source_root/definitions/Evo" \
-    "$source_root/definitions/Evo/release/EcuFlash" \
-    "$source_root/definitions/Evo/release/RomRaider" \
-    "$source_root/definitions/Foz/Editor" \
-    "$source_root/definitions/Foz/Logger" \
-    "$source_root/definitions/Foz/Profiles"
+    "$source_root/repositories"
 touch \
     "$source_root/lib/runtime/release" \
     "$source_root/lib/app/BergerRaider.jar" \
-    "$source_root/lib/app/lib/linux/64/j2534.so" \
-    "$source_root/definitions/Evo/88780008_MUT2_logger.xml" \
-    "$source_root/definitions/Evo/release/EcuFlash/88780008_Final_v6.xml" \
-    "$source_root/definitions/Evo/release/EcuFlash/evo9base.xml" \
-    "$source_root/definitions/Evo/release/RomRaider/88780008_RomRaider_Final_v4.xml" \
-    "$source_root/definitions/Foz/Editor/Z2WC412I_DM23100_RR.xml" \
-    "$source_root/definitions/Foz/Logger/logger_METRIC_EN_v370.xml" \
-    "$source_root/definitions/Foz/Profiles/foz-6mt-swap-validation.xml" \
-    "$source_root/definitions/Foz/Profiles/shinji.xml"
+    "$source_root/lib/app/lib/linux/64/j2534.so"
 printf '%s\n' \
-    '<settings><logger>' \
+    '<settings><files><def_dir path="definitions"/></files><logger>' \
     '<protocol name="SSM" transport="ISO9141" module="ECU" fastpoll="false" library=""/>' \
-    '<profile path="definitions/Foz/Profiles/shinji.xml"/>' \
-    '</logger></settings>' >"$source_root/config/settings.foz.xml"
+    '</logger></settings>' >"$source_root/config/settings.default.xml"
 printf 'linux=j2534.so\n' >"$source_root/customize/j2534Libraries.properties"
 printf '[JavaOptions]\njava-options=-Dbergerraider.settings.dir=$APPDIR/../../config/user\n' \
     >"$source_root/lib/app/BergerRaider.cfg"
@@ -65,7 +50,7 @@ test -x "$install_root/bin/BergerRaider"
 test -f "$install_root/lib/runtime/release"
 test -f "$install_root/lib/app/BergerRaider.jar"
 test -f "$install_root/config/user/settings.xml"
-test -f "$install_root/definitions/Foz/Profiles/foz-6mt-swap-validation.xml"
+test ! -e "$install_root/definitions"
 grep -F 'migrated="true"' "$install_root/config/user/settings.xml" >/dev/null
 test -f "$install_root/logs/preserved.csv"
 test ! -e "$legacy_root"
@@ -92,13 +77,9 @@ BERGERRAIDER_SOURCE_ROOT="$source_root" \
 BERGERRAIDER_SHA256="$updated_sha" \
     "$repo_root/linux/install-bergerraider" >"$test_root/update.log"
 grep -F 'preserved="true"' "$install_root/config/user/settings.xml" >/dev/null
-grep -F '<serial port="" refresh="true"/>' \
+grep -F '<profile path=""/>' \
     "$install_root/config/user/settings.xml" >/dev/null
-grep -F '<protocol name="SSM" transport="ISO9141"' \
-    "$install_root/config/user/settings.xml" >/dev/null
-grep -F '<profile path="definitions/Foz/Profiles/shinji.xml"/>' \
-    "$install_root/config/user/settings.xml" >/dev/null
-grep -F 'Migrated the obsolete Forester OBD logger default' \
+grep -F 'Cleared references to retired bundled vehicle content' \
     "$test_root/update.log" >/dev/null
 test -f "$install_root/logs/preserved.csv"
 grep -Fx "$updated_sha" "$install_root/.release-sha256" >/dev/null
@@ -133,7 +114,7 @@ test -x "$test_root/full-data/bergerraider-ecu-studio/bin/BergerRaider"
 test -x "$test_root/full-bin/launch-bergerraider"
 test -f "$test_root/full-data/applications/bergerraider-editor.desktop"
 test -f "$test_root/full-data/applications/bergerraider-logger.desktop"
-test -L "$test_root/full-home/Documents/Subaru & Evo ECU Tools/BergerRaider/Definitions"
+test ! -e "$test_root/full-home/Documents/Subaru & Evo ECU Tools/BergerRaider/Definitions"
 grep -F 'PREPARING BERGERRAIDER LAUNCHERS' \
     "$test_root/full-install.log" >/dev/null
 if grep -Fq 'Checking dependencies' "$test_root/full-install.log"; then
@@ -150,7 +131,7 @@ fi
 
 grep -F 'bergerraider-1.1.0-rc1' \
     "$repo_root/linux/install-bergerraider" >/dev/null
-grep -F 'b1abdf62c60196c45d54e48cb1467548b76b4e93f8fe12d30f5d00fa214517c7' \
+grep -F '5005aa996ddf1aa66d5d5b74935bb0a09c3f76dd8baa5a8876793ebb34e4b511' \
     "$repo_root/linux/install-bergerraider" >/dev/null
 
 echo 'BergerRaider installer tests passed.'
