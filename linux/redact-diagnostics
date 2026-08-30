@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+# Filter installer/application output for a support attachment.
+# Raw logs stay local; this filter intentionally favors privacy over detail.
+sed_args=(-E)
+
+escape_pattern() {
+    printf '%s' "$1" | sed 's/[][\\.^$*+?{}|()#]/\\&/g'
+}
+
+add_private_value() {
+    local value=${1:-} escaped
+    [[ ${#value} -ge 3 ]] || return 0
+    escaped=$(escape_pattern "$value")
+    sed_args+=(-e "s#${escaped}#[redacted]#gI")
+}
+
+add_private_value "${HOME:-}"
+add_private_value "${USER:-}"
+add_private_value "${LOGNAME:-}"
+add_private_value "$(hostname 2>/dev/null || true)"
+
+sed "${sed_args[@]}" \
+    -e 's#/(home|Users)/[^/[:space:]]+#/\1/[user]#g' \
+    -e 's#/run/user/[0-9]+#/run/user/[uid]#g' \
+    -e 's#/dev/bus/usb/[0-9]+/[0-9]+#/dev/bus/usb/[redacted]#g' \
+    -e 's#[[:alnum:]._%+-]+@[[:alnum:].-]+\.[[:alpha:]]{2,}#[email]#g' \
+    -e 's#(^|[^[:digit:]])([[:digit:]]{1,3}\.){3}[[:digit:]]{1,3}([^[:digit:]]|$)#\1[ip]\3#g' \
+    -e 's#(^|[^[:xdigit:]])([[:xdigit:]]{2}:){5}[[:xdigit:]]{2}([^[:xdigit:]]|$)#\1[mac]\3#gI' \
+    -e 's#(^|[^[:xdigit:]:])([[:xdigit:]]{0,4}:){2,}[[:xdigit:]:]{0,4}([^[:xdigit:]:]|$)#\1[ip]\3#gI' \
+    -e 's#(https?://[^?[:space:]]+)[?][^[:space:]]+#\1?[query-redacted]#gI' \
+    -e 's#^([[:space:]>-]*)(hostname|user and groups|home|network addresses|device serial number|serial number|iserial|machine-id|ssid|bssid|ip address|mac address|id_serial(_short)?|devpath)[[:space:]]*[:=].*$#\1\2: [redacted]#I'

@@ -36,26 +36,24 @@ case " ${os_family,,} " in
         distro_family=debian
         distro_label=Debian
         package_manager=apt
-        github_cli_package=gh
         openport_group=${OPENPORT_GROUP:-dialout}
         ;;
     *cachyos*|*arch*)
         distro_family=arch
         distro_label=CachyOS/Arch
         package_manager=pacman
-        github_cli_package=github-cli
         openport_group=${OPENPORT_GROUP:-uucp}
         ;;
     *)
         distro_family=unsupported
         distro_label=${PRETTY_NAME:-unknown}
         package_manager=unknown
-        github_cli_package=gh
         openport_group=${OPENPORT_GROUP:-dialout}
         ;;
 esac
 
-if [[ -t 1 && -z "${NO_COLOR:-}" && "${TERM:-}" != dumb ]]; then
+if [[ -t 1 && "${TERM:-}" != dumb && \
+      ( "${ECU_TOOLS_FORCE_COLOR:-0}" == 1 || -z "${NO_COLOR:-}" ) ]]; then
     color_reset=$'\033[0m'
     color_bold=$'\033[1m'
     color_red=$'\033[31m'
@@ -71,24 +69,36 @@ else
     use_color=false
 fi
 
-ui_rule=$(printf '%68s' '')
+ui_frame_width=${ECU_TOOLS_UI_WIDTH:-}
+if [[ ! "$ui_frame_width" =~ ^[0-9]+$ ]]; then
+    ui_frame_width=$(tput cols 2>/dev/null || printf '70')
+    ((ui_frame_width-=1))
+fi
+((ui_frame_width < 70)) && ui_frame_width=70
+((ui_frame_width > 104)) && ui_frame_width=104
+ui_rule_width=$((ui_frame_width - 2))
+ui_content_width=$((ui_frame_width - 4))
+ui_rule=$(printf "%${ui_rule_width}s" '')
 ui_rule=${ui_rule// /═}
 ui_stage=0
 ui_console_open=false
+return_to_setup_menu=false
 ui_box_line() {
     local style=$1 text=$2 line
+    [[ -z "${HOME:-}" ]] || text=${text//"$HOME"/\~}
     while IFS= read -r line || [[ -n "$line" ]]; do
-        printf '%b║%b  %b%-66s%b%b║%b\n' \
-            "$color_purple$color_bold" "$color_reset" "$style" "$line" \
-            "$color_reset" "$color_purple$color_bold" "$color_reset"
-    done < <(printf '%s\n' "$text" | fold -s -w 66)
+        printf '%b║%b  %b%-*s%b%b║%b\n' \
+            "$color_purple$color_bold" "$color_reset" "$style" \
+            "$ui_content_width" "$line" "$color_reset" \
+            "$color_purple$color_bold" "$color_reset"
+    done < <(printf '%s\n' "$text" | fold -s -w "$ui_content_width")
 }
 installer_banner() {
     local mode_label=${mode^^} audio_label='AUDIO :: OFF'
     [[ "${SUBARU_SETUP_MUSIC_PID:-}" =~ ^[0-9]+$ ]] && \
         audio_label='AUDIO :: [M] MUTE'
     printf '\n%b╔%s╗%b\n' "$color_purple$color_bold" "$ui_rule" "$color_reset"
-    ui_box_line "$color_cyan$color_bold" 'SUBARU // EVO :: ECU TOOLS'
+    ui_box_line "$color_cyan$color_bold" 'ECU TOOLS // LINUX'
     ui_box_line "$color_green$color_bold" 'SECURE SETUP CONSOLE              [ ECU I/O :: LOCKED ]'
     printf '%b╠%s╣%b\n' "$color_purple$color_bold" "$ui_rule" "$color_reset"
     ui_box_line "$color_blue$color_bold" \
@@ -116,7 +126,6 @@ completion_banner() {
     printf '%b╠%s╣%b\n' "$color_green$color_bold" "$ui_rule" "$color_reset"
     ui_box_line "$color_green$color_bold" \
         'ACCESS GRANTED // SETUP COMPLETE // ALL REQUESTED TASKS FINISHED'
-    printf '%b╠%s╣%b\n' "$color_green$color_bold" "$ui_rule" "$color_reset"
 }
 
 if [[ "${ECU_TOOLS_UI_SELF_TEST:-0}" == 1 ]]; then
@@ -126,7 +135,10 @@ if [[ "${ECU_TOOLS_UI_SELF_TEST:-0}" == 1 ]]; then
     warn "A deliberately-long-unbroken-token-ABCDEFGHIJKLMNOPQRSTUVWXYZ-0123456789-abcdefghijklmnopqrstuvwxyz-must-not-cross-the-right-border."
     ok "Short status text remains aligned."
     summary_row PLATFORM "$distro_label / $(uname -m) / $package_manager"
+    summary_row PATH "$HOME/.local/bin"
     completion_banner
+    ui_box_line "$color_yellow$color_bold" \
+        '[ INPUT ] Y = close  //  M = main menu  //  R = report a problem  [Y/M/R]'
     console_footer
     exit 0
 fi
@@ -219,20 +231,18 @@ read_yes_no() {
     pause_setup_music_keys
     while true; do
         ui_box_line "$color_yellow$color_bold" "[ INPUT ] $prompt $suffix"
-        printf '%b║%b  > ' "$color_purple$color_bold" "$color_reset"
         if ! IFS= read -rsn1 key </dev/tty; then
             result=1
             break
         fi
         if [[ -z "$key" ]]; then
-            printf '\n'
             [[ "$default" == yes ]] && result=0 || result=1
             break
         fi
         case "$key" in
-            y|Y) printf 'Y\n'; result=0; break ;;
-            n|N) printf 'N\n'; result=1; break ;;
-            *) printf '\nPress Y or N.\n' ;;
+            y|Y) ui_box_line "$color_green$color_bold" '[ INPUT ] Y'; result=0; break ;;
+            n|N) ui_box_line "$color_red$color_bold" '[ INPUT ] N'; result=1; break ;;
+            *) warn 'Press Y or N.' ;;
         esac
     done
     resume_setup_music_keys
@@ -421,218 +431,6 @@ verify_openport_hotplug_cycle() {
     ok "OpenPort plug/unplug detection passed."
 }
 
-write_openport_usb_diagnostics() {
-    local sysfs_root=${OPENPORT_USB_SYSFS_ROOT:-/sys/bus/usb/devices}
-    local vendor_file product_file device_dir vendor product busnum devnum node value
-    local found=false
-
-    printf 'Captured: %s\n' "$(date --iso-8601=seconds 2>/dev/null || date)"
-    printf 'User and groups: %s\n' "$(id)"
-    printf 'OpenPort lsusb: '
-    if command -v lsusb >/dev/null 2>&1; then
-        lsusb -d 0403:cc4d 2>&1 || true
-        echo 'USB topology:'
-        lsusb -t 2>&1 | sed 's/^/  /' || true
-    else
-        echo 'lsusb is unavailable'
-    fi
-
-    for vendor_file in "$sysfs_root"/*/idVendor; do
-        [[ -f "$vendor_file" ]] || continue
-        read -r vendor <"$vendor_file" || continue
-        [[ "${vendor,,}" == 0403 ]] || continue
-        device_dir=${vendor_file%/idVendor}
-        product_file=$device_dir/idProduct
-        [[ -f "$product_file" ]] || continue
-        read -r product <"$product_file" || continue
-        [[ "${product,,}" == cc4d ]] || continue
-        found=true
-        printf 'Sysfs device: %s\n' "${device_dir##*/}"
-        for value in busnum devnum authorized speed version bNumInterfaces \
-            bConfigurationValue configuration devpath removable; do
-            if [[ -r "$device_dir/$value" ]]; then
-                printf '  %s: ' "$value"
-                sed -n '1p' "$device_dir/$value"
-            fi
-        done
-        if [[ -L "$device_dir/driver" ]]; then
-            printf '  kernel driver: %s\n' "$(basename -- "$(readlink -f "$device_dir/driver")")"
-        else
-            echo '  kernel driver: none'
-        fi
-        read -r busnum <"$device_dir/busnum" || busnum=
-        read -r devnum <"$device_dir/devnum" || devnum=
-        if [[ "$busnum" =~ ^[0-9]+$ && "$devnum" =~ ^[0-9]+$ ]]; then
-            printf -v node '/dev/bus/usb/%03d/%03d' "$busnum" "$devnum"
-            if [[ -e "$node" ]]; then
-                stat -c '  device node: %A %U:%G (%a) %n' "$node" 2>&1 || true
-                if command -v getfacl >/dev/null 2>&1; then
-                    echo '  device node ACL:'
-                    getfacl -cp "$node" 2>&1 | sed 's/^/    /' || true
-                fi
-                if run_with_openport_access test -r "$node"; then
-                    echo '  effective read access: yes'
-                else
-                    echo '  effective read access: no'
-                fi
-                if run_with_openport_access test -w "$node"; then
-                    echo '  effective write access: yes'
-                else
-                    echo '  effective write access: no'
-                fi
-                if command -v fuser >/dev/null 2>&1; then
-                    echo '  processes using node:'
-                    fuser -v "$node" 2>&1 | sed 's/^/    /' || echo '    none detected'
-                fi
-            else
-                printf '  device node: missing (%s)\n' "$node"
-            fi
-        fi
-        if command -v udevadm >/dev/null 2>&1; then
-            echo '  udev properties:'
-            udevadm info --query=property --path="$device_dir" 2>&1 | \
-                sed 's/^/    /' || true
-            echo '  udev attribute walk:'
-            udevadm info --attribute-walk --path="$device_dir" 2>&1 | \
-                sed 's/^/    /' || true
-        fi
-        for value in control runtime_status runtime_active_time runtime_suspended_time autosuspend; do
-            if [[ -r "$device_dir/power/$value" ]]; then
-                printf '  power/%s: ' "$value"
-                sed -n '1p' "$device_dir/power/$value"
-            fi
-        done
-    done
-    $found || echo 'Sysfs OpenPort match: none'
-    echo 'Installed OpenPort udev rule:'
-    if [[ -r /etc/udev/rules.d/99-openport2.rules ]]; then
-        stat -c '  %A %U:%G (%a) %n' /etc/udev/rules.d/99-openport2.rules 2>&1 || true
-        sed 's/^/  /' /etc/udev/rules.d/99-openport2.rules
-    else
-        echo '  missing or unreadable'
-    fi
-    printf '%s group entry: ' "$openport_group"
-    getent group "$openport_group" 2>&1 || echo 'missing'
-    if command -v lsusb >/dev/null 2>&1; then
-        echo 'Verbose OpenPort USB descriptor:'
-        lsusb -v -d 0403:cc4d 2>&1 || true
-    fi
-    if command -v journalctl >/dev/null 2>&1; then
-        echo 'Recent kernel USB events (filtered):'
-        journalctl -k -n 300 --no-pager 2>&1 | \
-            grep -Ei 'usb|0403|cc4d|ftdi|openport' | tail -120 || true
-    fi
-}
-
-write_host_runtime_diagnostics() {
-    local runtime_root="$data_dir/runtime/ecuflash-winegdk-11.1/files"
-    local diagnostic_file
-
-    printf 'Captured: %s\n' "$(date --iso-8601=seconds 2>/dev/null || date)"
-    printf 'Hostname: %s\n' "$(hostname 2>&1 || echo unavailable)"
-    printf 'User and groups: %s\n' "$(id)"
-    printf 'Home: %s\n' "$HOME"
-    echo 'Operating system:'
-    if [[ -r /etc/os-release ]]; then
-        sed 's/^/  /' /etc/os-release
-    else
-        echo '  /etc/os-release unavailable'
-    fi
-    printf 'Kernel: '
-    uname -a 2>&1 || true
-    printf 'Architecture: '
-    uname -m 2>&1 || true
-    printf 'Desktop session: XDG_SESSION_TYPE=%s XDG_CURRENT_DESKTOP=%s DESKTOP_SESSION=%s DISPLAY=%s WAYLAND_DISPLAY=%s\n' \
-        "${XDG_SESSION_TYPE:-}" "${XDG_CURRENT_DESKTOP:-}" "${DESKTOP_SESSION:-}" \
-        "${DISPLAY:-}" "${WAYLAND_DISPLAY:-}"
-    printf 'Shell: %s\n' "${SHELL:-unknown}"
-    echo 'Locale:'
-    locale 2>&1 | sed 's/^/  /' || true
-    printf 'Timezone: '
-    timedatectl show --property=Timezone --value 2>&1 || date +%Z 2>&1 || true
-    echo 'CPU summary:'
-    if command -v lscpu >/dev/null 2>&1; then
-        lscpu 2>&1 | grep -E '^(Architecture|CPU\(s\)|Model name|Vendor ID|Virtualization|Hypervisor vendor):' | \
-            sed 's/^/  /' || true
-    else
-        echo '  lscpu unavailable'
-    fi
-    echo 'Display and USB controllers:'
-    if command -v lspci >/dev/null 2>&1; then
-        lspci -nnk 2>&1 | grep -A3 -Ei 'VGA compatible|3D controller|Display controller|USB controller' | \
-            sed 's/^/  /' || true
-    else
-        echo '  lspci unavailable'
-    fi
-    echo 'Memory:'
-    free -h 2>&1 | sed 's/^/  /' || true
-    echo 'Filesystem capacity:'
-    df -h "$HOME" /tmp 2>&1 | sed 's/^/  /' || true
-    echo 'Relevant mount options:'
-    if command -v findmnt >/dev/null 2>&1; then
-        findmnt -T "$HOME" -o TARGET,SOURCE,FSTYPE,OPTIONS 2>&1 | sed 's/^/  /' || true
-        findmnt -T /tmp -o TARGET,SOURCE,FSTYPE,OPTIONS 2>&1 | sed 's/^/  /' || true
-    else
-        echo '  findmnt unavailable'
-    fi
-    echo 'Network addresses:'
-    if command -v ip >/dev/null 2>&1; then
-        ip -brief address 2>&1 | sed 's/^/  /' || true
-    else
-        echo '  ip unavailable'
-    fi
-    echo 'Relevant installed packages:'
-    case "$package_manager" in
-        pacman)
-            pacman -Q git github-cli libusb lib32-libusb usbutils wine wine-mono \
-                llvm llvm-libs mingw-w64-gcc jre8-openjdk 2>&1 | sed 's/^/  /' || true
-            ;;
-        apt)
-            dpkg-query -W git gh libusb-1.0-0 libusb-1.0-0:i386 usbutils \
-                libwine-dev libwine-dev:i386 wine64-tools gcc-mingw-w64 \
-                2>&1 | sed 's/^/  /' || true
-            ;;
-        *) echo '  supported package manager unavailable' ;;
-    esac
-    echo 'Relevant running processes:'
-    ps -eo pid,user,stat,lstart,comm 2>&1 | \
-        grep -Ei ' (wine|wine64|wineserver|wineboot|ecuflash|romraider|openport|j2534|java)$' | \
-        tail -80 | sed 's/^/  /' || echo '  none detected'
-    echo 'Relevant kernel modules:'
-    if command -v lsmod >/dev/null 2>&1; then
-        lsmod 2>&1 | grep -E '^(cdc_acm|usbcore|usb_common|xhci|ehci|uhci|ftdi)' | \
-            sed 's/^/  /' || echo '  none detected'
-    else
-        echo '  lsmod unavailable'
-    fi
-    echo 'Installed runtime and bridge files:'
-    printf 'Packaged Wine version: '
-    "$runtime_root/bin/wine" --version 2>&1 || true
-    for diagnostic_file in \
-        "$runtime_root/bin/wine" \
-        "$runtime_root/bin/wineserver" \
-        "$ecuflash_prefix/drive_c/windows/syswow64/op20pt32.dll" \
-        "$ecuflash_prefix/drive_c/windows/system32/drivers/openport.sys" \
-        "$ecuflash_prefix/drive_c/windows/system32/drivers/openport.so" \
-        "$data_dir/tools/j2534-probe.exe" \
-        "$data_dir/tools/openport-device-probe.exe"; do
-        if [[ -e "$diagnostic_file" ]]; then
-            stat -c '  %A %U:%G (%a) %s bytes %y %n' "$diagnostic_file" 2>&1 || true
-            sha256sum "$diagnostic_file" 2>&1 | sed 's/^/  sha256: /' || true
-            file "$diagnostic_file" 2>&1 | sed 's/^/  type: /' || true
-        else
-            printf '  missing: %s\n' "$diagnostic_file"
-        fi
-    done
-    echo 'OpenPort native bridge dependencies:'
-    if command -v ldd >/dev/null 2>&1; then
-        ldd "$ecuflash_prefix/drive_c/windows/system32/drivers/openport.so" 2>&1 | \
-            sed 's/^/  /' || true
-    else
-        echo '  ldd unavailable'
-    fi
-}
-
 usage() {
     printf 'Usage: %s [options]\n\n' "$0"
     cat <<'EOF'
@@ -721,162 +519,122 @@ else
     exec > >(tee -a "$log_file") 2>&1
 fi
 installer_banner
-github_repo=Natzirt-BK/subaru-ecu-tools-linux
 ecuflash_vendor_j2534_sha256=f432084801762d919a3c31974616e097562424470003edc4f4fb843df34103cf
 offer_error_report() {
     local user_description=${1:-}
-    local report_file full_report upload_error issue_url extra_log log_bytes usb_report host_report latest_ecuflash_log report_bytes
+    local report_file description_file
 
     [[ "$setup_interactive" == true && "${SUBARU_SETUP_NO_PAUSE:-0}" != 1 ]] || return 0
-    warn "The public report may identify this computer and user. It includes the username, hostname, home paths, local network addresses, hardware and USB identifiers, adapter serial, groups, relevant packages/processes, permissions, and bounded application/system logs. It does not intentionally collect passwords, tokens, SSH keys, browser data, or an unfiltered environment. Review the report before sharing."
-    read_yes_no "Upload this error log in a public GitHub issue so the maintainer can investigate?" no || return 0
-
-    if ! command -v gh >/dev/null 2>&1; then
-        echo "Automatic upload requires GitHub CLI. Install '$github_cli_package', run 'gh auth login', then retry."
-        echo "No log was uploaded. Your log remains at: $log_file"
-        return 0
-    fi
-    if ! gh auth status --hostname github.com >/dev/null 2>&1; then
-        echo "GitHub CLI is not signed in. Run 'gh auth login', then retry."
-        echo "No log was uploaded. Your log remains at: $log_file"
-        return 0
-    fi
+    warn "Raw setup logs may contain private paths or hardware identifiers."
+    read_yes_no "Create a shareable diagnostic report?" yes || return 0
 
     report_file="$state_dir/report-$log_stamp.md"
-    full_report="$state_dir/report-$log_stamp-full.md"
+    description_file=$(mktemp /tmp/subaru-ecu-tools-description.XXXXXX)
+    printf '%s\n' "$user_description" | \
+        "$repo_root/linux/redact-diagnostics" >"$description_file"
     {
-        echo "Setup submitted this report after a detected or user-reported problem."
+        echo 'ECU Tools setup report'
+        echo 'Personal data is filtered; this file was not uploaded.'
         echo
-        if [[ -n "$user_description" ]]; then
+        if [[ -s "$description_file" ]]; then
             echo "User description:"
-            printf '%s\n' "$user_description" | sed 's/^/> /'
+            sed 's/^/> /' "$description_file"
             echo
         fi
-        echo "Installer log (last 12,000 bytes):"
+        echo "Installer log (redacted, last 16,000 bytes):"
         echo '```text'
-        tail -c 12000 "$log_file"
+        tail -c 16000 "$log_file" | "$repo_root/linux/redact-diagnostics"
         echo
         echo '```'
         echo "Source revision: $(git -C "$repo_root" rev-parse --short HEAD 2>/dev/null || echo unknown)"
-        echo "Installed launcher: $(sha256sum "$bin_dir/launch-ecuflash" 2>/dev/null || echo missing)"
-        echo "Installed J2534 DLL: $(sha256sum "$ecuflash_prefix/drive_c/windows/syswow64/op20pt32.dll" 2>/dev/null || echo missing)"
-        echo
-        echo 'Host and installed-runtime diagnostics:'
-        echo '(first 6,000 bytes; may include identifying host, user, network, hardware, process, and path details)'
-        echo '```text'
-        host_report=$(mktemp /tmp/subaru-ecu-tools-host-report.XXXXXX)
-        write_host_runtime_diagnostics >"$host_report" 2>&1
-        head -c 6000 "$host_report"
-        rm -f -- "$host_report"
-        echo
-        echo '```'
-        echo
-        echo 'OpenPort USB access diagnostics:'
-        echo '(first 10,000 bytes; may include adapter serial and host USB details)'
-        echo '```text'
-        usb_report=$(mktemp /tmp/subaru-ecu-tools-usb-report.XXXXXX)
-        write_openport_usb_diagnostics >"$usb_report" 2>&1
-        head -c 10000 "$usb_report"
-        rm -f -- "$usb_report"
-        echo
-        echo '```'
-        echo
-        latest_ecuflash_log=$(find "$ecuflash_prefix/drive_c/users" -type f \
-            -path '*/OpenECU/EcuFlash/logs/*' -printf '%T@ %p\n' 2>/dev/null | \
-            sort -nr | head -1 | cut -d' ' -f2- || true)
-        for extra_log in \
-            "$cache_root/ecuflash-j2534-probe.log" \
-            "$state_dir/ecuflash-j2534-probe.log" \
-            "$cache_root/ecuflash-startup.log" \
-            "$cache_root/ecuflash-post-probe-startup.log" \
-            "$latest_ecuflash_log" \
-            "$state_dir/ecuflash-force-refresh.log" \
-            "$state_dir/ecuflash-j2534.log" \
-            "$state_dir/ecuflash-launch.log" \
-            "$state_dir/ecuflash-openport-registration.log" \
-            "$cache_root/ecuflash-openport-registration.log" \
-            "$state_dir/romraider-launch.log" \
-            "$HOME/.RomRaider/romraider_sout.log"; do
-            [[ -s "$extra_log" ]] || continue
-            case "$extra_log" in
-                *j2534-probe.log) log_bytes=10000 ;;
-                *ecuflash_log_*) log_bytes=5000 ;;
-                *) log_bytes=1500 ;;
-            esac
-            echo
-            echo "Application log: $extra_log (last $log_bytes bytes)"
-            echo '```text'
-            tail -c "$log_bytes" "$extra_log"
-            echo
-            echo '```'
-        done
-    } >"$full_report"
-    report_bytes=$(wc -c <"$full_report")
-    if ((report_bytes <= 60000)); then
-        mv -f -- "$full_report" "$report_file"
-    else
-        {
-            echo 'Setup diagnostic report automatically shortened for the GitHub issue-body limit.'
-            echo "Complete local report: $full_report ($report_bytes bytes)"
-            echo
-            echo 'First 28,000 bytes:'
-            echo '```text'
-            head -c 28000 "$full_report"
-            echo
-            echo '```'
-            echo
-            echo 'Middle omitted from the upload; retained in the complete local report.'
-            echo
-            echo 'Last 28,000 bytes:'
-            echo '```text'
-            tail -c 28000 "$full_report"
-            echo
-            echo '```'
-        } >"$report_file"
-    fi
-    upload_error=$(mktemp /tmp/subaru-ecu-tools-upload-error.XXXXXX)
-    if issue_url=$(gh issue create --repo "$github_repo" \
-        --title "Setup diagnostic report ($log_stamp)" \
-        --body-file "$report_file" 2>"$upload_error"); then
-        echo "Error report uploaded: $issue_url"
-        rm -f -- "$report_file" "$full_report"
-    else
-        echo "GitHub upload failed: $(tail -n 1 "$upload_error")" >&2
-        if [[ -f "$full_report" ]]; then
-            echo "The complete report remains at: $full_report" >&2
-            echo "The GitHub-sized report remains at: $report_file" >&2
+        printf 'Platform: %s (%s)\n' "$distro_label" "$(uname -m 2>/dev/null || echo unknown)"
+        printf 'Kernel release: %s\n' "$(uname -r 2>/dev/null || echo unknown)"
+        printf 'Session type: %s\n' "${XDG_SESSION_TYPE:-unknown}"
+        if openport_usb_present; then
+            echo 'OpenPort USB state: detected (serial and topology omitted)'
         else
-            echo "The complete ready-to-share report remains at: $report_file" >&2
+            echo 'OpenPort USB state: not detected'
         fi
-        echo "You can attach it manually at: https://github.com/$github_repo/issues/new" >&2
-    fi
-    rm -f -- "$upload_error"
+    } >"$report_file"
+    rm -f -- "$description_file"
+    summary_row "Report saved" "${report_file##*/}"
+    ui_box_line "$color_cyan" \
+        "Review it, then attach it at: https://github.com/Natzirt-BK/subaru-ecu-tools-linux/issues/new"
+    warn "Do not share the raw setup log without checking it yourself."
 }
 confirm_success() {
-    local question user_description
+    local user_description completion_status=0
 
     [[ "$setup_interactive" == true && "${SUBARU_SETUP_NO_PAUSE:-0}" != 1 ]] || return 0
-    case "$mode" in
-        check) question="Did the system check complete as expected?" ;;
-        uninstall) question="Did removal complete as expected?" ;;
-        update) question="Did the update and automatic OpenPort test complete successfully?" ;;
-        *) question="Did installation complete and do the installed shortcuts open correctly?" ;;
+    read_completion_choice || completion_status=$?
+    case "$completion_status" in
+        0) ;;
+        2) return_to_setup_menu=true ;;
+        *)
+            warn "The run exited successfully, but the user reported a problem."
+            ui_box_line "$color_yellow$color_bold" \
+                '[ INPUT ] Briefly describe the problem, then press Enter (optional; omit private data).'
+            read -r user_description </dev/tty || user_description=
+            offer_error_report "$user_description"
+            wait_for_y_to_close
+            ;;
     esac
-    if ! read_yes_no "$question" yes; then
-        warn "The run exited successfully, but the user reported a problem."
-        read -r -p "Briefly describe what went wrong (optional; do not include passwords or private data): " \
-            user_description </dev/tty || user_description=
-        offer_error_report "$user_description"
-    else
-        ok "Confirmed complete. No error report is needed."
-    fi
 }
-wait_before_close() {
+read_completion_choice() {
+    local key menu_available=false
     [[ "$setup_interactive" == true && "${SUBARU_SETUP_NO_PAUSE:-0}" != 1 ]] || return 0
-    ui_box_line "$color_cyan" '[ INPUT ] Press Enter to close this setup terminal...'
-    printf '%b║%b  > ' "$color_purple$color_bold" "$color_reset"
-    read -r _ </dev/tty || true
-    printf '\n'
+    [[ -x "${ECU_TOOLS_MENU_LAUNCHER:-}" ]] && menu_available=true
+    pause_setup_music_keys
+    while true; do
+        if $menu_available; then
+            ui_box_line "$color_yellow$color_bold" \
+                '[ INPUT ] Y = close  //  M = main menu  //  R = report a problem  [Y/M/R]'
+        else
+            ui_box_line "$color_yellow$color_bold" \
+                '[ INPUT ] Y = close  //  R = report a problem  [Y/R]'
+        fi
+        IFS= read -rsn1 key </dev/tty || { resume_setup_music_keys; return 0; }
+        case "$key" in
+            y|Y) ui_box_line "$color_green$color_bold" '[ INPUT ] Y // CLOSING'; resume_setup_music_keys; return 0 ;;
+            m|M)
+                if $menu_available; then
+                    ui_box_line "$color_cyan$color_bold" '[ INPUT ] M // RETURNING TO MAIN MENU'
+                    resume_setup_music_keys
+                    return 2
+                fi
+                warn 'Main menu is unavailable in this direct installer session.'
+                ;;
+            r|R) ui_box_line "$color_red$color_bold" '[ INPUT ] R // REPORT A PROBLEM'; resume_setup_music_keys; return 1 ;;
+            *) $menu_available && warn 'Press Y, M, or R.' || warn 'Press Y or R.' ;;
+        esac
+    done
+}
+wait_for_y_to_close() {
+    local key menu_available=false
+    [[ "$setup_interactive" == true && "${SUBARU_SETUP_NO_PAUSE:-0}" != 1 ]] || return 0
+    [[ -x "${ECU_TOOLS_MENU_LAUNCHER:-}" ]] && menu_available=true
+    pause_setup_music_keys
+    while true; do
+        if $menu_available; then
+            ui_box_line "$color_yellow$color_bold" '[ INPUT ] Y = close  //  M = main menu  [Y/M]'
+        else
+            ui_box_line "$color_yellow$color_bold" '[ INPUT ] Press Y to close setup.'
+        fi
+        IFS= read -rsn1 key </dev/tty || break
+        case "$key" in
+            y|Y) ui_box_line "$color_green$color_bold" '[ INPUT ] Y // CLOSING'; break ;;
+            m|M)
+                if $menu_available; then
+                    ui_box_line "$color_cyan$color_bold" '[ INPUT ] M // RETURNING TO MAIN MENU'
+                    return_to_setup_menu=true
+                    break
+                fi
+                warn 'Main menu is unavailable in this direct installer session.'
+                ;;
+            *) $menu_available && warn 'Press Y or M.' || warn 'Press Y to close.' ;;
+        esac
+    done
+    resume_setup_music_keys
 }
 stop_setup_music() {
     local music_pid=${SUBARU_SETUP_MUSIC_PID:-}
@@ -892,19 +650,23 @@ stop_setup_music() {
 log_result() {
     local status=$?
     trap - EXIT
-    stop_setup_music
     if ((status)); then
         echo
-        fail "Subaru & Evo ECU Tools stopped with status $status."
-        echo "Share this diagnostic log when requesting help: $log_file"
+        fail "ECU Tools stopped with status $status."
+        summary_row "Raw log" "${log_file##*/}"
         offer_error_report
+        wait_for_y_to_close
     else
         ok "Run log saved."
         summary_row "Run log" "${log_file##*/}"
+        completion_banner
         confirm_success
     fi
-    wait_before_close
+    stop_setup_music
     console_footer
+    if [[ "$return_to_setup_menu" == true && -x "${ECU_TOOLS_MENU_LAUNCHER:-}" ]]; then
+        ECU_TOOLS_SKIP_UPDATE_PROMPT=1 exec "$ECU_TOOLS_MENU_LAUNCHER"
+    fi
     exit "$status"
 }
 trap log_result EXIT
@@ -1199,7 +961,7 @@ install_managed_user_files() {
         "$tools_menu_file" 0644
     command -v update-desktop-database >/dev/null && \
         update-desktop-database "$applications_dir" >/dev/null 2>&1 || true
-    ok "Application menu folder: Subaru & Evo ECU Tools"
+    ok "Application menu folder: ECU Tools"
     ok "Managed-file audit complete: $checked checked, $updated updated, $current already current."
 }
 
@@ -1252,9 +1014,8 @@ install_romraider2_only() {
         "$tools_documents/Release Notes.txt"
     ok "Easy-access RomRaider2 folder: $tools_documents"
 
-    completion_banner
     summary_row "Applications" "RomRaider2 Editor, RomRaider2 Logger"
-    summary_row "App menu" "Subaru & Evo ECU Tools"
+    summary_row "App menu" "ECU Tools"
     summary_row "Launchers" "$bin_dir"
 }
 
@@ -1464,7 +1225,7 @@ if [[ "$mode" == update ]]; then
 fi
 
 if [[ "$mode" == uninstall ]]; then
-    section "Remove Subaru & Evo ECU Tools"
+    section "Remove ECU Tools"
     warn "The following project-managed files will be removed:"
     printf '  %s\n' \
         "$bin_dir/launch-ecuflash" \
@@ -1512,7 +1273,7 @@ if [[ "$mode" == uninstall ]]; then
     fi
 
     if ! $assume_yes; then
-        read_yes_no "Remove these Subaru & Evo ECU Tools files?" no || {
+        read_yes_no "Remove these ECU Tools files?" no || {
             echo "Uninstall cancelled."
             exit 0
         }
@@ -1558,7 +1319,7 @@ if [[ "$mode" == uninstall ]]; then
     if [[ "$repo_root" == "$default_source_dir" ]]; then
         rm -rf -- "$default_source_dir"
     fi
-    ok "Subaru & Evo ECU Tools removal completed."
+    ok "ECU Tools removal completed."
     echo "The final removal log is outside the installed paths: $log_file"
     exit 0
 fi
@@ -1583,11 +1344,11 @@ fi
 section "Checking dependencies"
 case "$distro_family" in
     arch)
-        packages=(base-devel curl github-cli libnotify libusb lib32-libusb unzip wine llvm-mingw zstd)
+        packages=(base-devel curl libnotify libusb lib32-libusb unzip wine llvm-mingw zstd)
         install_hint="sudo pacman -S --needed"
         ;;
     debian)
-        packages=(build-essential ca-certificates curl file git gh libnotify-bin libusb-1.0-0
+        packages=(build-essential ca-certificates curl file git libnotify-bin libusb-1.0-0
             libusb-1.0-0-dev libusb-1.0-0:i386 unzip zstd usbutils udev
             desktop-file-utils sudo wine64-tools libwine-dev libwine-dev:i386 gcc-mingw-w64
             libxtst6:i386 libxi6:i386 libxinerama1:i386 libxrandr2:i386)
@@ -1753,7 +1514,8 @@ if $install_udev; then
     }
     ok "Installed and reloaded the OpenPort 2.0 udev permission rule."
     if $setup_interactive; then
-        echo "The guided plug/unplug test is recommended, but it can be skipped."
+        ui_box_line "$color_cyan" \
+            "The guided plug/unplug test is recommended, but it can be skipped."
         if read_yes_no "Run the guided OpenPort plug/unplug test now?" yes; then
             verify_openport_hotplug_cycle || exit 1
             if $install_ecuflash; then
@@ -1778,9 +1540,10 @@ if $install_udev; then
         }
         verify_openport_usb_access || exit 1
     else
-        echo "Connect the OpenPort to validate live USB permissions; the built-in System Check will verify them."
+        ui_box_line "$color_cyan" \
+            "Connect the OpenPort to validate live USB permissions; the built-in System Check will verify them."
     fi
-    echo "Added $USER to the $openport_group fallback group. A new login activates it for future sessions."
+    ok "Added the current user to the $openport_group fallback group. A new login activates it for future sessions."
 fi
 
 if $install_romraider; then
@@ -1806,7 +1569,8 @@ if $install_romraider; then
         curl --fail --location --progress-bar \
             --output "$romraider_archive" "$romraider_url"
     fi
-    printf '%s  %s\n' "$romraider_sha256" "$romraider_archive" | sha256sum -c -
+    printf '%s  %s\n' "$romraider_sha256" "$romraider_archive" | \
+        sha256sum -c --status -
 
     if [[ ! -f "$java_archive" ]] || \
        ! printf '%s  %s\n' "$java_sha256" "$java_archive" | sha256sum -c - >/dev/null 2>&1; then
@@ -1814,7 +1578,8 @@ if $install_romraider; then
         curl --fail --location --progress-bar \
             --output "$java_archive" "$java_url"
     fi
-    printf '%s  %s\n' "$java_sha256" "$java_archive" | sha256sum -c -
+    printf '%s  %s\n' "$java_sha256" "$java_archive" | \
+        sha256sum -c --status -
 
     romraider_stage=$(mktemp -d "$data_root/.romraider-install.XXXXXX")
     unzip -q "$romraider_archive" -d "$romraider_stage"
@@ -1857,7 +1622,11 @@ if $install_definitions; then
         definition_args+=(--custom-editor "$custom_editor_definition")
     [[ -z "$custom_logger_definition" ]] || \
         definition_args+=(--custom-logger "$custom_logger_definition")
-    "$bin_dir/install-romraider-definitions" "${definition_args[@]}"
+    definition_output=$("$bin_dir/install-romraider-definitions" \
+        "${definition_args[@]}")
+    while IFS= read -r definition_line || [[ -n "$definition_line" ]]; do
+        ui_box_line "$color_green" "${definition_line#  }"
+    done <<<"$definition_output"
     if [[ "$definition_source" == beta || "$definition_source" == alpha ]]; then
         warn "Experimental $definition_source Editor definitions were selected at the user's discretion."
     fi
@@ -1885,7 +1654,8 @@ if $install_ecuflash; then
         curl --fail --location --progress-bar \
             --output "$ecuflash_installer" "$ecuflash_url"
     fi
-    printf '%s  %s\n' "$ecuflash_sha256" "$ecuflash_installer" | sha256sum -c -
+    printf '%s  %s\n' "$ecuflash_sha256" "$ecuflash_installer" | \
+        sha256sum -c --status -
 
     ecuflash_wine="${ECUFLASH_WINE:-$ecuflash_runtime_dir/files/bin/wine}"
     ecuflash_dir="$ecuflash_prefix/drive_c/Program Files (x86)/OpenECU/EcuFlash"
@@ -2072,7 +1842,6 @@ if $install_ecuflash; then
 fi
 
 create_documents_shortcuts
-completion_banner
 installed_apps=()
 [[ -f "$ecuflash_prefix/drive_c/Program Files (x86)/OpenECU/EcuFlash/ecuflash.exe" ]] && \
     installed_apps+=(EcuFlash)
@@ -2085,7 +1854,7 @@ if ((${#installed_apps[@]})); then
     printf -v installed_apps_text '%s, ' "${installed_apps[@]}"
     summary_row "Applications" "${installed_apps_text%, }"
 fi
-summary_row "App menu" "Subaru & Evo ECU Tools"
+summary_row "App menu" "ECU Tools"
 summary_row "Launchers" "$bin_dir"
 summary_row "Wine bridge" "$data_dir/winedll"
 summary_row "Desktop files" "$applications_dir"
@@ -2096,5 +1865,5 @@ if [[ ":$PATH:" != *":$bin_dir:"* ]]; then
     warn "Add $bin_dir to PATH only when launching tools from a terminal."
 fi
 printf '\n'
-ok "Open applications from the Subaru & Evo ECU Tools menu."
+ok "Open applications from the ECU Tools menu."
 step "Begin with cable discovery and a supervised read-only ECU test."

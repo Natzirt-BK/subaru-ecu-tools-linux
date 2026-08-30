@@ -1,4 +1,4 @@
-# Subaru & Evo ECU Tools for Linux
+# ECU Tools for Linux
 
 This enables EcuFlash and RomRaider on CachyOS, Arch Linux, and Debian 13
 (amd64) with a Tactrix OpenPort 2.0. The installer configures the host,
@@ -62,7 +62,7 @@ included. DimeMod remains available as a Subaru compatibility fallback.
 RomRaider2 is the supported Evo logging path; the old EvoScan installer
 integration has been retired. Guarded realtime write support is not enabled.
 
-All applications appear together under **Subaru & Evo ECU Tools** in your
+All applications appear together under **ECU Tools** in your
 application menu. On Arch the OpenPort fallback group is `uucp`; on Debian it is
 `dialout`. Active desktop sessions normally receive access through `uaccess`.
 
@@ -103,18 +103,12 @@ Setup saves its output under:
 ~/.local/state/subaru-ecu-tools-linux/
 ```
 
-On failure, press `Y` when asked to create a GitHub diagnostic report. The
-report includes bounded excerpts from the setup, J2534, EcuFlash, and RomRaider
-logs, plus OpenPort-targeted USB descriptors, permissions, udev state, and
-recent filtered kernel USB events. It also includes a bounded host/runtime
-snapshot that may identify your username, hostname, home paths, local network
-addresses, hardware and USB identifiers, adapter serial, groups, and relevant
-packages/processes. It does not intentionally collect credentials, tokens, SSH
-keys, browser data, or the unfiltered environment. Review it before uploading because
-reports are public. If GitHub upload fails, a ready-to-share report is preserved
-locally. Reports are assembled below GitHub's issue-body limit. An oversized
-report is automatically reduced to bounded first/last excerpts while the
-complete version remains local.
+On failure, press `Y` to create a diagnostic report. Setup does not upload it or
+create a GitHub issue. The report keeps a bounded installer excerpt and basic
+platform information while filtering usernames, hostnames, paths, email and
+network addresses, USB serials, device topology, and URL queries. Review the
+file before attaching it to a public issue. Do not share the raw log without
+checking it yourself.
 
 Report problems at:
 [GitHub Issues](https://github.com/Natzirt-BK/subaru-ecu-tools-linux/issues)

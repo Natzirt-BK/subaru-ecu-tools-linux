@@ -10,7 +10,7 @@ workflow=$repo_root/.github/workflows/validate.yml
 # The amd64 development package contains only x86_64 libwinecrt0 archives.
 grep -F 'libwine-dev libwine-dev:i386 gcc-mingw-w64' "$installer" >/dev/null
 grep -F 'libxtst6:i386 libxi6:i386 libxinerama1:i386 libxrandr2:i386' "$installer" >/dev/null
-grep -F 'libwine-dev libwine-dev:i386 wine64-tools gcc-mingw-w64' \
+grep -F 'wine64-tools libwine-dev libwine-dev:i386 gcc-mingw-w64' \
     "$installer" >/dev/null
 grep -F 'libwine-dev libwine-dev:i386 gcc-mingw-w64' "$workflow" >/dev/null
 grep -F 'libxtst6:i386 libxi6:i386 libxinerama1:i386 libxrandr2:i386' "$workflow" >/dev/null

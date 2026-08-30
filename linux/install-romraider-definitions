@@ -156,5 +156,7 @@ configurator=${XDG_BIN_HOME:-$HOME/.local/bin}/configure-romraider-definitions
 
 echo "  OK Editor definition: $editor_definition"
 echo "  OK Logger definition: $logger_definition"
-echo "  Vehicle note: ${vehicle_year:-unspecified} ${vehicle_make:-unspecified} ${vehicle_model:-unspecified}"
+if [[ -n "$vehicle_year$vehicle_make$vehicle_model" ]]; then
+    echo "  Vehicle note: ${vehicle_year:-unknown year} ${vehicle_make:-unknown make} ${vehicle_model:-unknown model}"
+fi
 echo "  RomRaider will match the Editor definition by exact ROM ID."

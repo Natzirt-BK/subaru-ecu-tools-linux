@@ -5,9 +5,20 @@ repo_root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 test_root=$(mktemp -d)
 trap 'rm -rf -- "$test_root"' EXIT HUP INT TERM
 
+grep -Fx 'Name=ECU Tools' "$repo_root/linux/subaru-ecu-tools.directory" >/dev/null
+if grep -Fq 'Name=Subaru & Evo ECU Tools' \
+        "$repo_root/linux/subaru-ecu-tools.directory"; then
+    echo 'The retired application-menu name is still active.' >&2
+    exit 1
+fi
+
 TERM=xterm timeout 10 script -q -e -c \
-    "ECU_TOOLS_UI_SELF_TEST=1 '$repo_root/linux/install-cachyos.sh'" \
+    "ECU_TOOLS_UI_WIDTH=70 ECU_TOOLS_UI_SELF_TEST=1 '$repo_root/linux/install-cachyos.sh'" \
     "$test_root/console.typescript" >/dev/null
+
+TERM=xterm timeout 10 script -q -e -c \
+    "ECU_TOOLS_UI_WIDTH=100 ECU_TOOLS_UI_SELF_TEST=1 '$repo_root/linux/install-cachyos.sh'" \
+    "$test_root/console-wide.typescript" >/dev/null
 
 printf 'q' | TERM=xterm SUBARU_SETUP_INPUT_DEVICE=/dev/stdin \
     ECU_TOOLS_SKIP_UPDATE_PROMPT=1 ECU_TOOLS_MUSIC_PLAYER="$test_root/no-music" \
@@ -33,6 +44,26 @@ perl -CSD -Mutf8 -e '
     }
     exit $failed;
 ' "$test_root/console.typescript"
+
+perl -CSD -Mutf8 -e '
+    use strict; use warnings;
+    my $failed = 0; my $seen = 0;
+    while (<>) {
+        s/\e\[[0-9;]*m//g; s/\r//g; chomp;
+        next unless /║/;
+        $seen++;
+        my @chars = split //;
+        my @borders = grep { $chars[$_] eq "║" } 0 .. $#chars;
+        if (@borders != 2 || $borders[0] != 0 || $borders[1] != 99) {
+            warn "invalid wide setup-console border width: $_\n";
+            $failed = 1;
+        }
+    }
+    exit($failed || $seen < 8);
+' "$test_root/console-wide.typescript"
+
+grep -F '[ DATA ] PATH :: ~/.local/bin' "$test_root/console.typescript" >/dev/null
+! grep -F "$HOME/.local/bin" "$test_root/console.typescript" >/dev/null
 
 perl -CSD -Mutf8 -e '
     use strict; use warnings;

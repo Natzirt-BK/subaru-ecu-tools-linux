@@ -1,4 +1,4 @@
-name: Build RomRaider2 Windows x64 preview
+name: Build RomRaider2 Windows x64
 
 on:
   workflow_dispatch:
@@ -14,7 +14,7 @@ permissions:
 
 env:
   SOURCE_ARCHIVE: RomRaider2_ECU_Studio_1.1.0_Source.tar.gz
-  SOURCE_SHA256: f30e7a1ed6c1317b9536218c1c733c0577921c205debda56267466c5f989c728
+  SOURCE_SHA256: 8cb5a8b573d7f5daa2796015046c3e89cff6f7df151ccf5644fcbc2ad5c502f8
   SOURCE_URL: https://github.com/Natzirt-BK/subaru-ecu-tools-linux/releases/download/romraider2-1.1.0-rc1/RomRaider2_ECU_Studio_1.1.0_Source.tar.gz
 
 jobs:
@@ -50,7 +50,8 @@ jobs:
         run: |
           packaging/java21/verify-audited-dependencies.sh
           cp packaging/default/settings.xml settings.xml
-          timeout 10m xvfb-run -a ant clean unittest build-linux
+          timeout 10m xvfb-run -a ant clean unittest
+          ant clean build-linux
           packaging/java21/audit-runtime-modules.sh build/linux/lib/RomRaider2.jar
 
   windows-x64-package:
@@ -76,7 +77,7 @@ jobs:
           }
           New-Item -ItemType Directory -Path source | Out-Null
           tar -xzf $env:SOURCE_ARCHIVE -C source --strip-components=1
-      - name: Build and verify Windows x64 preview
+      - name: Build and verify Windows x64 release
         shell: pwsh
         working-directory: source
         run: |
@@ -89,7 +90,7 @@ jobs:
       - name: Upload workflow artifact
         uses: actions/upload-artifact@v4
         with:
-          name: RomRaider2-Windows-x64-preview
+          name: RomRaider2-Windows-x64
           path: dist/*
           if-no-files-found: error
       - name: Publish RC1 release assets

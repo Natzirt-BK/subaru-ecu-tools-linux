@@ -18,7 +18,7 @@ jobs:
             linux/configure-romraider-definitions linux/install-cachyos.sh \
             linux/install-debian.sh linux/install-romraider-definitions \
             linux/install-romraider2 \
-            linux/play-installer-chiptune \
+            linux/play-installer-chiptune linux/redact-diagnostics \
             linux/setup-cachyos-gui.sh linux/setup-debian-gui.sh \
             linux/update-cachyos.sh linux/update-debian.sh tests/vm/*.sh
           sh -n linux/launch-ecuflash linux/launch-romraider \
@@ -45,7 +45,7 @@ jobs:
           dpkg --add-architecture i386
           apt-get update
           apt-get install -y --no-install-recommends \
-            build-essential ca-certificates curl file git gh libnotify-bin libusb-1.0-0 \
+            build-essential ca-certificates curl file git libnotify-bin libusb-1.0-0 \
             libusb-1.0-0-dev libusb-1.0-0:i386 unzip zstd usbutils udev \
             desktop-file-utils sudo wine64-tools libwine-dev libwine-dev:i386 gcc-mingw-w64 \
             libxtst6:i386 libxi6:i386 libxinerama1:i386 libxrandr2:i386

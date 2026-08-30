@@ -57,7 +57,7 @@ printf 'y' | TERM=dumb SUBARU_SETUP_INPUT_DEVICE=/dev/stdin \
     ECU_TOOLS_UPDATER="$updater" TEST_UPDATE_TRACE="$test_root/update.trace" \
     "$repo_root/linux/setup-cachyos-gui.sh" >"$test_root/update.output" 2>&1
 grep -Fx -- '--continue-setup' "$test_root/update.trace" >/dev/null
-grep -F 'Update Subaru & Evo ECU Tools before continuing?' \
+grep -F 'Update ECU Tools before continuing?' \
     "$test_root/update.output" >/dev/null
 
 printf 'n3' | TERM=dumb SUBARU_SETUP_INPUT_DEVICE=/dev/stdin \
@@ -118,6 +118,7 @@ grep -F 'Creative Commons Attribution 4.0' \
 grep -F 'music_volume=${ECU_TOOLS_MUSIC_VOLUME:-0.144}' \
     "$repo_root/linux/play-installer-chiptune" >/dev/null
 grep -F 'm|M)' "$repo_root/linux/play-installer-chiptune" >/dev/null
+grep -F 'while :; do' "$repo_root/linux/play-installer-chiptune" >/dev/null
 grep -q '^pause_setup_music_keys()' "$engine"
 grep -q '^resume_setup_music_keys()' "$engine"
 grep -q '^run_with_music_keys_paused()' "$engine"
@@ -125,6 +126,17 @@ grep -q '^run_with_music_keys_paused()' "$engine"
 printf '%s  %s\n' \
     9e74d37101f54f11a8816b1031d0967e55dc011da7fb01fb56f3729e62ca25eb \
     "$repo_root/linux/assets/arpanauts-eric-skiff.mp3" | sha256sum -c --status -
+cat >"$test_root/pw-play" <<'EOF'
+#!/bin/sh
+printf 'play\n' >>"$TEST_MUSIC_TRACE"
+sleep 0.03
+EOF
+chmod +x "$test_root/pw-play"
+: >"$test_root/music-loop.trace"
+PATH="$test_root:$PATH" TEST_MUSIC_TRACE="$test_root/music-loop.trace" \
+    ECU_TOOLS_MUSIC_INPUT_DEVICE=/dev/null timeout 0.35 \
+    "$repo_root/linux/play-installer-chiptune" >/dev/null 2>&1 || true
+test "$(wc -l <"$test_root/music-loop.trace")" -ge 2
 cat >"$test_root/pw-play" <<'EOF'
 #!/bin/sh
 exec sleep 30
@@ -152,26 +164,28 @@ grep -Fx 'Name=RomRaider2 Editor' \
     "$repo_root/linux/romraider2-editor.desktop" >/dev/null
 grep -F 'read -rsn1 key </dev/tty' "$engine" >/dev/null
 grep -F 'setup_interactive=false' "$engine" >/dev/null
-test "$(grep -F -c '[[ "$setup_interactive" == true && "${SUBARU_SETUP_NO_PAUSE:-0}" != 1 ]] || return 0' "$engine")" -eq 3
+test "$(grep -F -c '[[ "$setup_interactive" == true && "${SUBARU_SETUP_NO_PAUSE:-0}" != 1 ]] || return 0' "$engine")" -eq 4
 ! grep -F '[[ -t 0 || -t 1 ]] || return 0' "$engine" >/dev/null
-grep -F 'Briefly describe what went wrong (optional' "$engine" >/dev/null
-grep -F 'tail -c 12000' "$engine" >/dev/null
-grep -F '*j2534-probe.log) log_bytes=10000' "$engine" >/dev/null
+grep -F 'Briefly describe the problem, then press Enter (optional; omit private data).' \
+    "$engine" >/dev/null
+grep -F '[ INPUT ] Y = close  //  M = main menu  //  R = report a problem  [Y/M/R]' \
+    "$engine" >/dev/null
+grep -F '[ INPUT ] M // RETURNING TO MAIN MENU' "$engine" >/dev/null
+grep -F 'ECU_TOOLS_SKIP_UPDATE_PROMPT=1 exec "$ECU_TOOLS_MENU_LAUNCHER"' \
+    "$engine" >/dev/null
+grep -F '[ INPUT ] Press Y to close setup.' "$engine" >/dev/null
+! grep -F 'Press Enter to close this setup terminal' "$engine" >/dev/null
+grep -q '^read_completion_choice()' "$engine"
+grep -q '^wait_for_y_to_close()' "$engine"
+grep -F 'tail -c 16000 "$log_file" | "$repo_root/linux/redact-diagnostics"' \
+    "$engine" >/dev/null
 ! grep -F 'WINEDEBUG=-all,+loaddll' "$engine" >/dev/null
-grep -F 'The complete ready-to-share report remains at:' "$engine" >/dev/null
-grep -F 'OpenPort USB access diagnostics:' "$engine" >/dev/null
-grep -F 'Host and installed-runtime diagnostics:' "$engine" >/dev/null
-grep -F 'first 6,000 bytes; may include identifying host' "$engine" >/dev/null
-grep -F 'It does not intentionally collect passwords, tokens, SSH keys' "$engine" >/dev/null
-grep -F 'ip -brief address' "$engine" >/dev/null
-grep -F 'OpenPort native bridge dependencies:' "$engine" >/dev/null
-grep -F 'effective write access:' "$engine" >/dev/null
-grep -F 'processes using node:' "$engine" >/dev/null
-grep -F 'Verbose OpenPort USB descriptor:' "$engine" >/dev/null
-grep -F 'first 10,000 bytes; may include adapter serial and host USB details' "$engine" >/dev/null
-grep -F 'report_bytes <= 60000' "$engine" >/dev/null
-grep -F 'head -c 28000 "$full_report"' "$engine" >/dev/null
-grep -F 'tail -c 28000 "$full_report"' "$engine" >/dev/null
+grep -F 'Personal data is filtered; this file was not uploaded.' "$engine" >/dev/null
+grep -F 'report-$log_stamp.md' "$engine" >/dev/null
+grep -F 'Review it, then attach it' "$engine" >/dev/null
+! grep -F 'gh issue create' "$engine" >/dev/null
+! grep -F 'write_host_runtime_diagnostics' "$engine" >/dev/null
+! grep -F 'write_openport_usb_diagnostics' "$engine" >/dev/null
 grep -F 'Failure-only Wine OpenPort driver/PnP trace' "$engine" >/dev/null
 grep -F 'Prime it before the official DLL attempts PassThruOpen' "$engine" >/dev/null
 update_prime_line=$(grep -n 'capture_openport_device_probe.*update_wine' "$engine" | head -1 | cut -d: -f1)

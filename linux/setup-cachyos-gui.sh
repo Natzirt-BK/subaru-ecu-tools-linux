@@ -7,13 +7,16 @@ installer=${ECU_TOOLS_INSTALLER:-$script_dir/install-cachyos.sh}
 updater=${ECU_TOOLS_UPDATER:-$script_dir/update-cachyos.sh}
 music_player=${ECU_TOOLS_MUSIC_PLAYER:-$script_dir/play-installer-chiptune}
 installed_setup=${XDG_DATA_HOME:-$HOME/.local/share}/applications/subaru-ecu-tools-setup.desktop
+export ECU_TOOLS_FORCE_COLOR=${ECU_TOOLS_FORCE_COLOR:-1}
+export ECU_TOOLS_MENU_LAUNCHER=${ECU_TOOLS_MENU_LAUNCHER:-$script_dir/setup-cachyos-gui.sh}
 
 if [[ ! -x "$installer" ]]; then
-    printf 'Cannot find the Subaru & Evo ECU Tools installer: %s\n' "$installer" >&2
+    printf 'Cannot find the ECU Tools installer: %s\n' "$installer" >&2
     exit 1
 fi
 
-if [[ -t 1 && -z "${NO_COLOR:-}" && "${TERM:-}" != dumb ]]; then
+if [[ -t 1 && "${TERM:-}" != dumb && \
+      ( "$ECU_TOOLS_FORCE_COLOR" == 1 || -z "${NO_COLOR:-}" ) ]]; then
     reset=$'\033[0m'; bold=$'\033[1m'; dim=$'\033[2m'
     blue=$'\033[38;5;39m'; cyan=$'\033[38;5;51m'; green=$'\033[38;5;82m'
     yellow=$'\033[38;5;220m'; red=$'\033[38;5;196m'; purple=$'\033[38;5;135m'
@@ -37,7 +40,7 @@ draw_banner() {
     printf '%b' "$blue$bold"
     cat <<'EOF'
        ╭──────────────────────────────────────────────╮
-       │        SUBARU & EVO ECU TOOLS // LINUX       │
+       │              ECU TOOLS // LINUX              │
        ├──────────────────────────────────────────────┤
        │        INSTALL • REPAIR • DIAGNOSTICS        │
        ╰──────────────────────────────────────────────╯
@@ -108,7 +111,7 @@ if [[ -f "$installed_setup" && "${ECU_TOOLS_SKIP_UPDATE_PROMPT:-0}" != 1 ]]; the
     printf '  %bRecommended:%b check for installer and compatibility updates first.\n' \
         "$green$bold" "$reset"
     printf '  Y = update now (recommended); N = continue without updating (not recommended).\n\n'
-    if confirm 'Update Subaru & Evo ECU Tools before continuing?'; then
+    if confirm 'Update ECU Tools before continuing?'; then
         [[ -x "$updater" ]] || {
             printf 'Cannot find the updater: %s\n' "$updater" >&2
             exit 1
