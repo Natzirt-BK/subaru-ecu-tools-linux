@@ -104,6 +104,10 @@ Compared with the inherited RomRaider/DimeMod build:
   both drag axes.
 - Window resizing includes the edges and bottom corner; status-bar text stays
   aligned and unclipped.
+- Windows menus, tabs, lists, tables, combo boxes, and file choosers retain
+  readable contrast under every RomRaider2 theme.
+- The Favorites action no longer collides with its heading in a narrow editor
+  sidebar.
 - OpenPort/J2534 reception waits for complete messages and resynchronizes when
   Subaru SSM queries change, preventing the observed logging gaps.
 - J2534 logging no longer shows an irrelevant serial COM-port selector.
@@ -111,6 +115,8 @@ Compared with the inherited RomRaider/DimeMod build:
   port change; unsupported Windows-only plugins are hidden on Linux.
 - Missing-definition guidance opens the current SubaruDefs project instead of
   sending users to an outdated forum download.
+- Missing Logger definitions now use one application-styled prompt with clear
+  download and external-sensors-only choices.
 - Error dialogs no longer expose raw exception details or upload reports.
 - End-of-life Java and logging components were replaced with audited Java 21,
   JNA, jSerialComm, and Log4j dependencies.
