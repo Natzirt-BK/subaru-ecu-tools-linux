@@ -14,12 +14,13 @@ permissions:
 
 env:
   SOURCE_ARCHIVE: RomRaider2_ECU_Studio_1.1.0_Source.tar.gz
-  SOURCE_SHA256: 392852dc704d8bb2134533b0d465364ce4ab29dc0f0ea2b77643f09c044babfa
+  SOURCE_SHA256: f30e7a1ed6c1317b9536218c1c733c0577921c205debda56267466c5f989c728
   SOURCE_URL: https://github.com/Natzirt-BK/subaru-ecu-tools-linux/releases/download/romraider2-1.1.0-rc1/RomRaider2_ECU_Studio_1.1.0_Source.tar.gz
 
 jobs:
   source-and-tests:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     steps:
       - uses: actions/setup-java@v5
         with:
@@ -48,12 +49,14 @@ jobs:
         working-directory: source
         run: |
           packaging/java21/verify-audited-dependencies.sh
-          xvfb-run -a ant clean unittest build-linux
+          cp packaging/default/settings.xml settings.xml
+          timeout 10m xvfb-run -a ant clean unittest build-linux
           packaging/java21/audit-runtime-modules.sh build/linux/lib/RomRaider2.jar
 
   windows-x64-package:
     needs: source-and-tests
     runs-on: windows-latest
+    timeout-minutes: 30
     steps:
       - uses: actions/setup-java@v5
         with:
