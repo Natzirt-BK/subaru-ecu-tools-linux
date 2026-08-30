@@ -131,7 +131,7 @@ fi
 
 grep -F 'romraider2-1.1.0-rc1' \
     "$repo_root/linux/install-romraider2" >/dev/null
-grep -F '4c258cafd85cc32f8f97b6fa8485e6b6d2bf4dd34770ac02303c1458fa29a0ac' \
+grep -F 'fe62609ba220651f4d781c2558aef1b3bd83b745e0a309d75a9db50e88571310' \
     "$repo_root/linux/install-romraider2" >/dev/null
 
 echo 'RomRaider2 installer tests passed.'
