@@ -14,10 +14,10 @@ On CachyOS or Arch Linux, paste this into a terminal:
 curl -fsSL https://raw.githubusercontent.com/Natzirt-BK/subaru-ecu-tools-linux/master/bootstrap-cachyos.sh | bash
 ```
 
-To install or update only BergerRaider for testing, use:
+To install or update only RomRaider2 for testing, use:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/Natzirt-BK/subaru-ecu-tools-linux/master/bootstrap-cachyos.sh | bash -s -- --install-bergerraider
+curl -fsSL https://raw.githubusercontent.com/Natzirt-BK/subaru-ecu-tools-linux/master/bootstrap-cachyos.sh | bash -s -- --install-romraider2
 ```
 
 On Debian 13 Stable (amd64), use:
@@ -26,10 +26,10 @@ On Debian 13 Stable (amd64), use:
 curl -fsSL https://raw.githubusercontent.com/Natzirt-BK/subaru-ecu-tools-linux/master/bootstrap-debian.sh | bash
 ```
 
-For a BergerRaider-only Debian test install, use:
+For a RomRaider2-only Debian test install, use:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/Natzirt-BK/subaru-ecu-tools-linux/master/bootstrap-debian.sh | bash -s -- --install-bergerraider
+curl -fsSL https://raw.githubusercontent.com/Natzirt-BK/subaru-ecu-tools-linux/master/bootstrap-debian.sh | bash -s -- --install-romraider2
 ```
 
 Debian setup enables the official `i386` multiarch repository support needed
@@ -39,7 +39,7 @@ by the bundled 32-bit RomRaider Logger and installs dependencies with APT.
 2. **Clean reinstall** > replace all installer-managed state
 3. **System check** > inspect the current installation
 4. **Uninstall** > remove installer-managed files
-5. **BergerRaider 1.1 RC** > install the Java 21 Subaru/Evo studio
+5. **RomRaider2 1.1 RC** > install the Java 21 Subaru/Evo studio
 
 Use **Clean reinstall** when replacing an older or broken setup. Your ROMs,
 definitions, and logs are preserved.
@@ -52,11 +52,11 @@ definitions, and logs are preserved.
 - the Linux OpenPort Wine bridge and USB permissions
 - RomRaider DimeMod Editor and Logger with official definitions
 
-BergerRaider 1.1 RC adds the shared Subaru/Evo platform, a self-contained Java
+RomRaider2 1.1 RC adds the shared Subaru/Evo platform, a self-contained Java
 21 x64 runtime, versioned settings, read-only Evo MUT-II support, and offline
 CSV analysis. Its
 OpenPort 2.0 Subaru SSM/ISO9141 path has completed a sustained in-car logging
-test. The GitHub project and BergerRaider release are software-only: vehicle
+test. The GitHub project and RomRaider2 release are software-only: vehicle
 ROMs, definitions, profiles, logs, and owner-specific tuning material are not
 included. DimeMod remains the Subaru fallback and EvoScan remains the Evo fallback
 until their remaining external-sensor and MUT-II vehicle qualification gates

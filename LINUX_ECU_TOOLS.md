@@ -36,7 +36,7 @@ On Debian, use `./linux/install-debian.sh`, `./linux/setup-debian-gui.sh`, and
 engine, while the explicit Debian names make manual maintenance unambiguous.
 
 Run `./linux/install-cachyos.sh --help` for advanced component, definition,
-BergerRaider, and EvoScan flags. The bootstrap checkout lives at
+RomRaider2, and EvoScan flags. The bootstrap checkout lives at
 `~/.local/src/subaru-ecu-tools-linux` by default.
 
 ## Managed locations
@@ -46,7 +46,7 @@ BergerRaider, and EvoScan flags. The bootstrap checkout lives at
 | Project data and Wine runtime | `~/.local/share/subaru-ecu-tools-linux/` |
 | EcuFlash Wine prefix | `~/.local/share/ecuflash-proton/` |
 | RomRaider DimeMod | `~/.local/share/romraider-dm20/` |
-| BergerRaider 1.1 RC | `~/.local/share/bergerraider-ecu-studio/` |
+| RomRaider2 1.1 RC | `~/.local/share/romraider2-ecu-studio/` |
 | Definitions | `~/.local/share/subaru-evo-ecu-definitions/` |
 | Setup logs | `~/.local/state/subaru-ecu-tools-linux/` |
 | Download cache | `~/.cache/subaru-ecu-tools-linux/` |
@@ -99,16 +99,16 @@ Community stable, beta, alpha, alternative units, and custom XML imports remain
 available through advanced installer flags. Experimental definitions can contain
 incorrect addresses; verify them independently.
 
-## BergerRaider 1.1 release candidate
+## RomRaider2 1.1 release candidate
 
-BergerRaider is a separate experimental Subaru/Evo development checkpoint. It
+RomRaider2 is a separate Subaru/Evo release candidate. It
 includes the shared platform selector, independent DimeMod state, current
 official editor fixes, read-only MUT-II support, both official Subaru
 definitions, and the complete audited Evo definition set. Install it directly
 with:
 
 ```bash
-./linux/install-cachyos.sh --install-bergerraider
+./linux/install-cachyos.sh --install-romraider2
 ```
 
 It uses its own application directory and settings file and does not replace

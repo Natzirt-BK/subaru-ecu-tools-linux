@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=RomRaider2 Editor
+Comment=ECU calibration, logging, diagnostics, and analysis studio
+Exec=env ROMRAIDER2_MODE=editor @BINDIR@/launch-romraider2
+Icon=romraider2
+Terminal=false
+Categories=X-Subaru-Evo-ECU-Tools;
+StartupNotify=true

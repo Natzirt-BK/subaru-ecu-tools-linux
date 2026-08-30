@@ -3,34 +3,41 @@ set -euo pipefail
 
 data_root=${XDG_DATA_HOME:-$HOME/.local/share}
 cache_root=${XDG_CACHE_HOME:-$HOME/.cache}/subaru-ecu-tools-linux
-install_root=${BERGERRAIDER_INSTALL_ROOT:-$data_root/bergerraider-ecu-studio}
-legacy_install_root=${BERGERRAIDER_LEGACY_INSTALL_ROOT:-$data_root/bergerraider-ecu-studio-preview-1}
-archive=${BERGERRAIDER_ARCHIVE:-$cache_root/BergerRaider_ECU_Studio_1.1.0_Linux_x64.zip}
-archive_root=BergerRaider_ECU_Studio_1.1.0_Linux_x64
-release_url=${BERGERRAIDER_URL:-https://github.com/Natzirt-BK/subaru-ecu-tools-linux/releases/download/bergerraider-1.1.0-rc1/BergerRaider_ECU_Studio_1.1.0_Linux_x64.zip}
-release_sha256=${BERGERRAIDER_SHA256:-5005aa996ddf1aa66d5d5b74935bb0a09c3f76dd8baa5a8876793ebb34e4b511}
-source_root=${BERGERRAIDER_SOURCE_ROOT:-}
-quiet=${BERGERRAIDER_QUIET:-0}
+install_root=${ROMRAIDER2_INSTALL_ROOT:-$data_root/romraider2-ecu-studio}
+archive=${ROMRAIDER2_ARCHIVE:-$cache_root/RomRaider2_ECU_Studio_1.1.0_Linux_x64.zip}
+archive_root=RomRaider2_ECU_Studio_1.1.0_Linux_x64
+release_url=${ROMRAIDER2_URL:-https://github.com/Natzirt-BK/subaru-ecu-tools-linux/releases/download/romraider2-1.1.0-rc1/RomRaider2_ECU_Studio_1.1.0_Linux_x64.zip}
+release_sha256=${ROMRAIDER2_SHA256:-5b9c52f84816baa612718514ed67c0b5508da86271b8ab7651cc16ad649d093c}
+source_root=${ROMRAIDER2_SOURCE_ROOT:-}
+quiet=${ROMRAIDER2_QUIET:-0}
+if [[ -n "${ROMRAIDER2_LEGACY_INSTALL_ROOT:-}" ]]; then
+    legacy_install_roots=("$ROMRAIDER2_LEGACY_INSTALL_ROOT")
+else
+    legacy_install_roots=(
+        "$data_root/bergerraider-ecu-studio"
+        "$data_root/bergerraider-ecu-studio-preview-1"
+    )
+fi
 
 notice() {
     [[ "$quiet" == 1 ]] || printf '%s\n' "$*"
 }
 
 case "$install_root" in
-    ''|/|"$HOME") echo "Unsafe BergerRaider install path: $install_root" >&2; exit 2 ;;
+    ''|/|"$HOME") echo "Unsafe RomRaider2 install path: $install_root" >&2; exit 2 ;;
 esac
 
 modern_install() {
     local root=$1
-    [[ -x "$root/bin/BergerRaider" && \
+    [[ -x "$root/bin/RomRaider2" && \
        -f "$root/lib/runtime/release" && \
-       -f "$root/lib/app/BergerRaider.jar" && \
-       -f "$root/lib/app/BergerRaider.cfg" && \
+       -f "$root/lib/app/RomRaider2.jar" && \
+       -f "$root/lib/app/RomRaider2.cfg" && \
        -f "$root/lib/app/lib/linux/64/j2534.so" && \
        -f "$root/config/settings.default.xml" && \
        -f "$root/customize/j2534Libraries.properties" ]] && \
-        grep -Fq 'bergerraider.settings.dir=$APPDIR/../../config/user' \
-            "$root/lib/app/BergerRaider.cfg" && \
+        grep -Fq 'romraider2.settings.dir=$APPDIR/../../config/user' \
+            "$root/lib/app/RomRaider2.cfg" && \
         ! grep -Eq 'ecudefinitionfile|<definition |<profile ' \
             "$root/config/settings.default.xml" && \
         grep -Fq 'linux=j2534.so' \
@@ -53,23 +60,23 @@ if modern_install "$install_root" && \
    [[ -f "$install_root/.installed-by-subaru-ecu-tools" ]] && \
    [[ -f "$install_root/.release-sha256" ]] && \
    grep -Fxq "$release_sha256" "$install_root/.release-sha256"; then
-    notice "  OK BergerRaider 1.1.0 release candidate is already current."
+    notice "  OK RomRaider2 1.1.0 release candidate is already current."
     exit 0
 fi
 
 mkdir -p "$cache_root" "$(dirname -- "$install_root")"
-stage=$(mktemp -d "$(dirname -- "$install_root")/.bergerraider-install.XXXXXX")
+stage=$(mktemp -d "$(dirname -- "$install_root")/.romraider2-install.XXXXXX")
 trap 'rm -rf -- "$stage"' EXIT HUP INT TERM
 if [[ -n "$source_root" ]]; then
     [[ -d "$source_root" ]] || {
-        echo "BERGERRAIDER_SOURCE_ROOT is not a directory: $source_root" >&2
+        echo "ROMRAIDER2_SOURCE_ROOT is not a directory: $source_root" >&2
         exit 2
     }
     cp -a -- "$source_root" "$stage/$archive_root"
 else
     if [[ ! -f "$archive" ]] || \
        ! printf '%s  %s\n' "$release_sha256" "$archive" | sha256sum -c - >/dev/null 2>&1; then
-        notice "  -> Downloading BergerRaider 1.1.0 release candidate"
+        notice "  -> Downloading RomRaider2 1.1.0 release candidate"
         if [[ "$quiet" == 1 ]]; then
             curl --fail --location --silent --show-error \
                 --output "$archive" "$release_url"
@@ -82,7 +89,7 @@ else
 fi
 staged_root=$stage/$archive_root
 modern_install "$staged_root" || {
-    echo "The verified BergerRaider archive is not a complete Java 21 application image." >&2
+    echo "The verified RomRaider2 archive is not a complete Java 21 application image." >&2
     exit 1
 }
 
@@ -90,21 +97,36 @@ mkdir -p "$staged_root/config/user"
 if [[ -f "$install_root/config/user/settings.xml" ]]; then
     cp -- "$install_root/config/user/settings.xml" \
         "$staged_root/config/user/settings.xml"
-elif [[ -f "$legacy_install_root/config/user/settings.xml" ]]; then
-    cp -- "$legacy_install_root/config/user/settings.xml" \
-        "$staged_root/config/user/settings.xml"
 else
-    cp -- "$staged_root/config/settings.default.xml" \
-        "$staged_root/config/user/settings.xml"
-fi
-migrate_retired_bundled_content_defaults "$staged_root/config/user/settings.xml"
-if [[ -d "$install_root" ]]; then
-    for user_dir in logs roms repositories; do
-        if [[ -d "$install_root/$user_dir" ]]; then
-            mkdir -p "$staged_root/$user_dir"
-            cp -a -- "$install_root/$user_dir/." "$staged_root/$user_dir/"
+    settings_migrated=false
+    for legacy_install_root in "${legacy_install_roots[@]}"; do
+        if [[ -f "$legacy_install_root/config/user/settings.xml" ]]; then
+            cp -- "$legacy_install_root/config/user/settings.xml" \
+                "$staged_root/config/user/settings.xml"
+            settings_migrated=true
+            break
         fi
     done
+    if ! $settings_migrated; then
+        cp -- "$staged_root/config/settings.default.xml" \
+            "$staged_root/config/user/settings.xml"
+    fi
+fi
+migrate_retired_bundled_content_defaults "$staged_root/config/user/settings.xml"
+copy_user_content() {
+    local source=$1 user_dir
+    for user_dir in logs roms repositories; do
+        if [[ -d "$source/$user_dir" ]]; then
+            mkdir -p "$staged_root/$user_dir"
+            cp -a -- "$source/$user_dir/." "$staged_root/$user_dir/"
+        fi
+    done
+}
+for legacy_install_root in "${legacy_install_roots[@]}"; do
+    [[ -d "$legacy_install_root" ]] && copy_user_content "$legacy_install_root"
+done
+if [[ -d "$install_root" ]]; then
+    copy_user_content "$install_root"
 fi
 
 : >"$staged_root/.installed-by-subaru-ecu-tools"
@@ -112,20 +134,17 @@ printf '%s\n' "$release_sha256" >"$staged_root/.release-sha256"
 if [[ -e "$install_root" ]]; then
     backup=${install_root}.backup-$(date +%Y%m%d-%H%M%S)
     [[ ! -e "$backup" ]] || backup=$backup-$$
-    notice "  -> Preserving the previous BergerRaider installation at $backup"
+    notice "  -> Preserving the previous RomRaider2 installation at $backup"
     mv -- "$install_root" "$backup"
 fi
 mv -- "$staged_root" "$install_root"
 rmdir -- "$stage"
 trap - EXIT HUP INT TERM
-if [[ "$legacy_install_root" != "$install_root" && \
-      -f "$legacy_install_root/.installed-by-subaru-ecu-tools" ]]; then
-    for user_dir in logs roms repositories; do
-        if [[ -d "$legacy_install_root/$user_dir" ]]; then
-            cp -a -- "$legacy_install_root/$user_dir/." "$install_root/$user_dir/"
-        fi
-    done
-    rm -rf -- "$legacy_install_root"
-    notice "  -> Removed the obsolete installer-managed foundation preview after migration."
-fi
-notice "  OK BergerRaider 1.1.0 release candidate installed at $install_root"
+for legacy_install_root in "${legacy_install_roots[@]}"; do
+    if [[ "$legacy_install_root" != "$install_root" && \
+          -f "$legacy_install_root/.installed-by-subaru-ecu-tools" ]]; then
+        rm -rf -- "$legacy_install_root"
+        notice "  -> Removed the obsolete installer-managed predecessor after migration."
+    fi
+done
+notice "  OK RomRaider2 1.1.0 release candidate installed at $install_root"

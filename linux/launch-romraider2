@@ -2,8 +2,8 @@
 set -eu
 
 : "${XDG_DATA_HOME:=$HOME/.local/share}"
-: "${BERGERRAIDER_HOME:=$XDG_DATA_HOME/bergerraider-ecu-studio}"
-: "${BERGERRAIDER_MODE:=editor}"
+: "${ROMRAIDER2_HOME:=$XDG_DATA_HOME/romraider2-ecu-studio}"
+: "${ROMRAIDER2_MODE:=editor}"
 : "${OPENPORT_USB_SYSFS_ROOT:=/sys/bus/usb/devices}"
 : "${OPENPORT_USB_DEV_ROOT:=/dev/bus/usb}"
 
@@ -11,7 +11,7 @@ report_error() {
     printf '%s\n' "$1" >&2
     if command -v kdialog >/dev/null 2>&1 && \
        { [ -n "${DISPLAY:-}" ] || [ -n "${WAYLAND_DISPLAY:-}" ]; }; then
-        kdialog --title "BergerRaider could not start" --error "$1" || true
+        kdialog --title "RomRaider2 could not start" --error "$1" || true
     fi
 }
 
@@ -33,37 +33,37 @@ openport_accessible_or_absent() {
     ! $found
 }
 
-if [ ! -f "$BERGERRAIDER_HOME/.installed-by-subaru-ecu-tools" ]; then
-    report_error "BergerRaider is not installed. Open Subaru & Evo ECU Tools Setup and select BergerRaider."
+if [ ! -f "$ROMRAIDER2_HOME/.installed-by-subaru-ecu-tools" ]; then
+    report_error "RomRaider2 is not installed. Open Subaru & Evo ECU Tools Setup and select RomRaider2."
     exit 1
 fi
-if [ "$BERGERRAIDER_MODE" = logger ] && ! openport_accessible_or_absent; then
+if [ "$ROMRAIDER2_MODE" = logger ] && ! openport_accessible_or_absent; then
     report_error "The connected OpenPort is not readable and writable. Open Setup, repair USB permissions, then reconnect it."
     exit 1
 fi
 
-case "$BERGERRAIDER_MODE" in
+case "$ROMRAIDER2_MODE" in
     logger) mode_argument=-logger ;;
     editor) mode_argument= ;;
-    *) report_error "BERGERRAIDER_MODE must be logger or editor."; exit 2 ;;
+    *) report_error "ROMRAIDER2_MODE must be logger or editor."; exit 2 ;;
 esac
 
 state_dir=${XDG_STATE_HOME:-$HOME/.local/state}/subaru-ecu-tools-linux
 mkdir -p "$state_dir"
-log=$state_dir/bergerraider-launch.log
+log=$state_dir/romraider2-launch.log
 set +e
-if [ -x "$BERGERRAIDER_HOME/bin/BergerRaider" ] && \
-   [ -f "$BERGERRAIDER_HOME/lib/runtime/release" ]; then
-    cd "$BERGERRAIDER_HOME" || exit 1
-    "$BERGERRAIDER_HOME/bin/BergerRaider" \
+if [ -x "$ROMRAIDER2_HOME/bin/RomRaider2" ] && \
+   [ -f "$ROMRAIDER2_HOME/lib/runtime/release" ]; then
+    cd "$ROMRAIDER2_HOME" || exit 1
+    "$ROMRAIDER2_HOME/bin/RomRaider2" \
         $mode_argument >>"$log" 2>&1
 else
-    case "$BERGERRAIDER_MODE" in
-        logger) launcher=$BERGERRAIDER_HOME/START_LOGGER_LINUX.sh ;;
-        editor) launcher=$BERGERRAIDER_HOME/START_EDITOR_LINUX.sh ;;
+    case "$ROMRAIDER2_MODE" in
+        logger) launcher=$ROMRAIDER2_HOME/START_LOGGER_LINUX.sh ;;
+        editor) launcher=$ROMRAIDER2_HOME/START_EDITOR_LINUX.sh ;;
     esac
     if [ ! -x "$launcher" ]; then
-        report_error "The BergerRaider launcher is missing. Reinstall the optional component."
+        report_error "The RomRaider2 launcher is missing. Reinstall the optional component."
         exit 1
     fi
     "$launcher" >>"$log" 2>&1
@@ -71,6 +71,6 @@ fi
 status=$?
 set -e
 if [ "$status" -ne 0 ]; then
-    report_error "BergerRaider exited with status $status. Diagnostic log: $log"
+    report_error "RomRaider2 exited with status $status. Diagnostic log: $log"
 fi
 exit "$status"

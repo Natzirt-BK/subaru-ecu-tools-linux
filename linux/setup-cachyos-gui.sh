@@ -97,7 +97,7 @@ draw_menu() {
     menu_line '[3] SYSTEM CHECK' "$cyan$bold"
     menu_line '    Diagnose installation and a connected OpenPort.'
     menu_line '[4] UNINSTALL                    [Q] EXIT' "$cyan$bold"
-    menu_line '[5] BERGERRAIDER 1.1 RC' "$purple$bold"
+    menu_line '[5] RomRaider2 1.1 RC' "$purple$bold"
     menu_line '    Install the Java 21 Subaru/Evo release candidate.'
     printf '  %b╰──────────────────────────────────────────────────────╯%b\n\n' "$blue$bold" "$reset"
     printf '%b  Select an option: %b' "$yellow$bold" "$reset"
@@ -152,9 +152,9 @@ case "$choice" in
         ;;
     5)
         printf '  Release candidate; validated tools remain installed through vehicle qualification.\n\n'
-        confirm 'Install or update BergerRaider 1.1 RC?' || exit 0
+        confirm 'Install or update RomRaider2 1.1 RC?' || exit 0
         start_installer_music
-        exec "$installer" --install-bergerraider
+        exec "$installer" --install-romraider2
         ;;
     q|Q) printf 'Setup closed.\n' ;;
 esac

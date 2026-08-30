@@ -7,7 +7,7 @@ install_deps=false
 install_udev=false
 install_ecuflash=false
 install_romraider=false
-install_bergerraider=false
+install_romraider2=false
 install_evoscan=false
 install_definitions=false
 definition_source=official
@@ -649,7 +649,7 @@ usage() {
   --install-udev   Install the OpenPort 2.0 udev rule with sudo
   --install-ecuflash  Download and open Tactrix's official EcuFlash installer
   --install-romraider  Install RomRaider DimeMod with a bundled 32-bit JRE
-  --install-bergerraider   Install the BergerRaider 1.1 release candidate
+  --install-romraider2   Install the RomRaider2 1.1 release candidate
   --install-definitions SOURCE  Install RomRaider definitions (official, stable, beta, alpha)
   --definition-units UNITS     metric, standard, or imperial (default: metric)
   --definition-language LANG   en or de (default: en)
@@ -664,7 +664,7 @@ usage() {
   -h, --help       Show this help
 
 The default builds the bridge and installs support files under ~/.local.
-RomRaider DimeMod is installed only when selected. BergerRaider is a separate
+RomRaider DimeMod is installed only when selected. RomRaider2 is a separate
 opt-in component and never replaces DimeMod.
 Setup never supplies ROMs or vehicle firmware.
 EOF
@@ -678,7 +678,7 @@ while (($#)); do
         --install-udev) install_udev=true ;;
         --install-ecuflash) install_ecuflash=true ;;
         --install-romraider) install_romraider=true ;;
-        --install-bergerraider) install_bergerraider=true ;;
+        --install-romraider2) install_romraider2=true ;;
         --install-definitions)
             shift; (($#)) || { echo "--install-definitions requires a source." >&2; exit 2; }
             definition_source=$1; install_definitions=true; install_romraider=true
@@ -928,6 +928,7 @@ bin_dir="${XDG_BIN_HOME:-$HOME/.local/bin}"
 data_root="${XDG_DATA_HOME:-$HOME/.local/share}"
 data_dir="$data_root/subaru-ecu-tools-linux"
 applications_dir="$data_root/applications"
+application_icons_dir="$data_root/icons/hicolor/256x256/apps"
 desktop_directories_dir="$data_root/desktop-directories"
 menus_dir="${XDG_CONFIG_HOME:-$HOME/.config}/menus/applications-merged"
 tools_menu_file="$menus_dir/subaru-ecu-tools.menu"
@@ -938,8 +939,19 @@ ecuflash_prefix="${ECUFLASH_WINEPREFIX:-$data_root/ecuflash-proton}"
 default_source_dir="$HOME/.local/src/subaru-ecu-tools-linux"
 romraider_home="$data_root/romraider-dm20"
 legacy_evo_logger_home="$data_root/romraider-mut2-evo-88780008"
-bergerraider_home="$data_root/bergerraider-ecu-studio"
+romraider2_home="$data_root/romraider2-ecu-studio"
 definitions_home="$data_root/subaru-evo-ecu-definitions"
+
+remove_retired_romraider2_names() {
+    local retired
+    for retired in \
+        "$bin_dir/launch-bergerraider" \
+        "$bin_dir/install-bergerraider" \
+        "$applications_dir/bergerraider-editor.desktop" \
+        "$applications_dir/bergerraider-logger.desktop"; do
+        [[ ! -e "$retired" && ! -L "$retired" ]] || rm -f -- "$retired"
+    done
+}
 
 remove_legacy_evo_logger() {
     local documents_dir legacy_documents legacy_file removed=false
@@ -1000,8 +1012,8 @@ if $clean_install; then
         "$bin_dir/launch-ecuflash" \
         "$bin_dir/launch-evoscan" \
         "$bin_dir/launch-romraider" \
-        "$bin_dir/launch-bergerraider" \
-        "$bin_dir/install-bergerraider" \
+        "$bin_dir/launch-romraider2" \
+        "$bin_dir/install-romraider2" \
         "$bin_dir/sync-openport-device-state" \
         "$bin_dir/monitor-openport-state" \
         "$bin_dir/configure-romraider-definitions" \
@@ -1010,8 +1022,9 @@ if $clean_install; then
         "$applications_dir/evoscan.desktop" \
         "$applications_dir/romraider-editor.desktop" \
         "$applications_dir/romraider-logger.desktop" \
-        "$applications_dir/bergerraider-editor.desktop" \
-        "$applications_dir/bergerraider-logger.desktop" \
+        "$applications_dir/romraider2-editor.desktop" \
+        "$applications_dir/romraider2-logger.desktop" \
+        "$application_icons_dir/romraider2.png" \
         "$applications_dir/subaru-ecu-tools-setup.desktop" \
         "$applications_dir/subaru-ecu-tools-update.desktop" \
         "$tools_menu_file" \
@@ -1043,8 +1056,8 @@ create_documents_shortcuts() {
         "$tools_documents/EcuFlash" \
         "$tools_documents/EvoScan" \
         "$tools_documents/Diagnostic Logs"
-    if [[ -f "$bergerraider_home/.installed-by-subaru-ecu-tools" ]]; then
-        install -d "$tools_documents/BergerRaider"
+    if [[ -f "$romraider2_home/.installed-by-subaru-ecu-tools" ]]; then
+        install -d "$tools_documents/RomRaider2"
     fi
 
     if [[ -f "$data_dir/evoscan-exe.path" ]]; then
@@ -1082,10 +1095,8 @@ create_documents_shortcuts() {
         "${active_editor_definition:-/path/that/does/not/exist}"
     add_documents_link "$tools_documents/RomRaider Logger/Active Definition.xml" \
         "${active_logger_definition:-/path/that/does/not/exist}"
-    add_documents_link "$tools_documents/BergerRaider/Definitions" \
-        "$bergerraider_home/definitions"
-    add_documents_link "$tools_documents/BergerRaider/Release Notes.txt" \
-        "$bergerraider_home/RELEASE_NOTES.txt"
+    add_documents_link "$tools_documents/RomRaider2/Release Notes.txt" \
+        "$romraider2_home/RELEASE_NOTES.txt"
     add_documents_link "$tools_documents/EcuFlash/Definitions" \
         "$ecuflash_prefix/drive_c/Program Files (x86)/OpenECU/EcuFlash/rommetadata"
     add_documents_link "$tools_documents/EvoScan/Installed Program" \
@@ -1109,7 +1120,7 @@ install_managed_user_files() {
     setup_script=$repo_root/linux/setup-cachyos-gui.sh
     [[ "$distro_family" == debian ]] && setup_script=$repo_root/linux/setup-debian-gui.sh
 
-    install -d "$bin_dir" "$applications_dir" "$desktop_directories_dir" \
+    install -d "$bin_dir" "$applications_dir" "$application_icons_dir" "$desktop_directories_dir" \
         "$menus_dir" "$data_dir/registry"
 
     update_managed_file() {
@@ -1131,11 +1142,13 @@ install_managed_user_files() {
     }
 
     for source in launch-ecuflash launch-evoscan launch-romraider \
-        launch-bergerraider install-bergerraider \
+        launch-romraider2 install-romraider2 \
         sync-openport-device-state monitor-openport-state \
         configure-romraider-definitions install-romraider-definitions; do
         update_managed_file "$repo_root/linux/$source" "$bin_dir/$source" 0755
     done
+    update_managed_file "$repo_root/linux/assets/romraider2.png" \
+        "$application_icons_dir/romraider2.png" 0644
     update_managed_file "$repo_root/wine-bridge/openport-driver-wine.reg" \
         "$data_dir/registry/openport-driver-wine.reg" 0644
     update_managed_file "$repo_root/wine-bridge/openport2-wine.reg" \
@@ -1147,13 +1160,14 @@ install_managed_user_files() {
     desktop_names=(ecuflash evoscan romraider-editor romraider-logger
         subaru-ecu-tools-setup)
     remove_legacy_evo_logger
-    if $install_bergerraider || \
-       [[ -f "$bergerraider_home/.installed-by-subaru-ecu-tools" ]]; then
-        desktop_names+=(bergerraider-editor bergerraider-logger)
+    remove_retired_romraider2_names
+    if $install_romraider2 || \
+       [[ -f "$romraider2_home/.installed-by-subaru-ecu-tools" ]]; then
+        desktop_names+=(romraider2-editor romraider2-logger)
     else
         rm -f -- \
-            "$applications_dir/bergerraider-editor.desktop" \
-            "$applications_dir/bergerraider-logger.desktop"
+            "$applications_dir/romraider2-editor.desktop" \
+            "$applications_dir/romraider2-logger.desktop"
     fi
     for desktop in "${desktop_names[@]}"; do
         rendered=$(mktemp "$cache_root/desktop-$desktop.XXXXXX")
@@ -1178,20 +1192,23 @@ install_managed_user_files() {
     ok "Managed-file audit complete: $checked checked, $updated updated, $current already current."
 }
 
-install_bergerraider_only() {
+install_romraider2_only() {
     local desktop rendered setup_script documents_dir tools_documents
 
-    section "Preparing BergerRaider launchers"
+    section "Preparing RomRaider2 launchers"
     setup_script=$repo_root/linux/setup-cachyos-gui.sh
     [[ "$distro_family" == debian ]] && setup_script=$repo_root/linux/setup-debian-gui.sh
-    install -d "$bin_dir" "$applications_dir" "$desktop_directories_dir" \
+    install -d "$bin_dir" "$applications_dir" "$application_icons_dir" "$desktop_directories_dir" \
         "$menus_dir" "$cache_root"
     remove_legacy_evo_logger
-    install -m 0755 "$repo_root/linux/launch-bergerraider" \
-        "$bin_dir/launch-bergerraider"
-    install -m 0755 "$repo_root/linux/install-bergerraider" \
-        "$bin_dir/install-bergerraider"
-    for desktop in bergerraider-editor bergerraider-logger subaru-ecu-tools-setup; do
+    remove_retired_romraider2_names
+    install -m 0755 "$repo_root/linux/launch-romraider2" \
+        "$bin_dir/launch-romraider2"
+    install -m 0755 "$repo_root/linux/install-romraider2" \
+        "$bin_dir/install-romraider2"
+    install -m 0644 "$repo_root/linux/assets/romraider2.png" \
+        "$application_icons_dir/romraider2.png"
+    for desktop in romraider2-editor romraider2-logger subaru-ecu-tools-setup; do
         rendered=$(mktemp "$cache_root/desktop-$desktop.XXXXXX")
         sed -e "s|@BINDIR@|$bin_dir|g" \
             -e "s|@SETUP@|$setup_script|g" \
@@ -1205,12 +1222,12 @@ install_bergerraider_only() {
         "$tools_menu_file"
     command -v update-desktop-database >/dev/null && \
         update-desktop-database "$applications_dir" >/dev/null 2>&1 || true
-    ok "BergerRaider launchers and application-menu entries installed."
+    ok "RomRaider2 launchers and application-menu entries installed."
 
-    section "Installing BergerRaider 1.1 release candidate"
-    step "Verifying the pinned BergerRaider application image."
-    BERGERRAIDER_QUIET=1 "$bin_dir/install-bergerraider"
-    ok "BergerRaider installed without requiring the unrelated Wine/OpenPort toolchain."
+    section "Installing RomRaider2 1.1 release candidate"
+    step "Verifying the pinned RomRaider2 application image."
+    ROMRAIDER2_QUIET=1 "$bin_dir/install-romraider2"
+    ok "RomRaider2 installed without requiring the unrelated Wine/OpenPort toolchain."
 
     if command -v xdg-user-dir >/dev/null 2>&1; then
         documents_dir=$(xdg-user-dir DOCUMENTS 2>/dev/null || true)
@@ -1218,15 +1235,14 @@ install_bergerraider_only() {
     if [[ -z "${documents_dir:-}" || "$documents_dir" == "$HOME" ]]; then
         documents_dir="$HOME/Documents"
     fi
-    tools_documents="$documents_dir/Subaru & Evo ECU Tools/BergerRaider"
+    tools_documents="$documents_dir/Subaru & Evo ECU Tools/RomRaider2"
     install -d "$tools_documents"
-    ln -sfn -- "$bergerraider_home/definitions" "$tools_documents/Definitions"
-    ln -sfn -- "$bergerraider_home/RELEASE_NOTES.txt" \
+    ln -sfn -- "$romraider2_home/RELEASE_NOTES.txt" \
         "$tools_documents/Release Notes.txt"
-    ok "Easy-access BergerRaider folder: $tools_documents"
+    ok "Easy-access RomRaider2 folder: $tools_documents"
 
     completion_banner
-    summary_row "Applications" "BergerRaider Editor, BergerRaider Logger"
+    summary_row "Applications" "RomRaider2 Editor, RomRaider2 Logger"
     summary_row "App menu" "Subaru & Evo ECU Tools"
     summary_row "Launchers" "$bin_dir"
 }
@@ -1443,8 +1459,8 @@ if [[ "$mode" == uninstall ]]; then
         "$bin_dir/launch-ecuflash" \
         "$bin_dir/launch-evoscan" \
         "$bin_dir/launch-romraider" \
-        "$bin_dir/launch-bergerraider" \
-        "$bin_dir/install-bergerraider" \
+        "$bin_dir/launch-romraider2" \
+        "$bin_dir/install-romraider2" \
         "$bin_dir/sync-openport-device-state" \
         "$bin_dir/monitor-openport-state" \
         "$bin_dir/configure-romraider-definitions" \
@@ -1458,8 +1474,9 @@ if [[ "$mode" == uninstall ]]; then
         "$applications_dir/evoscan.desktop" \
         "$applications_dir/romraider-editor.desktop" \
         "$applications_dir/romraider-logger.desktop" \
-        "$applications_dir/bergerraider-editor.desktop" \
-        "$applications_dir/bergerraider-logger.desktop" \
+        "$applications_dir/romraider2-editor.desktop" \
+        "$applications_dir/romraider2-logger.desktop" \
+        "$application_icons_dir/romraider2.png" \
         "$applications_dir/subaru-ecu-tools-setup.desktop" \
         "$applications_dir/subaru-ecu-tools-update.desktop" \
         "$tools_menu_file" \
@@ -1478,9 +1495,9 @@ if [[ "$mode" == uninstall ]]; then
         printf '  %s\n' "$legacy_evo_logger_home"
         echo "Legacy installer-managed Evo logger files will also be removed."
     fi
-    if [[ -f "$bergerraider_home/.installed-by-subaru-ecu-tools" ]]; then
-        printf '  %s\n' "$bergerraider_home"
-        echo "The installer-managed BergerRaider release candidate will also be removed."
+    if [[ -f "$romraider2_home/.installed-by-subaru-ecu-tools" ]]; then
+        printf '  %s\n' "$romraider2_home"
+        echo "The installer-managed RomRaider2 release candidate will also be removed."
     fi
 
     if ! $assume_yes; then
@@ -1494,8 +1511,8 @@ if [[ "$mode" == uninstall ]]; then
         "$bin_dir/launch-ecuflash" \
         "$bin_dir/launch-evoscan" \
         "$bin_dir/launch-romraider" \
-        "$bin_dir/launch-bergerraider" \
-        "$bin_dir/install-bergerraider" \
+        "$bin_dir/launch-romraider2" \
+        "$bin_dir/install-romraider2" \
         "$bin_dir/sync-openport-device-state" \
         "$bin_dir/monitor-openport-state" \
         "$bin_dir/configure-romraider-definitions" \
@@ -1504,8 +1521,9 @@ if [[ "$mode" == uninstall ]]; then
         "$applications_dir/evoscan.desktop" \
         "$applications_dir/romraider-editor.desktop" \
         "$applications_dir/romraider-logger.desktop" \
-        "$applications_dir/bergerraider-editor.desktop" \
-        "$applications_dir/bergerraider-logger.desktop" \
+        "$applications_dir/romraider2-editor.desktop" \
+        "$applications_dir/romraider2-logger.desktop" \
+        "$application_icons_dir/romraider2.png" \
         "$applications_dir/subaru-ecu-tools-setup.desktop" \
         "$applications_dir/subaru-ecu-tools-update.desktop" \
         "$tools_menu_file" \
@@ -1516,8 +1534,8 @@ if [[ "$mode" == uninstall ]]; then
         rm -rf -- "$romraider_home"
     fi
     remove_legacy_evo_logger
-    if [[ -f "$bergerraider_home/.installed-by-subaru-ecu-tools" ]]; then
-        rm -rf -- "$bergerraider_home"
+    if [[ -f "$romraider2_home/.installed-by-subaru-ecu-tools" ]]; then
+        rm -rf -- "$romraider2_home"
     fi
     if [[ -e /etc/udev/rules.d/99-openport2.rules ]]; then
         run_with_music_keys_paused sudo rm -f -- /etc/udev/rules.d/99-openport2.rules
@@ -1554,10 +1572,10 @@ if [[ "$(uname -m)" != x86_64 ]]; then
     exit 1
 fi
 
-if $install_bergerraider && ! $install_deps && ! $install_udev && \
+if $install_romraider2 && ! $install_deps && ! $install_udev && \
    ! $install_ecuflash && ! $install_romraider && \
    ! $install_evoscan && ! $install_definitions && ! $clean_install; then
-    install_bergerraider_only
+    install_romraider2_only
     exit 0
 fi
 
@@ -1848,11 +1866,11 @@ if $install_definitions; then
     fi
 fi
 
-if $install_bergerraider; then
-    section "Installing BergerRaider 1.1 release candidate"
-    step "Verifying the pinned BergerRaider application image."
-    BERGERRAIDER_QUIET=1 "$bin_dir/install-bergerraider"
-    ok "BergerRaider installed separately from DimeMod."
+if $install_romraider2; then
+    section "Installing RomRaider2 1.1 release candidate"
+    step "Verifying the pinned RomRaider2 application image."
+    ROMRAIDER2_QUIET=1 "$bin_dir/install-romraider2"
+    ok "RomRaider2 installed separately from DimeMod."
 fi
 
 if $install_ecuflash; then
@@ -2116,9 +2134,9 @@ installed_apps=()
     installed_apps+=(EcuFlash)
 [[ -f "$romraider_home/RomRaider.jar" ]] && \
     installed_apps+=("RomRaider Editor" "RomRaider Logger")
-[[ -f "$bergerraider_home/lib/app/BergerRaider.jar" || \
-   -f "$bergerraider_home/app/BergerRaider-32.jar" ]] && \
-    installed_apps+=("BergerRaider Editor" "BergerRaider Logger")
+[[ -f "$romraider2_home/lib/app/RomRaider2.jar" || \
+   -f "$romraider2_home/app/RomRaider2-32.jar" ]] && \
+    installed_apps+=("RomRaider2 Editor" "RomRaider2 Logger")
 [[ -f "$data_dir/evoscan-exe.path" ]] && installed_apps+=(EvoScan)
 if ((${#installed_apps[@]})); then
     printf -v installed_apps_text '%s, ' "${installed_apps[@]}"

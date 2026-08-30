@@ -31,7 +31,7 @@ run_choice recommended '1y' '--yes-all'
 run_choice clean '2y' '--clean-install --yes'
 run_choice check '3' '--check'
 run_choice uninstall '4y' '--uninstall --yes'
-run_choice bergerraider '5y' '--install-bergerraider'
+run_choice romraider2 '5y' '--install-romraider2'
 
 printf '1n' | TERM=dumb SUBARU_SETUP_INPUT_DEVICE=/dev/stdin \
     ECU_TOOLS_INSTALLER="$installer" ECU_TOOLS_SKIP_UPDATE_PROMPT=1 \
@@ -145,10 +145,10 @@ grep -F -- '--progress-bar' "$repo_root/linux/install-romraider-definitions" >/d
 grep -Fx 'Name=Setup' "$repo_root/linux/subaru-ecu-tools-setup.desktop" >/dev/null
 grep -Fx 'Name=EcuFlash' "$repo_root/linux/ecuflash.desktop" >/dev/null
 grep -Fx 'Name=EvoScan' "$repo_root/linux/evoscan.desktop" >/dev/null
-grep -Fx 'Name=BergerRaider Logger' \
-    "$repo_root/linux/bergerraider-logger.desktop" >/dev/null
-grep -Fx 'Name=BergerRaider Editor' \
-    "$repo_root/linux/bergerraider-editor.desktop" >/dev/null
+grep -Fx 'Name=RomRaider2 Logger' \
+    "$repo_root/linux/romraider2-logger.desktop" >/dev/null
+grep -Fx 'Name=RomRaider2 Editor' \
+    "$repo_root/linux/romraider2-editor.desktop" >/dev/null
 grep -F 'read -rsn1 key </dev/tty' "$engine" >/dev/null
 grep -F 'setup_interactive=false' "$engine" >/dev/null
 test "$(grep -F -c '[[ "$setup_interactive" == true && "${SUBARU_SETUP_NO_PAUSE:-0}" != 1 ]] || return 0' "$engine")" -eq 3
