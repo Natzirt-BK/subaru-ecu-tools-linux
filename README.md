@@ -56,7 +56,9 @@ BergerRaider 1.1 RC adds the shared Subaru/Evo platform, a self-contained Java
 21 x64 runtime, versioned settings, read-only Evo MUT-II support, offline CSV
 analysis, and the finalized 88780008 EcuFlash/RomRaider definition pair. Its
 OpenPort 2.0 Subaru SSM/ISO9141 path has completed a sustained in-car logging
-test. DimeMod remains the Subaru fallback and EvoScan remains the Evo fallback
+test. The package also includes a compact low-load profile for validating a
+physical 6MT swap against a 5MT-origin Forester ECU calibration. DimeMod
+remains the Subaru fallback and EvoScan remains the Evo fallback
 until their remaining external-sensor and MUT-II vehicle qualification gates
 pass. Guarded realtime write support is not enabled.
 

@@ -34,6 +34,7 @@ touch \
     "$source_root/definitions/Evo/release/RomRaider/88780008_RomRaider_Final_v4.xml" \
     "$source_root/definitions/Foz/Editor/Z2WC412I_DM23100_RR.xml" \
     "$source_root/definitions/Foz/Logger/logger_METRIC_EN_v370.xml" \
+    "$source_root/definitions/Foz/Profiles/foz-6mt-swap-validation.xml" \
     "$source_root/definitions/Foz/Profiles/shinji.xml"
 printf '%s\n' \
     '<settings><logger>' \
@@ -64,6 +65,7 @@ test -x "$install_root/bin/BergerRaider"
 test -f "$install_root/lib/runtime/release"
 test -f "$install_root/lib/app/BergerRaider.jar"
 test -f "$install_root/config/user/settings.xml"
+test -f "$install_root/definitions/Foz/Profiles/foz-6mt-swap-validation.xml"
 grep -F 'migrated="true"' "$install_root/config/user/settings.xml" >/dev/null
 test -f "$install_root/logs/preserved.csv"
 test ! -e "$legacy_root"
@@ -141,7 +143,7 @@ fi
 
 grep -F 'bergerraider-1.1.0-rc1' \
     "$repo_root/linux/install-bergerraider" >/dev/null
-grep -F '69b1dc533e44cba3d5c8eb9ad7f9bbb262c65d3f699319959f723e5f5d0dca4c' \
+grep -F '6c1ff6522b37d06169b30234b12c83bb695cbc7488ef3c52b04645c29f955e15' \
     "$repo_root/linux/install-bergerraider" >/dev/null
 
 echo 'BergerRaider installer tests passed.'
