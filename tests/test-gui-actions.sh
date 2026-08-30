@@ -28,9 +28,9 @@ run_choice() {
 }
 
 run_choice recommended '1y' '--yes-all'
-grep -F 'EcuFlash 1.44 + validated Wine/OpenPort stack.' \
+grep -F 'EcuFlash 1.44 for Subaru/Mitsubishi ECUs.' \
     "$test_root/recommended.output" >/dev/null
-grep -F 'Verify deps, bridge hashes + live cable access.' \
+grep -F 'Checks dependencies, files + live cable access.' \
     "$test_root/recommended.output" >/dev/null
 run_choice clean '2y' '--clean-install --yes'
 run_choice check '3' '--check'
@@ -154,11 +154,12 @@ if [ -e /etc/arch-release ]; then
         script -q -e -c "$repo_root/linux/play-installer-chiptune" /dev/null \
         >/dev/null 2>&1
 fi
-grep -F 'ACCESS GRANTED // SETUP COMPLETE' "$engine" >/dev/null
+grep -F 'SETUP COMPLETE // ALL REQUESTED TASKS FINISHED' "$engine" >/dev/null
 test "$(grep -c -- '--progress-bar' "$engine")" -eq 4
 grep -F -- '--progress-bar' "$repo_root/linux/install-romraider-definitions" >/dev/null
 ! grep -F 'echo "  Launchers: $bin_dir"' "$engine" >/dev/null
-grep -Fx 'Name=Setup' "$repo_root/linux/subaru-ecu-tools-setup.desktop" >/dev/null
+grep -Fx 'Name=Ecu Tools Setup' \
+    "$repo_root/linux/subaru-ecu-tools-setup.desktop" >/dev/null
 grep -Fx 'Name=EcuFlash' "$repo_root/linux/ecuflash.desktop" >/dev/null
 [ ! -e "$repo_root/linux/evoscan.desktop" ]
 [ ! -e "$repo_root/linux/launch-evoscan" ]
