@@ -6,10 +6,10 @@ installs the applications, compatibility runtime, OpenPort 2.0 support,
 definitions, USB permissions, and desktop launchers that users would otherwise
 have to assemble manually.
 
-The project also distributes **RomRaider2**, a much-needed modernization of
-RomRaider that preserves useful work from the DimeMod fork while adding a new
-interface, current runtime, safer diagnostics, improved logging, and Lancer
-Evolution support.
+The project also distributes **[RomRaider2](https://github.com/Natzirt-BK/RomRaider2)**,
+a much-needed modernization of RomRaider that preserves useful work from the
+DimeMod fork while adding a new interface, current runtime, safer diagnostics,
+improved logging, and Lancer Evolution support.
 
 Maintained by **NatZirt**. This is an independent community
 project and is not affiliated with Tactrix, Subaru, Mitsubishi, or the official
