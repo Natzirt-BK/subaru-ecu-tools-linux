@@ -18,7 +18,7 @@ RomRaider project.
 ## Downloads and installation
 
 Windows 10/11 x64 users can download the self-contained RomRaider2 portable ZIP
-from the [current release page](https://github.com/Natzirt-BK/subaru-ecu-tools-linux/releases/tag/romraider2-1.1.0-rc1).
+from the [current release page](https://github.com/Natzirt-BK/RomRaider2/releases/tag/romraider2-1.1.0-rc2).
 Java 21 is included; extract the ZIP and launch `RomRaider2.exe` or
 `RomRaider2 Logger.exe`.
 

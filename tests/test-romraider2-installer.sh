@@ -129,9 +129,9 @@ if grep -q '^  OK RomRaider2 1.1.0 release candidate' \
     exit 1
 fi
 
-grep -F 'romraider2-1.1.0-rc1' \
+grep -F 'romraider2-1.1.0-rc2' \
     "$repo_root/linux/install-romraider2" >/dev/null
-grep -F '5d15b0e336ed631225df3c7043291ace770d7f5635c3787f56c0aec9656aa75d' \
+grep -F 'c01b035a46274c5c173398c1d51f5cfb619a6f33a6abe91a72fbbcfa5f57cc41' \
     "$repo_root/linux/install-romraider2" >/dev/null
 
 echo 'RomRaider2 installer tests passed.'

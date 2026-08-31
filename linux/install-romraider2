@@ -6,8 +6,8 @@ cache_root=${XDG_CACHE_HOME:-$HOME/.cache}/subaru-ecu-tools-linux
 install_root=${ROMRAIDER2_INSTALL_ROOT:-$data_root/romraider2-ecu-studio}
 archive=${ROMRAIDER2_ARCHIVE:-$cache_root/RomRaider2_ECU_Studio_1.1.0_Linux_x64.zip}
 archive_root=RomRaider2_ECU_Studio_1.1.0_Linux_x64
-release_url=${ROMRAIDER2_URL:-https://github.com/Natzirt-BK/subaru-ecu-tools-linux/releases/download/romraider2-1.1.0-rc1/RomRaider2_ECU_Studio_1.1.0_Linux_x64.zip}
-release_sha256=${ROMRAIDER2_SHA256:-5d15b0e336ed631225df3c7043291ace770d7f5635c3787f56c0aec9656aa75d}
+release_url=${ROMRAIDER2_URL:-https://github.com/Natzirt-BK/RomRaider2/releases/download/romraider2-1.1.0-rc2/RomRaider2_ECU_Studio_1.1.0_Linux_x64.zip}
+release_sha256=${ROMRAIDER2_SHA256:-c01b035a46274c5c173398c1d51f5cfb619a6f33a6abe91a72fbbcfa5f57cc41}
 source_root=${ROMRAIDER2_SOURCE_ROOT:-}
 quiet=${ROMRAIDER2_QUIET:-0}
 if [[ -n "${ROMRAIDER2_LEGACY_INSTALL_ROOT:-}" ]]; then
