@@ -11,6 +11,7 @@ state_file=${ECU_TOOLS_MUSIC_STATE_FILE:-}
 music_volume=${ECU_TOOLS_MUSIC_VOLUME:-0.144}
 audio_pid=
 capture_keys=true
+[[ "${ECU_TOOLS_MUSIC_CAPTURE_KEYS:-1}" == 1 ]] || capture_keys=false
 pause_requested=false
 resume_requested=false
 

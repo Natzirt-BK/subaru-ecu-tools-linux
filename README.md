@@ -45,6 +45,10 @@ The Setup menu provides:
 4. **Uninstall** — remove installer-managed software.
 5. **RomRaider2 1.1.0 RC3** — install or update RomRaider2 separately.
 
+Installer music starts with the setup menu and continues across install runs.
+Press **M** to mute it. Completion screens use **B** to return to the main menu,
+and the menu redraw restores the same terminal colors and formatting.
+
 To install only RomRaider2 on CachyOS or Arch Linux:
 
 ```bash
@@ -74,6 +78,28 @@ and is downloaded automatically. The installer also obtains the official
 EcuFlash installer from Tactrix, builds the OpenPort bridge, and validates the
 completed stack.
 
+## EcuFlash on Linux
+
+EcuFlash is a supported part of this installer, not just a Windows program
+placed behind a Wine shortcut. The Linux setup:
+
+- installs the official checksum-pinned EcuFlash 1.44.4870 package and Tactrix
+  32-bit OpenPort 2.0 J2534 library;
+- supplies a 64-bit Wine-to-libusb bridge so the 32-bit application can reach
+  the physical adapter;
+- installs distribution-aware USB permissions and verifies the actual device
+  node;
+- synchronizes Wine's device state before EcuFlash starts and reports later
+  cable changes;
+- verifies bridge registration, disconnected behavior, and live adapter access;
+- keeps the WineGDK runtime checksum-pinned and separate from the user's normal
+  Wine configuration.
+
+This stack has completed live OpenPort discovery and ECU read/write validation
+on Linux. EcuFlash still reads cable state at startup, so restart it after
+plugging or unplugging the OpenPort. The installer does not automate a flash or
+choose ROM definitions for the user.
+
 ## What RomRaider2 adds
 
 - A modern tabbed calibration workspace with favorites, recent and changed-map
@@ -87,8 +113,8 @@ completed stack.
   logger samples.
 - Offline RomRaider CSV analysis with linked tables, graphs, statistics, range
   selection, and 0.25x–8x playback.
-- Dark, light, system, and high-contrast themes; 75%–300% interface scaling; and
-  Compact, Touch, Garage, Dyno, and In-Car display modes.
+- Light-first dark, system, and high-contrast themes; 75%–300% interface
+  scaling; and Compact, Touch, Garage, Dyno, and In-Car display modes.
 - Integrated window controls and responsive resizing.
 - A shared Subaru and Mitsubishi Lancer Evolution platform model with a
   read-only MUT-II logging foundation.
@@ -135,7 +161,7 @@ editing or logging.
 ## Validation status
 
 - EcuFlash 1.44 and the packaged Linux OpenPort/Wine stack have passed live
-  adapter discovery and read/write validation.
+  adapter discovery and ECU read/write validation.
 - RomRaider2 has completed OpenPort/J2534 Subaru ECU identification and sustained
   in-car SSM/ISO9141 logging.
 - Mitsubishi MUT-II logging still requires connected-vehicle qualification.

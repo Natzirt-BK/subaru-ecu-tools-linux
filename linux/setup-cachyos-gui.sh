@@ -57,6 +57,38 @@ read_key() {
     printf '%s' "$key"
 }
 
+setup_music_process_active() {
+    local music_pid=${SUBARU_SETUP_MUSIC_PID:-}
+    [[ "$music_pid" =~ ^[0-9]+$ ]] && kill -0 "$music_pid" 2>/dev/null
+}
+
+pause_installer_music_keys() {
+    local attempt state=
+    setup_music_process_active || return 0
+    kill -USR1 "$SUBARU_SETUP_MUSIC_PID" 2>/dev/null || return 0
+    for ((attempt=0; attempt<30; attempt++)); do
+        [[ -r "${SUBARU_SETUP_MUSIC_STATE_FILE:-}" ]] && \
+            IFS= read -r state <"$SUBARU_SETUP_MUSIC_STATE_FILE" || state=
+        [[ "$state" == paused ]] && return 0
+        setup_music_process_active || return 0
+        sleep 0.01
+    done
+}
+
+resume_installer_music_keys() {
+    setup_music_process_active || return 0
+    kill -USR2 "$SUBARU_SETUP_MUSIC_PID" 2>/dev/null || true
+}
+
+mute_installer_music() {
+    setup_music_process_active || return 0
+    kill "$SUBARU_SETUP_MUSIC_PID" 2>/dev/null || true
+    wait "$SUBARU_SETUP_MUSIC_PID" 2>/dev/null || true
+    unset SUBARU_SETUP_MUSIC_PID
+    export SUBARU_SETUP_MUSIC_MUTED=1
+    printf '\n  %b♪ Installer music muted.%b\n\n' "$purple$bold" "$reset"
+}
+
 confirm() {
     local prompt=$1 key
     while true; do
@@ -65,19 +97,35 @@ confirm() {
         case "$key" in
             y|Y) printf '%bY%b\n' "$green$bold" "$reset"; return 0 ;;
             n|N) printf '%bN%b\n' "$red$bold" "$reset"; return 1 ;;
-            *) printf '\n  Press Y or N.\n' ;;
+            m|M) mute_installer_music ;;
+            *) printf '\n  Press Y or N, or M to mute.\n' ;;
         esac
     done
 }
 
 start_installer_music() {
-    local runtime_root
+    local runtime_root attempt state=
+    # Keep one music controller for the lifetime of this setup terminal. The
+    # installer returns here by exec, so the exported PID also prevents a
+    # user-muted session from starting again when the menu is redrawn.
+    [[ "${SUBARU_SETUP_MUSIC_MUTED:-0}" != 1 ]] || return 0
+    [[ -z "${SUBARU_SETUP_MUSIC_PID:-}" ]] || return 0
     [[ -x "$music_player" ]] && command -v pw-play >/dev/null 2>&1 || return 0
     runtime_root=${XDG_RUNTIME_DIR:-/tmp}
     export SUBARU_SETUP_MUSIC_STATE_FILE="$runtime_root/subaru-ecu-tools-music-${BASHPID}-${RANDOM}.state"
-    ECU_TOOLS_MUSIC_STATE_FILE="$SUBARU_SETUP_MUSIC_STATE_FILE" \
+    ECU_TOOLS_MUSIC_CAPTURE_KEYS=0 \
+        ECU_TOOLS_MUSIC_STATE_FILE="$SUBARU_SETUP_MUSIC_STATE_FILE" \
         "$music_player" >/dev/null 2>&1 &
     export SUBARU_SETUP_MUSIC_PID=$!
+    # Do not signal the controller until it has installed its signal traps.
+    # This also keeps very small test doubles from being killed at startup.
+    for ((attempt=0; attempt<30; attempt++)); do
+        [[ -r "$SUBARU_SETUP_MUSIC_STATE_FILE" ]] && \
+            IFS= read -r state <"$SUBARU_SETUP_MUSIC_STATE_FILE" || state=
+        [[ "$state" == active ]] && break
+        setup_music_process_active || break
+        sleep 0.01
+    done
     printf '  %b♪ Installer music is running quietly in the background.%b\n' \
         "$purple$bold" "$reset"
     printf '  Press %bM%b in this setup terminal at any time to mute it.\n\n' \
@@ -112,6 +160,8 @@ draw_menu() {
 }
 
 draw_banner
+start_installer_music
+pause_installer_music_keys
 if [[ -f "$installed_setup" && "${ECU_TOOLS_SKIP_UPDATE_PROMPT:-0}" != 1 ]]; then
     printf '  %bRecommended:%b check for installer and compatibility updates first.\n' \
         "$green$bold" "$reset"
@@ -121,6 +171,7 @@ if [[ -f "$installed_setup" && "${ECU_TOOLS_SKIP_UPDATE_PROMPT:-0}" != 1 ]]; the
             printf 'Cannot find the updater: %s\n' "$updater" >&2
             exit 1
         }
+        resume_installer_music_keys
         exec "$updater" --continue-setup
     fi
     printf '  %bContinuing without updating is not recommended.%b\n\n' \
@@ -132,6 +183,7 @@ while true; do
     printf '%s\n\n' "$choice"
     case "$choice" in
         1|2|3|4|5|6|q|Q) break ;;
+        m|M) mute_installer_music ;;
         *)
             printf '%b  Unknown selection.%b Press 1, 2, 3, 4, 5, or Q.\n\n' \
                 "$red$bold" "$reset" >&2
@@ -142,27 +194,28 @@ done
 case "$choice" in
     1)
         confirm 'Install or repair the recommended tools?' || exit 0
-        start_installer_music
+        resume_installer_music_keys
         exec "$installer" --yes-all
         ;;
     2)
         printf '  This replaces installer-managed applications, bridge files, runtime, and cache.\n'
         printf '  Your ROMs, definitions, and logs are preserved.\n\n'
         confirm 'Continue with a clean reinstall?' || exit 0
-        start_installer_music
+        resume_installer_music_keys
         exec "$installer" --clean-install --yes
         ;;
-    3) exec "$installer" --check ;;
+    3) resume_installer_music_keys; exec "$installer" --check ;;
     4)
         printf '  Your ROMs, definitions, and logs are preserved.\n\n'
         confirm 'Remove installer-managed ECU tools?' || exit 0
+        resume_installer_music_keys
         exec "$installer" --uninstall --yes
         ;;
     5)
         printf '  Release candidate; validated tools remain installed through vehicle qualification.\n\n'
         confirm 'Install or update RomRaider2 1.1.0 RC3?' || exit 0
-        start_installer_music
+        resume_installer_music_keys
         exec "$installer" --install-romraider2
         ;;
-    q|Q) printf 'Setup closed.\n' ;;
+    q|Q) resume_installer_music_keys; printf 'Setup closed.\n' ;;
 esac

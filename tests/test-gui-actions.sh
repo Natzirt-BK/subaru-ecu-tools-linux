@@ -111,7 +111,13 @@ grep -q '^start_installer_music()' \
     "$repo_root/linux/setup-cachyos-gui.sh" >/dev/null
 grep -F 'export SUBARU_SETUP_MUSIC_PID=$!' \
     "$repo_root/linux/setup-cachyos-gui.sh" >/dev/null
+music_start_line=$(grep -n '^start_installer_music$' \
+    "$repo_root/linux/setup-cachyos-gui.sh" | cut -d: -f1)
+menu_loop_line=$(grep -n '^while true; do' \
+    "$repo_root/linux/setup-cachyos-gui.sh" | tail -1 | cut -d: -f1)
+test "$music_start_line" -lt "$menu_loop_line"
 grep -q '^stop_setup_music()' "$engine"
+! grep -F '    stop_setup_music' "$engine" >/dev/null
 ! grep -q '^poll_setup_music_key()' "$engine"
 ! grep -F -- '--separate --nofork' "$repo_root/linux/setup-cachyos-gui.sh" >/dev/null
 grep -F 'track_title=Arpanauts' "$repo_root/linux/play-installer-chiptune" >/dev/null
@@ -173,9 +179,10 @@ test "$(grep -F -c '[[ "$setup_interactive" == true && "${SUBARU_SETUP_NO_PAUSE:
 ! grep -F '[[ -t 0 || -t 1 ]] || return 0' "$engine" >/dev/null
 grep -F 'Briefly describe the problem, then press Enter (optional; omit private data).' \
     "$engine" >/dev/null
-grep -F '[ INPUT ] Y = close  //  M = main menu  //  R = report a problem  [Y/M/R]' \
+grep -F '[ INPUT ] Y = close  //  B = main menu  //  R = report a problem  [Y/B/R]' \
     "$engine" >/dev/null
-grep -F '[ INPUT ] M // RETURNING TO MAIN MENU' "$engine" >/dev/null
+grep -F '[ INPUT ] B // RETURNING TO MAIN MENU' "$engine" >/dev/null
+grep -F 'exec 1>&4 2>&5 4>&- 5>&-' "$engine" >/dev/null
 grep -F 'ECU_TOOLS_SKIP_UPDATE_PROMPT=1 exec "$ECU_TOOLS_MENU_LAUNCHER"' \
     "$engine" >/dev/null
 grep -F '[ INPUT ] Press Y to close setup.' "$engine" >/dev/null

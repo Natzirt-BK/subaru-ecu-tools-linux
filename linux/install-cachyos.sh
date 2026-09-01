@@ -83,6 +83,12 @@ ui_rule=${ui_rule// /═}
 ui_stage=0
 ui_console_open=false
 return_to_setup_menu=false
+setup_music_process_active() {
+    local music_pid=${SUBARU_SETUP_MUSIC_PID:-}
+    [[ "$music_pid" =~ ^[0-9]+$ ]] && kill -0 "$music_pid" 2>/dev/null && \
+        [[ -r "/proc/$music_pid/cmdline" ]] && \
+        tr '\0' ' ' <"/proc/$music_pid/cmdline" | grep -q 'play-installer-chiptune'
+}
 ui_box_line() {
     local style=$1 text=$2 line
     [[ -z "${HOME:-}" ]] || text=${text//"$HOME"/\~}
@@ -95,8 +101,7 @@ ui_box_line() {
 }
 installer_banner() {
     local mode_label=${mode^^} audio_label='AUDIO :: OFF'
-    [[ "${SUBARU_SETUP_MUSIC_PID:-}" =~ ^[0-9]+$ ]] && \
-        audio_label='AUDIO :: [M] MUTE'
+    setup_music_process_active && audio_label='AUDIO :: [M] MUTE'
     printf '\n%b╔%s╗%b\n' "$color_purple$color_bold" "$ui_rule" "$color_reset"
     ui_box_line "$color_cyan$color_bold" 'Ecu Tools by NatZirt // Linux'
     ui_box_line "$color_green$color_bold" \
@@ -139,17 +144,10 @@ if [[ "${ECU_TOOLS_UI_SELF_TEST:-0}" == 1 ]]; then
     summary_row PATH "$HOME/.local/bin"
     completion_banner
     ui_box_line "$color_yellow$color_bold" \
-        '[ INPUT ] Y = close  //  M = main menu  //  R = report a problem  [Y/M/R]'
+        '[ INPUT ] Y = close  //  B = main menu  //  R = report a problem  [Y/B/R]'
     console_footer
     exit 0
 fi
-
-setup_music_process_active() {
-    local music_pid=${SUBARU_SETUP_MUSIC_PID:-}
-    [[ "$music_pid" =~ ^[0-9]+$ ]] && kill -0 "$music_pid" 2>/dev/null && \
-        [[ -r "/proc/$music_pid/cmdline" ]] && \
-        tr '\0' ' ' <"/proc/$music_pid/cmdline" | grep -q 'play-installer-chiptune'
-}
 
 pause_setup_music_keys() {
     local state_file=${SUBARU_SETUP_MUSIC_STATE_FILE:-} attempt state=
@@ -515,8 +513,10 @@ else
 fi
 if $use_color; then
     : >"$log_file"
+    exec 4>&1 5>&2
     exec > >(tee >(sed -u $'s/\033\[[0-9;]*m//g' >>"$log_file")) 2>&1
 else
+    exec 4>&1 5>&2
     exec > >(tee -a "$log_file") 2>&1
 fi
 installer_banner
@@ -589,7 +589,7 @@ read_completion_choice() {
     while true; do
         if $menu_available; then
             ui_box_line "$color_yellow$color_bold" \
-                '[ INPUT ] Y = close  //  M = main menu  //  R = report a problem  [Y/M/R]'
+                '[ INPUT ] Y = close  //  B = main menu  //  R = report a problem  [Y/B/R]'
         else
             ui_box_line "$color_yellow$color_bold" \
                 '[ INPUT ] Y = close  //  R = report a problem  [Y/R]'
@@ -597,16 +597,16 @@ read_completion_choice() {
         IFS= read -rsn1 key </dev/tty || { resume_setup_music_keys; return 0; }
         case "$key" in
             y|Y) ui_box_line "$color_green$color_bold" '[ INPUT ] Y // CLOSING'; resume_setup_music_keys; return 0 ;;
-            m|M)
+            b|B)
                 if $menu_available; then
-                    ui_box_line "$color_cyan$color_bold" '[ INPUT ] M // RETURNING TO MAIN MENU'
+                    ui_box_line "$color_cyan$color_bold" '[ INPUT ] B // RETURNING TO MAIN MENU'
                     resume_setup_music_keys
                     return 2
                 fi
                 warn 'Main menu is unavailable in this direct installer session.'
                 ;;
             r|R) ui_box_line "$color_red$color_bold" '[ INPUT ] R // REPORT A PROBLEM'; resume_setup_music_keys; return 1 ;;
-            *) $menu_available && warn 'Press Y, M, or R.' || warn 'Press Y or R.' ;;
+            *) $menu_available && warn 'Press Y, B, or R.' || warn 'Press Y or R.' ;;
         esac
     done
 }
@@ -617,22 +617,22 @@ wait_for_y_to_close() {
     pause_setup_music_keys
     while true; do
         if $menu_available; then
-            ui_box_line "$color_yellow$color_bold" '[ INPUT ] Y = close  //  M = main menu  [Y/M]'
+            ui_box_line "$color_yellow$color_bold" '[ INPUT ] Y = close  //  B = main menu  [Y/B]'
         else
             ui_box_line "$color_yellow$color_bold" '[ INPUT ] Press Y to close setup.'
         fi
         IFS= read -rsn1 key </dev/tty || break
         case "$key" in
             y|Y) ui_box_line "$color_green$color_bold" '[ INPUT ] Y // CLOSING'; break ;;
-            m|M)
+            b|B)
                 if $menu_available; then
-                    ui_box_line "$color_cyan$color_bold" '[ INPUT ] M // RETURNING TO MAIN MENU'
+                    ui_box_line "$color_cyan$color_bold" '[ INPUT ] B // RETURNING TO MAIN MENU'
                     return_to_setup_menu=true
                     break
                 fi
                 warn 'Main menu is unavailable in this direct installer session.'
                 ;;
-            *) $menu_available && warn 'Press Y or M.' || warn 'Press Y to close.' ;;
+            *) $menu_available && warn 'Press Y or B.' || warn 'Press Y to close.' ;;
         esac
     done
     resume_setup_music_keys
@@ -663,9 +663,11 @@ log_result() {
         completion_banner
         confirm_success
     fi
-    stop_setup_music
     console_footer
     if [[ "$return_to_setup_menu" == true && -x "${ECU_TOOLS_MENU_LAUNCHER:-}" ]]; then
+        # Logging uses process substitution, so stdout is a pipe at this point.
+        # Restore the original terminal before redrawing the interactive menu.
+        exec 1>&4 2>&5 4>&- 5>&-
         ECU_TOOLS_SKIP_UPDATE_PROMPT=1 exec "$ECU_TOOLS_MENU_LAUNCHER"
     fi
     exit "$status"
