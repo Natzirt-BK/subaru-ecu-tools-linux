@@ -101,7 +101,8 @@ incorrect addresses; verify them independently.
 
 ## RomRaider2 1.1 release candidate
 
-RomRaider2 is a separate Subaru and Lancer Evolution VIII/IX release candidate.
+RomRaider2 is a separate Subaru and Mitsubishi Lancer Evolution release
+candidate.
 It includes the shared platform selector, independent DimeMod state, current
 upstream editor fixes, and a read-only MUT-II logging foundation. Definitions
 and vehicle files are intentionally not bundled. Install it directly with:

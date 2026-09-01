@@ -22,6 +22,8 @@ touch \
     "$source_root/lib/runtime/release" \
     "$source_root/lib/app/RomRaider2.jar" \
     "$source_root/lib/app/lib/linux/64/j2534.so"
+printf 'RomRaider2 ECU Studio 1.1.0 Release Candidate 3\n' \
+    >"$source_root/VERSION.txt"
 printf '%s\n' \
     '<settings><files><def_dir path="definitions"/></files><logger>' \
     '<protocol name="SSM" transport="ISO9141" module="ECU" fastpoll="false" library=""/>' \
@@ -56,7 +58,7 @@ test -f "$install_root/logs/preserved.csv"
 test ! -e "$legacy_root"
 test -f "$install_root/.installed-by-subaru-ecu-tools"
 grep -Fx "$archive_sha" "$install_root/.release-sha256" >/dev/null
-grep -F 'RomRaider2 1.1.0 release candidate installed' "$test_root/install.log" >/dev/null
+grep -F 'RomRaider2 1.1.0 RC3 installed' "$test_root/install.log" >/dev/null
 
 ROMRAIDER2_INSTALL_ROOT="$install_root" \
 ROMRAIDER2_SOURCE_ROOT="$source_root" \
@@ -123,15 +125,15 @@ if grep -Fq 'Checking dependencies' "$test_root/full-install.log"; then
 fi
 grep -F '[ RUN  ] Verifying the pinned RomRaider2 application image.' \
     "$test_root/full-install.log" >/dev/null
-if grep -q '^  OK RomRaider2 1.1.0 release candidate' \
+if grep -q '^  OK RomRaider2 1.1.0 RC3' \
         "$test_root/full-install.log"; then
     echo 'Nested RomRaider2 installer output escaped the setup console.' >&2
     exit 1
 fi
 
-grep -F 'romraider2-1.1.0-rc2' \
+grep -F 'romraider2-1.1.0-rc3' \
     "$repo_root/linux/install-romraider2" >/dev/null
-grep -F 'c01b035a46274c5c173398c1d51f5cfb619a6f33a6abe91a72fbbcfa5f57cc41' \
+grep -F '5f204ea527d6b0a648925ccb99d2667f944605642a359835c5e16569fa655356' \
     "$repo_root/linux/install-romraider2" >/dev/null
 
 echo 'RomRaider2 installer tests passed.'

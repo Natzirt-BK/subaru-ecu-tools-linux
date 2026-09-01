@@ -99,7 +99,8 @@ installer_banner() {
         audio_label='AUDIO :: [M] MUTE'
     printf '\n%b╔%s╗%b\n' "$color_purple$color_bold" "$ui_rule" "$color_reset"
     ui_box_line "$color_cyan$color_bold" 'Ecu Tools by NatZirt // Linux'
-    ui_box_line "$color_green$color_bold" 'SUBARU + LANCER EVOLUTION ECU SOFTWARE'
+    ui_box_line "$color_green$color_bold" \
+        'SUBARU + MITSUBISHI LANCER EVOLUTION ECU SOFTWARE'
     printf '%b╠%s╣%b\n' "$color_purple$color_bold" "$ui_rule" "$color_reset"
     ui_box_line "$color_blue$color_bold" \
         "MODE :: $mode_label     $audio_label     DIAGNOSTICS :: ACTIVE"
@@ -440,7 +441,7 @@ usage() {
   --install-udev   Install the OpenPort 2.0 udev rule with sudo
   --install-ecuflash  Download and open Tactrix's official EcuFlash installer
   --install-romraider  Install RomRaider DimeMod with a bundled 32-bit JRE
-  --install-romraider2   Install the RomRaider2 1.1 release candidate
+  --install-romraider2   Install RomRaider2 1.1.0 RC3
   --install-definitions SOURCE  Install RomRaider definitions (official, stable, beta, alpha)
   --definition-units UNITS     metric, standard, or imperial (default: metric)
   --definition-language LANG   en or de (default: en)
@@ -997,7 +998,7 @@ install_romraider2_only() {
         update-desktop-database "$applications_dir" >/dev/null 2>&1 || true
     ok "RomRaider2 launchers and application-menu entries installed."
 
-    section "Installing RomRaider2 1.1 release candidate"
+    section "Installing RomRaider2 1.1.0 RC3"
     step "Verifying the pinned RomRaider2 application image."
     ROMRAIDER2_QUIET=1 "$bin_dir/install-romraider2"
     ok "RomRaider2 installed without requiring the unrelated Wine/OpenPort toolchain."
@@ -1633,7 +1634,7 @@ if $install_definitions; then
 fi
 
 if $install_romraider2; then
-    section "Installing RomRaider2 1.1 release candidate"
+    section "Installing RomRaider2 1.1.0 RC3"
     step "Verifying the pinned RomRaider2 application image."
     ROMRAIDER2_QUIET=1 "$bin_dir/install-romraider2"
     ok "RomRaider2 installed separately from DimeMod."

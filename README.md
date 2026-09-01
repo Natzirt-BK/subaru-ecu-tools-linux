@@ -9,7 +9,7 @@ have to assemble manually.
 The project also distributes **[RomRaider2](https://github.com/Natzirt-BK/RomRaider2)**,
 a much-needed modernization of RomRaider that preserves useful work from the
 DimeMod fork while adding a new interface, current runtime, safer diagnostics,
-improved logging, and Lancer Evolution support.
+improved logging, and Mitsubishi Lancer Evolution support.
 
 Maintained by **NatZirt**. This is an independent community
 project and is not affiliated with Tactrix, Subaru, Mitsubishi, or the official
@@ -18,7 +18,7 @@ RomRaider project.
 ## Downloads and installation
 
 Windows 10/11 x64 users can download the self-contained RomRaider2 portable ZIP
-from the [current release page](https://github.com/Natzirt-BK/RomRaider2/releases/tag/romraider2-1.1.0-rc2).
+from the [current release page](https://github.com/Natzirt-BK/RomRaider2/releases/tag/romraider2-1.1.0-rc3).
 Java 21 is included; extract the ZIP and launch `RomRaider2.exe` or
 `RomRaider2 Logger.exe`.
 
@@ -43,7 +43,7 @@ The Setup menu provides:
 3. **System check** — verify applications, dependencies, J2534, and OpenPort USB
    access without installing anything.
 4. **Uninstall** — remove installer-managed software.
-5. **RomRaider2 1.1 RC** — install or update RomRaider2 separately.
+5. **RomRaider2 1.1.0 RC3** — install or update RomRaider2 separately.
 
 To install only RomRaider2 on CachyOS or Arch Linux:
 
@@ -90,8 +90,8 @@ completed stack.
 - Dark, light, system, and high-contrast themes; 75%–300% interface scaling; and
   Compact, Touch, Garage, Dyno, and In-Car display modes.
 - Integrated window controls and responsive resizing.
-- A shared Subaru and Lancer Evolution VIII/IX platform model with a read-only
-  Mitsubishi MUT-II logging foundation.
+- A shared Subaru and Mitsubishi Lancer Evolution platform model with a
+  read-only MUT-II logging foundation.
 - Versioned settings, privacy-safe diagnostics, and self-contained Java 21 x64
   packages for Linux and Windows.
 
@@ -141,7 +141,7 @@ editing or logging.
 - Mitsubishi MUT-II logging still requires connected-vehicle qualification.
 - The Windows portable package passes automated build, structure, and startup
   checks; connected Windows hardware testing remains pending.
-- RomRaider2 RC1 does not enable ECU memory writing or flashing. EcuFlash remains
+- RomRaider2 RC3 does not enable ECU memory writing or flashing. EcuFlash remains
   the established flashing application in the Linux toolset.
 
 ## OpenPort behavior on Linux

@@ -6,8 +6,8 @@ cache_root=${XDG_CACHE_HOME:-$HOME/.cache}/subaru-ecu-tools-linux
 install_root=${ROMRAIDER2_INSTALL_ROOT:-$data_root/romraider2-ecu-studio}
 archive=${ROMRAIDER2_ARCHIVE:-$cache_root/RomRaider2_ECU_Studio_1.1.0_Linux_x64.zip}
 archive_root=RomRaider2_ECU_Studio_1.1.0_Linux_x64
-release_url=${ROMRAIDER2_URL:-https://github.com/Natzirt-BK/RomRaider2/releases/download/romraider2-1.1.0-rc2/RomRaider2_ECU_Studio_1.1.0_Linux_x64.zip}
-release_sha256=${ROMRAIDER2_SHA256:-c01b035a46274c5c173398c1d51f5cfb619a6f33a6abe91a72fbbcfa5f57cc41}
+release_url=${ROMRAIDER2_URL:-https://github.com/Natzirt-BK/RomRaider2/releases/download/romraider2-1.1.0-rc3/RomRaider2_ECU_Studio_1.1.0_Linux_x64.zip}
+release_sha256=${ROMRAIDER2_SHA256:-5f204ea527d6b0a648925ccb99d2667f944605642a359835c5e16569fa655356}
 source_root=${ROMRAIDER2_SOURCE_ROOT:-}
 quiet=${ROMRAIDER2_QUIET:-0}
 if [[ -n "${ROMRAIDER2_LEGACY_INSTALL_ROOT:-}" ]]; then
@@ -35,7 +35,10 @@ modern_install() {
        -f "$root/lib/app/RomRaider2.cfg" && \
        -f "$root/lib/app/lib/linux/64/j2534.so" && \
        -f "$root/config/settings.default.xml" && \
+       -f "$root/VERSION.txt" && \
        -f "$root/customize/j2534Libraries.properties" ]] && \
+        grep -Fxq 'RomRaider2 ECU Studio 1.1.0 Release Candidate 3' \
+            "$root/VERSION.txt" && \
         grep -Fq 'romraider2.settings.dir=$APPDIR/../../config/user' \
             "$root/lib/app/RomRaider2.cfg" && \
         ! grep -Eq 'ecudefinitionfile|<definition |<profile ' \
@@ -60,7 +63,7 @@ if modern_install "$install_root" && \
    [[ -f "$install_root/.installed-by-subaru-ecu-tools" ]] && \
    [[ -f "$install_root/.release-sha256" ]] && \
    grep -Fxq "$release_sha256" "$install_root/.release-sha256"; then
-    notice "  OK RomRaider2 1.1.0 release candidate is already current."
+    notice "  OK RomRaider2 1.1.0 RC3 is already current."
     exit 0
 fi
 
@@ -76,7 +79,7 @@ if [[ -n "$source_root" ]]; then
 else
     if [[ ! -f "$archive" ]] || \
        ! printf '%s  %s\n' "$release_sha256" "$archive" | sha256sum -c - >/dev/null 2>&1; then
-        notice "  -> Downloading RomRaider2 1.1.0 release candidate"
+        notice "  -> Downloading RomRaider2 1.1.0 RC3"
         if [[ "$quiet" == 1 ]]; then
             curl --fail --location --silent --show-error \
                 --output "$archive" "$release_url"
@@ -147,4 +150,4 @@ for legacy_install_root in "${legacy_install_roots[@]}"; do
         notice "  -> Removed the obsolete installer-managed predecessor after migration."
     fi
 done
-notice "  OK RomRaider2 1.1.0 release candidate installed at $install_root"
+notice "  OK RomRaider2 1.1.0 RC3 installed at $install_root"

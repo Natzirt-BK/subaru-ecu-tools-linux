@@ -13,7 +13,7 @@ if grep -Fq 'Name=Subaru & Evo ECU Tools' \
 fi
 grep -F 'Ecu Tools by NatZirt // Linux' \
     "$repo_root/linux/setup-cachyos-gui.sh" >/dev/null
-grep -F 'SUBARU • LANCER EVOLUTION • ECU SOFTWARE' \
+grep -F 'SUBARU • MITSUBISHI LANCER EVOLUTION' \
     "$repo_root/linux/setup-cachyos-gui.sh" >/dev/null
 
 TERM=xterm timeout 10 script -q -e -c \

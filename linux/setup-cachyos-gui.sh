@@ -42,7 +42,8 @@ draw_banner() {
        ╭──────────────────────────────────────────────╮
        │         Ecu Tools by NatZirt // Linux        │
        ├──────────────────────────────────────────────┤
-       │   SUBARU • LANCER EVOLUTION • ECU SOFTWARE   │
+       │     SUBARU • MITSUBISHI LANCER EVOLUTION     │
+       │      ECU EDITING • LOGGING • DIAGNOSTICS     │
        ╰──────────────────────────────────────────────╯
 EOF
     printf '%b           ◆ ◆ ◆ ◆ ◆ ◆ ◆ ◆ ◆ ◆ ◆ ◆%b\n\n' "$purple" "$reset"
@@ -102,8 +103,9 @@ draw_menu() {
     menu_line '[3] SYSTEM CHECK' "$cyan$bold"
     menu_line '    Check EcuFlash, J2534, launchers + OpenPort USB.'
     menu_line '[4] UNINSTALL                    [Q] EXIT' "$cyan$bold"
-    menu_line '[5] RomRaider2 1.1 RC' "$purple$bold"
-    menu_line '    Modern RomRaider update for Subaru + Evo VIII/IX.'
+    menu_line '[5] RomRaider2 1.1.0 RC3' "$purple$bold"
+    menu_line '    Modern RomRaider update.'
+    menu_line '    For Subaru and Mitsubishi Lancer Evolution.'
     menu_line '    Includes new editor, logger + analysis features.'
     printf '  %b╰──────────────────────────────────────────────────────╯%b\n\n' "$blue$bold" "$reset"
     printf '%b  Select an option: %b' "$yellow$bold" "$reset"
@@ -158,7 +160,7 @@ case "$choice" in
         ;;
     5)
         printf '  Release candidate; validated tools remain installed through vehicle qualification.\n\n'
-        confirm 'Install or update RomRaider2 1.1 RC?' || exit 0
+        confirm 'Install or update RomRaider2 1.1.0 RC3?' || exit 0
         start_installer_music
         exec "$installer" --install-romraider2
         ;;

@@ -1,7 +1,7 @@
 [Desktop Entry]
 Type=Application
 Name=Ecu Tools Setup
-Comment=Install, repair, check, or remove Subaru and Lancer Evolution ECU tools
+Comment=Install, repair, check, or remove Subaru and Mitsubishi Lancer Evolution ECU tools
 Exec=@SETUP@
 Icon=applications-engineering
 Terminal=true
