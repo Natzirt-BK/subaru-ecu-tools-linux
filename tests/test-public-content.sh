@@ -22,7 +22,7 @@ git -C "$repo_root" ls-files | \
     }
 
 grep -Fx '# Ecu Tools by NatZirt' "$repo_root/README.md" >/dev/null
-grep -Fx 'Name=Ecu Tools by NatZirt' \
+grep -Fx 'Name=ECU Tools' \
     "$repo_root/linux/subaru-ecu-tools.directory" >/dev/null
 grep -F 'SUBARU • LANCER EVOLUTION • ECU SOFTWARE' \
     "$repo_root/linux/setup-cachyos-gui.sh" >/dev/null

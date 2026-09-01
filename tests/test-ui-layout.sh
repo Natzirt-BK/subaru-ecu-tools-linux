@@ -5,7 +5,7 @@ repo_root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 test_root=$(mktemp -d)
 trap 'rm -rf -- "$test_root"' EXIT HUP INT TERM
 
-grep -Fx 'Name=Ecu Tools by NatZirt' "$repo_root/linux/subaru-ecu-tools.directory" >/dev/null
+grep -Fx 'Name=ECU Tools' "$repo_root/linux/subaru-ecu-tools.directory" >/dev/null
 if grep -Fq 'Name=Subaru & Evo ECU Tools' \
         "$repo_root/linux/subaru-ecu-tools.directory"; then
     echo 'The retired application-menu name is still active.' >&2

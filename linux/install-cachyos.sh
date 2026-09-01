@@ -961,7 +961,7 @@ install_managed_user_files() {
         "$tools_menu_file" 0644
     command -v update-desktop-database >/dev/null && \
         update-desktop-database "$applications_dir" >/dev/null 2>&1 || true
-    ok "Application menu folder: Ecu Tools by NatZirt"
+    ok "Application menu folder: ECU Tools"
     ok "Managed-file audit complete: $checked checked, $updated updated, $current already current."
 }
 
@@ -1015,7 +1015,7 @@ install_romraider2_only() {
     ok "Easy-access RomRaider2 folder: $tools_documents"
 
     summary_row "Applications" "RomRaider2 Editor, RomRaider2 Logger"
-    summary_row "App menu" "Ecu Tools by NatZirt"
+    summary_row "App menu" "ECU Tools"
     summary_row "Launchers" "$bin_dir"
 }
 
@@ -1854,7 +1854,7 @@ if ((${#installed_apps[@]})); then
     printf -v installed_apps_text '%s, ' "${installed_apps[@]}"
     summary_row "Applications" "${installed_apps_text%, }"
 fi
-summary_row "App menu" "Ecu Tools by NatZirt"
+summary_row "App menu" "ECU Tools"
 summary_row "Launchers" "$bin_dir"
 summary_row "Wine bridge" "$data_dir/winedll"
 summary_row "Desktop files" "$applications_dir"
@@ -1865,5 +1865,5 @@ if [[ ":$PATH:" != *":$bin_dir:"* ]]; then
     warn "Add $bin_dir to PATH only when launching tools from a terminal."
 fi
 printf '\n'
-ok "Open applications from the Ecu Tools by NatZirt menu."
+ok "Open applications from the ECU Tools menu."
 step "Begin with cable discovery and a supervised read-only ECU test."

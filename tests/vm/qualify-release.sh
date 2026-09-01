@@ -50,7 +50,7 @@ Automated preflight passed. Continue with the graphical release test:
 
 1. Run: ./bootstrap-cachyos.sh
 2. Choose Clean reinstall and accept the official Tactrix license.
-3. Confirm the applications appear under Ecu Tools by NatZirt.
+3. Confirm the applications appear under ECU Tools.
 4. With OpenPort unplugged, launch EcuFlash once and close it.
 5. On the host, attach OpenPort to this VM.
 6. Launch EcuFlash again and leave it open for at least 15 seconds.

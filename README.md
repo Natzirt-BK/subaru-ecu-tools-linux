@@ -66,7 +66,7 @@ The recommended installation includes:
 - A Linux OpenPort Wine bridge and distribution-specific USB permissions.
 - A checksum-pinned WineGDK 11.1 runtime validated with EcuFlash.
 - RomRaider DimeMod Editor and Logger with current public definitions.
-- Application-menu entries and launchers under **Ecu Tools by NatZirt**.
+- Application-menu entries and launchers under **ECU Tools**.
 
 The large Wine dependency is maintained in the
 [validated EcuFlash runtime release](https://github.com/Natzirt-BK/subaru-ecu-tools-linux/releases/tag/ecuflash-winegdk-11.1-validated-1)
