@@ -14,7 +14,7 @@ ROOT = Path(__file__).resolve().parents[1]
 def alive(pid):
     try:
         return Path(f"/proc/{pid}/stat").read_text().rsplit(") ", 1)[1].split()[0] not in ("Z", "X")
-    except FileNotFoundError:
+    except (FileNotFoundError, ProcessLookupError):
         return False
 
 
@@ -110,7 +110,7 @@ exit 0
         # its resume signal is in flight. Also require exec back into setup.
         try:
             command = Path(f"/proc/{self.process.pid}/cmdline").read_bytes()
-        except FileNotFoundError:
+        except (FileNotFoundError, ProcessLookupError):
             return False
         return (str(ROOT / "linux/setup-cachyos-gui.sh").encode() in command
                 and any(p.read_text().strip() == "paused" for p in self.root.glob("*.state")))
