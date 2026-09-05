@@ -105,6 +105,16 @@ exit 0
                       "music controller or audio survived closure")
         self.assertEqual([], list(self.root.glob("*.state")))
 
+    def menu_owns_keys(self):
+        # The paused state can still be left over from the previous menu while
+        # its resume signal is in flight. Also require exec back into setup.
+        try:
+            command = Path(f"/proc/{self.process.pid}/cmdline").read_bytes()
+        except FileNotFoundError:
+            return False
+        return (str(ROOT / "linux/setup-cachyos-gui.sh").encode() in command
+                and any(p.read_text().strip() == "paused" for p in self.root.glob("*.state")))
+
     def enter_installer(self):
         self.keys("1y")
         marker = self.root / "installer-pid"
@@ -186,7 +196,7 @@ exit 0
         self.start()
         self.enter_installer()
         (self.root / "release").touch()
-        self.wait_for(lambda: any(p.read_text().strip() == "paused" for p in self.root.glob("*.state")),
+        self.wait_for(self.menu_owns_keys,
                       "menu did not regain key ownership")
         self.assertEqual(1, len((self.root / "audio-pids").read_text().splitlines()))
         self.assertTrue(alive(self.audio))
@@ -215,6 +225,7 @@ exit 0
         self.env["ECU_TOOLS_UPDATER"] = str(self.fixture("updater", '''#!/bin/bash
 set -eu
 "$ECU_TOOLS_INSTALLER" --update-files
+sleep 0.2
 exec env ECU_TOOLS_SKIP_UPDATE_PROMPT=1 "$ECU_TOOLS_MENU_LAUNCHER"
 '''))
         self.start()
@@ -223,7 +234,7 @@ exec env ECU_TOOLS_SKIP_UPDATE_PROMPT=1 "$ECU_TOOLS_MENU_LAUNCHER"
         self.wait_for(lambda: marker.exists() and marker.read_text().strip(), "updater child did not start")
         self.assertNotEqual(self.process.pid, int(marker.read_text()))
         (self.root / "release").touch()
-        self.wait_for(lambda: any(p.read_text().strip() == "paused" for p in self.root.glob("*.state")),
+        self.wait_for(self.menu_owns_keys,
                       "update did not return to menu with music")
         self.assertTrue(alive(self.audio))
         self.assertEqual(1, len((self.root / "audio-pids").read_text().splitlines()))
