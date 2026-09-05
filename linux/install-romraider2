@@ -7,7 +7,7 @@ install_root=${ROMRAIDER2_INSTALL_ROOT:-$data_root/romraider2-ecu-studio}
 archive=${ROMRAIDER2_ARCHIVE:-$cache_root/RomRaider2_ECU_Studio_1.1.0_Linux_x64.zip}
 archive_root=RomRaider2_ECU_Studio_1.1.0_Linux_x64
 release_url=${ROMRAIDER2_URL:-https://github.com/Natzirt-BK/RomRaider2/releases/download/romraider2-1.1.0-rc4/RomRaider2_ECU_Studio_1.1.0_Linux_x64.zip}
-release_sha256=${ROMRAIDER2_SHA256:-2c70ada4bd4107612792deea93df292b8a0d79ef2ee9da1ff95d829182a17294}
+release_sha256=${ROMRAIDER2_SHA256:-ccdd15b1e27babd058517ece2760b90345ea700959c003dceb5c46ba3760c50c}
 source_root=${ROMRAIDER2_SOURCE_ROOT:-}
 quiet=${ROMRAIDER2_QUIET:-0}
 if [[ -n "${ROMRAIDER2_LEGACY_INSTALL_ROOT:-}" ]]; then

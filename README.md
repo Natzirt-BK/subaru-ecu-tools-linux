@@ -18,7 +18,7 @@ RomRaider project.
 ## Downloads and installation
 
 Windows 10/11 x64 users can download the self-contained RomRaider2 portable ZIP
-from the [current release page](https://github.com/Natzirt-BK/RomRaider2/releases/tag/romraider2-1.1.0-rc3).
+from the [current release page](https://github.com/Natzirt-BK/RomRaider2/releases/tag/romraider2-1.1.0-rc4).
 Java 21 is included; extract the ZIP and launch `RomRaider2.exe` or
 `RomRaider2 Logger.exe`.
 
@@ -43,7 +43,7 @@ The Setup menu provides:
 3. **System check** — verify applications, dependencies, J2534, and OpenPort USB
    access without installing anything.
 4. **Uninstall** — remove installer-managed software.
-5. **RomRaider2 1.1.0 RC3** — install or update RomRaider2 separately.
+5. **RomRaider2 1.1.0 RC4** — install or update RomRaider2 separately.
 
 Installer music starts with the setup menu and continues across install runs.
 Press **M** to mute it. Completion screens use **B** to return to the main menu,
@@ -169,7 +169,7 @@ editing or logging.
 - Mitsubishi MUT-II logging still requires connected-vehicle qualification.
 - The Windows portable package passes automated build, structure, and startup
   checks; connected Windows hardware testing remains pending.
-- RomRaider2 RC3 does not enable ECU memory writing or flashing. EcuFlash remains
+- RomRaider2 RC4 does not enable ECU memory writing or flashing. EcuFlash remains
   the established flashing application in the Linux toolset.
 
 ## OpenPort behavior on Linux
