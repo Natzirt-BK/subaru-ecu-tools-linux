@@ -10,6 +10,10 @@ input_device=${ECU_TOOLS_MUSIC_INPUT_DEVICE:-/dev/tty}
 state_file=${ECU_TOOLS_MUSIC_STATE_FILE:-}
 music_volume=${ECU_TOOLS_MUSIC_VOLUME:-0.144}
 audio_pid=
+owner_pid=${ECU_TOOLS_MUSIC_OWNER_PID:-$PPID}
+owner_start=
+owner_current_start=
+input_is_terminal=false
 capture_keys=true
 [[ "${ECU_TOOLS_MUSIC_CAPTURE_KEYS:-1}" == 1 ]] || capture_keys=false
 pause_requested=false
@@ -27,22 +31,49 @@ cleanup() {
     fi
     [[ -z "$state_file" ]] || rm -f -- "$state_file"
 }
-trap cleanup EXIT HUP INT TERM
+trap cleanup EXIT
+trap 'exit 129' HUP
+trap 'exit 130' INT
+trap 'exit 143' TERM
 trap 'pause_requested=true' USR1
 trap 'resume_requested=true' USR2
 
+# PID plus start time survives menu/installer exec handoffs, but not a dead or
+# recycled owner. Do not rely on the terminal forwarding signals to background
+# jobs (Konsole can leave the controller and pw-play behind).
+read_owner() {
+    local stat
+    local -a fields
+    [[ "$owner_pid" =~ ^[0-9]+$ ]] || return 1
+    IFS= read -r stat 2>/dev/null <"/proc/$owner_pid/stat" || return 1
+    read -r -a fields <<<"${stat##*) }"
+    [[ ${#fields[@]} -ge 20 && "${fields[0]}" != Z && "${fields[0]}" != X ]] || return 1
+    owner_current_start=${fields[19]}
+}
+
+owner_alive() {
+    read_owner && [[ "$owner_current_start" == "$owner_start" ]]
+}
+
 command -v pw-play >/dev/null 2>&1 || exit 0
+read_owner || exit 0
+owner_start=$owner_current_start
 if ! exec 3<"$input_device"; then
     exit 0
 fi
+[[ ! -t 3 ]] || input_is_terminal=true
 [[ -f "$track" ]] || exit 0
 printf '%s  %s\n' "$track_sha256" "$track" | sha256sum -c --status - || exit 0
 
 write_state active
 while :; do
+    owner_alive || exit 0
     pw-play --volume "$music_volume" "$track" >/dev/null 2>&1 &
     audio_pid=$!
     while kill -0 "$audio_pid" 2>/dev/null; do
+        owner_alive || exit 0
+        # Check hangup even while key capture is paused for an installer prompt.
+        [[ "$input_is_terminal" != true || -t 3 ]] || exit 0
         if [[ "$pause_requested" == true ]]; then
             capture_keys=false
             pause_requested=false
@@ -53,17 +84,17 @@ while :; do
             resume_requested=false
             write_state active
         fi
-        if [[ "$capture_keys" == true ]] && IFS= read -rsn1 -t 0.15 -u 3 key; then
-            case "$key" in
-                m|M)
-                    kill "$audio_pid" >/dev/null 2>&1 || true
-                    wait "$audio_pid" >/dev/null 2>&1 || true
-                    audio_pid=
-                    write_state muted
-                    exit 0
-                    ;;
-            esac
-        elif [[ "$capture_keys" != true ]]; then
+        if [[ "$capture_keys" == true ]]; then
+            if IFS= read -rsn1 -t 0.15 -u 3 key; then
+                case "$key" in
+                    m|M) write_state muted; exit 0 ;;
+                esac
+            else
+                read_status=$?
+                # A timeout/signal is temporary; EOF or a broken terminal isn't.
+                ((read_status > 128)) || exit 0
+            fi
+        else
             sleep 0.05
         fi
     done

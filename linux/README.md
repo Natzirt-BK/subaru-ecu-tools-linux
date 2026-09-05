@@ -6,6 +6,8 @@
 - Completion prompts use B to return to the main menu. The installer restores
   the original terminal streams before redrawing it so color and layout remain
   intact after a logged install run.
+- Music survives those menu/installer handoffs, but stops on setup exit,
+  terminal disconnect, or loss of the owning setup process.
 - `install-cachyos.sh` — installation, repair, checks, and removal engine
 - `update-cachyos.sh` — refreshes managed files and validates EcuFlash/OpenPort
 - `install-romraider2` — checksum-pinned RomRaider2 1.1.0 RC4 Java 21 installer

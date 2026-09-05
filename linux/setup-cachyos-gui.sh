@@ -24,8 +24,20 @@ else
     reset=; bold=; dim=; blue=; cyan=; green=; yellow=; red=; purple=
 fi
 
-cleanup_terminal() { printf '%b' "$reset"; }
-trap cleanup_terminal EXIT HUP INT TERM
+stop_installer_music() {
+    local music_pid=${SUBARU_SETUP_MUSIC_PID:-}
+    if [[ "$music_pid" =~ ^[0-9]+$ ]]; then
+        kill "$music_pid" 2>/dev/null || true
+        wait "$music_pid" 2>/dev/null || true
+    fi
+    unset SUBARU_SETUP_MUSIC_PID
+}
+cleanup_terminal() { stop_installer_music; printf '%b' "$reset"; }
+# EXIT does not run on a successful exec into the installer or back to setup.
+trap cleanup_terminal EXIT
+trap 'exit 129' HUP
+trap 'exit 130' INT
+trap 'exit 143' TERM
 
 # The documented curl command feeds the bootstrap script through standard input.
 # Always take interactive keys from the controlling terminal instead of that pipe.
@@ -114,6 +126,7 @@ start_installer_music() {
     runtime_root=${XDG_RUNTIME_DIR:-/tmp}
     export SUBARU_SETUP_MUSIC_STATE_FILE="$runtime_root/subaru-ecu-tools-music-${BASHPID}-${RANDOM}.state"
     ECU_TOOLS_MUSIC_CAPTURE_KEYS=0 \
+        ECU_TOOLS_MUSIC_OWNER_PID="$$" \
         ECU_TOOLS_MUSIC_STATE_FILE="$SUBARU_SETUP_MUSIC_STATE_FILE" \
         "$music_player" >/dev/null 2>&1 &
     export SUBARU_SETUP_MUSIC_PID=$!

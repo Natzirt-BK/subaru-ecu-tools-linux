@@ -117,7 +117,7 @@ menu_loop_line=$(grep -n '^while true; do' \
     "$repo_root/linux/setup-cachyos-gui.sh" | tail -1 | cut -d: -f1)
 test "$music_start_line" -lt "$menu_loop_line"
 grep -q '^stop_setup_music()' "$engine"
-! grep -F '    stop_setup_music' "$engine" >/dev/null
+grep -F '    stop_setup_music' "$engine" >/dev/null
 ! grep -q '^poll_setup_music_key()' "$engine"
 ! grep -F -- '--separate --nofork' "$repo_root/linux/setup-cachyos-gui.sh" >/dev/null
 grep -F 'track_title=Arpanauts' "$repo_root/linux/play-installer-chiptune" >/dev/null
@@ -144,7 +144,7 @@ EOF
 chmod +x "$test_root/pw-play"
 : >"$test_root/music-loop.trace"
 PATH="$test_root:$PATH" TEST_MUSIC_TRACE="$test_root/music-loop.trace" \
-    ECU_TOOLS_MUSIC_INPUT_DEVICE=/dev/null timeout 0.35 \
+    ECU_TOOLS_MUSIC_INPUT_DEVICE=/dev/null ECU_TOOLS_MUSIC_CAPTURE_KEYS=0 timeout 0.35 \
     "$repo_root/linux/play-installer-chiptune" >/dev/null 2>&1 || true
 test "$(wc -l <"$test_root/music-loop.trace")" -ge 2
 cat >"$test_root/pw-play" <<'EOF'

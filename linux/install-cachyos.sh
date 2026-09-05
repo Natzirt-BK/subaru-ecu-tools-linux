@@ -670,9 +670,15 @@ log_result() {
         exec 1>&4 2>&5 4>&- 5>&-
         ECU_TOOLS_SKIP_UPDATE_PROMPT=1 exec "$ECU_TOOLS_MENU_LAUNCHER"
     fi
+    # A successful exec above keeps the same music owner. A real exit does not.
+    stop_setup_music
     exit "$status"
 }
 trap log_result EXIT
+# A closed terminal must never enter the interactive completion/error prompts.
+trap 'trap - EXIT; stop_setup_music; exit 129' HUP
+trap 'trap - EXIT; stop_setup_music; exit 130' INT
+trap 'trap - EXIT; stop_setup_music; exit 143' TERM
 
 bin_dir="${XDG_BIN_HOME:-$HOME/.local/bin}"
 data_root="${XDG_DATA_HOME:-$HOME/.local/share}"

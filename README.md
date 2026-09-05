@@ -48,6 +48,8 @@ The Setup menu provides:
 Installer music starts with the setup menu and continues across install runs.
 Press **M** to mute it. Completion screens use **B** to return to the main menu,
 and the menu redraw restores the same terminal colors and formatting.
+Music stops when setup exits or its terminal closes, including while an
+installer prompt has temporarily taken over keyboard input.
 
 To install only RomRaider2 on CachyOS or Arch Linux:
 
