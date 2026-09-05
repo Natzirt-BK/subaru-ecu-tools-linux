@@ -26,11 +26,13 @@ fi
 
 stop_installer_music() {
     local music_pid=${SUBARU_SETUP_MUSIC_PID:-}
+    [[ "${SUBARU_SETUP_MUSIC_OWNER_PID:-$$}" == "$$" ]] || return 0
     if [[ "$music_pid" =~ ^[0-9]+$ ]]; then
         kill "$music_pid" 2>/dev/null || true
         wait "$music_pid" 2>/dev/null || true
     fi
     unset SUBARU_SETUP_MUSIC_PID
+    unset SUBARU_SETUP_MUSIC_OWNER_PID
 }
 cleanup_terminal() { stop_installer_music; printf '%b' "$reset"; }
 # EXIT does not run on a successful exec into the installer or back to setup.
@@ -125,8 +127,9 @@ start_installer_music() {
     [[ -x "$music_player" ]] && command -v pw-play >/dev/null 2>&1 || return 0
     runtime_root=${XDG_RUNTIME_DIR:-/tmp}
     export SUBARU_SETUP_MUSIC_STATE_FILE="$runtime_root/subaru-ecu-tools-music-${BASHPID}-${RANDOM}.state"
+    export SUBARU_SETUP_MUSIC_OWNER_PID=$$
     ECU_TOOLS_MUSIC_CAPTURE_KEYS=0 \
-        ECU_TOOLS_MUSIC_OWNER_PID="$$" \
+        ECU_TOOLS_MUSIC_OWNER_PID="$SUBARU_SETUP_MUSIC_OWNER_PID" \
         ECU_TOOLS_MUSIC_STATE_FILE="$SUBARU_SETUP_MUSIC_STATE_FILE" \
         "$music_player" >/dev/null 2>&1 &
     export SUBARU_SETUP_MUSIC_PID=$!

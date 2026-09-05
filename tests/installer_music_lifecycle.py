@@ -207,6 +207,30 @@ exit 0
         self.assertEqual(0, self.process.wait(timeout=4))
         self.assertEqual(1, len((self.root / "audio-pids").read_text().splitlines()))
 
+    def test_updater_child_completion_keeps_owner_music(self):
+        applications = self.root / "data/applications"
+        applications.mkdir(parents=True)
+        (applications / "subaru-ecu-tools-setup.desktop").touch()
+        self.env.pop("ECU_TOOLS_SKIP_UPDATE_PROMPT")
+        self.env["ECU_TOOLS_UPDATER"] = str(self.fixture("updater", '''#!/bin/bash
+set -eu
+"$ECU_TOOLS_INSTALLER" --update-files
+exec env ECU_TOOLS_SKIP_UPDATE_PROMPT=1 "$ECU_TOOLS_MENU_LAUNCHER"
+'''))
+        self.start()
+        self.keys("y")
+        marker = self.root / "installer-pid"
+        self.wait_for(lambda: marker.exists() and marker.read_text().strip(), "updater child did not start")
+        self.assertNotEqual(self.process.pid, int(marker.read_text()))
+        (self.root / "release").touch()
+        self.wait_for(lambda: any(p.read_text().strip() == "paused" for p in self.root.glob("*.state")),
+                      "update did not return to menu with music")
+        self.assertTrue(alive(self.audio))
+        self.assertEqual(1, len((self.root / "audio-pids").read_text().splitlines()))
+        self.keys("q")
+        self.assertEqual(0, self.process.wait(timeout=4))
+        self.assert_stopped()
+
     def test_eof_stops_direct_player(self):
         self.env["ECU_TOOLS_MUSIC_INPUT_DEVICE"] = "/dev/null"
         self.process = subprocess.Popen([str(ROOT / "linux/play-installer-chiptune")],

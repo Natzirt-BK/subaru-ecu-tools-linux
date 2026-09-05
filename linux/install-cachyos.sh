@@ -640,6 +640,9 @@ wait_for_y_to_close() {
 stop_setup_music() {
     local music_pid=${SUBARU_SETUP_MUSIC_PID:-}
     local state_file=${SUBARU_SETUP_MUSIC_STATE_FILE:-}
+    # The updater runs an installer subprocess before exec'ing back to setup.
+    # That child must not stop the updater's still-live music session.
+    [[ "${SUBARU_SETUP_MUSIC_OWNER_PID:-$$}" == "$$" ]] || return 0
     if [[ "$music_pid" =~ ^[0-9]+$ ]]; then
         kill "$music_pid" 2>/dev/null || true
         wait "$music_pid" 2>/dev/null || true
@@ -647,6 +650,7 @@ stop_setup_music() {
     [[ -z "$state_file" ]] || rm -f -- "$state_file"
     unset SUBARU_SETUP_MUSIC_PID
     unset SUBARU_SETUP_MUSIC_STATE_FILE
+    unset SUBARU_SETUP_MUSIC_OWNER_PID
 }
 log_result() {
     local status=$?
