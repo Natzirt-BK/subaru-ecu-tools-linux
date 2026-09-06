@@ -26,6 +26,10 @@ notice() {
 case "$install_root" in
     ''|/|"$HOME") echo "Unsafe RomRaider2 install path: $install_root" >&2; exit 2 ;;
 esac
+[[ ! -L "$install_root" ]] || {
+    echo 'Refusing to replace a symlinked installation; the existing path is unchanged.' >&2
+    exit 2
+}
 
 modern_install() {
     local root=$1
@@ -47,18 +51,6 @@ modern_install() {
             "$root/customize/j2534Libraries.properties"
 }
 
-migrate_retired_bundled_content_defaults() {
-    local settings=$1
-    grep -Eq 'definitions/(Foz|Evo)/' "$settings" || return 0
-    sed -Ei \
-        -e '/<ecudefinitionfile name="definitions\/(Foz|Evo)\//d' \
-        -e 's#<def_dir path="definitions\/(Foz|Evo)/[^"]*"/>#<def_dir path="definitions"/>#' \
-        -e 's#<definition path="definitions\/(Foz|Evo)/[^"]*"/>#<definition path=""/>#' \
-        -e 's#<profile path="definitions\/(Foz|Evo)/[^"]*"/>#<profile path=""/>#' \
-        "$settings"
-    notice "  -> Cleared references to retired bundled vehicle content."
-}
-
 if modern_install "$install_root" && \
    [[ -f "$install_root/.installed-by-subaru-ecu-tools" ]] && \
    [[ -f "$install_root/.release-sha256" ]] && \
@@ -69,7 +61,26 @@ fi
 
 mkdir -p "$cache_root" "$(dirname -- "$install_root")"
 stage=$(mktemp -d "$(dirname -- "$install_root")/.romraider2-install.XXXXXX")
-trap 'rm -rf -- "$stage"' EXIT HUP INT TERM
+backup=
+installation_committed=false
+cleanup() {
+    local status=$?
+    trap - EXIT HUP INT TERM
+    if ! $installation_committed && [[ -n "$backup" && -d "$backup" && \
+            ! -e "$install_root" && ! -L "$install_root" ]]; then
+        if mv -- "$backup" "$install_root"; then
+            echo 'Restored the previous installation after an incomplete update.' >&2
+        else
+            echo "The previous installation is preserved at: $backup" >&2
+        fi
+    fi
+    rm -rf -- "$stage"
+    exit "$status"
+}
+trap cleanup EXIT
+trap 'exit 129' HUP
+trap 'exit 130' INT
+trap 'exit 143' TERM
 if [[ -n "$source_root" ]]; then
     [[ -d "$source_root" ]] || {
         echo "ROMRAIDER2_SOURCE_ROOT is not a directory: $source_root" >&2
@@ -95,42 +106,64 @@ modern_install "$staged_root" || {
     echo "The verified RomRaider2 archive is not a complete Java 21 application image." >&2
     exit 1
 }
+[[ ! -L "$staged_root/config" ]] || {
+    echo 'Package configuration root must not be a symbolic link.' >&2
+    exit 1
+}
 
-mkdir -p "$staged_root/config/user"
-if [[ -f "$install_root/config/user/settings.xml" ]]; then
-    cp -- "$install_root/config/user/settings.xml" \
-        "$staged_root/config/user/settings.xml"
+# Prefer one complete source, never merge stale legacy files into a current
+# installation. Non-migrated locations remain in the untouched predecessor or
+# the complete current-installation backup, rather than being silently deleted.
+migration_source=
+if [[ -d "$install_root" ]]; then
+    migration_source=$install_root
 else
-    settings_migrated=false
     for legacy_install_root in "${legacy_install_roots[@]}"; do
-        if [[ -f "$legacy_install_root/config/user/settings.xml" ]]; then
-            cp -- "$legacy_install_root/config/user/settings.xml" \
-                "$staged_root/config/user/settings.xml"
-            settings_migrated=true
+        if [[ -d "$legacy_install_root" ]]; then
+            migration_source=$legacy_install_root
             break
         fi
     done
-    if ! $settings_migrated; then
-        cp -- "$staged_root/config/settings.default.xml" \
-            "$staged_root/config/user/settings.xml"
-    fi
 fi
-migrate_retired_bundled_content_defaults "$staged_root/config/user/settings.xml"
 copy_user_content() {
     local source=$1 user_dir
-    for user_dir in logs roms repositories; do
-        if [[ -d "$source/$user_dir" ]]; then
+    [[ ! -L "$source" && ! -L "$source/config" ]] || {
+        echo 'Symlinked migration roots require manual migration; the original is unchanged.' >&2
+        return 1
+    }
+    # These are data-only paths. Do not copy old bin/lib/customize/default files
+    # over the new executable, runtime, drivers, or packaged defaults.
+    for user_dir in config/user definitions profiles logs roms repositories; do
+        if [[ -e "$source/$user_dir" || -L "$source/$user_dir" ]]; then
+            [[ -d "$source/$user_dir" && ! -L "$source/$user_dir" && \
+                ! -L "$staged_root/$user_dir" ]] || {
+                echo "Cannot safely migrate $user_dir; the original is unchanged." >&2
+                return 1
+            }
+            # A packaged destination link must never redirect migration writes.
+            if [[ -d "$staged_root/$user_dir" ]] && \
+                    [[ -n "$(find "$staged_root/$user_dir" -type l -print -quit)" ]]; then
+                echo "Package contains a linked migration destination: $user_dir" >&2
+                return 1
+            fi
             mkdir -p "$staged_root/$user_dir"
             cp -a -- "$source/$user_dir/." "$staged_root/$user_dir/"
         fi
     done
 }
-for legacy_install_root in "${legacy_install_roots[@]}"; do
-    [[ -d "$legacy_install_root" ]] && copy_user_content "$legacy_install_root"
-done
-if [[ -d "$install_root" ]]; then
-    copy_user_content "$install_root"
+if [[ -n "$migration_source" ]]; then
+    copy_user_content "$migration_source"
 fi
+mkdir -p "$staged_root/config/user"
+[[ ! -L "$staged_root/config/user/settings.xml" ]] || {
+    echo 'Symlinked settings require manual migration; the original is unchanged.' >&2
+    exit 1
+}
+if [[ ! -f "$staged_root/config/user/settings.xml" ]]; then
+    cp -- "$staged_root/config/settings.default.xml" "$staged_root/config/user/settings.xml"
+fi
+# Existing settings are user-owned: retain their exact contents and paths.
+# Clean packaged defaults already contain no private vehicle references.
 
 : >"$staged_root/.installed-by-subaru-ecu-tools"
 printf '%s\n' "$release_sha256" >"$staged_root/.release-sha256"
@@ -141,13 +174,13 @@ if [[ -e "$install_root" ]]; then
     mv -- "$install_root" "$backup"
 fi
 mv -- "$staged_root" "$install_root"
+installation_committed=true
 rmdir -- "$stage"
 trap - EXIT HUP INT TERM
 for legacy_install_root in "${legacy_install_roots[@]}"; do
     if [[ "$legacy_install_root" != "$install_root" && \
-          -f "$legacy_install_root/.installed-by-subaru-ecu-tools" ]]; then
-        rm -rf -- "$legacy_install_root"
-        notice "  -> Removed the obsolete installer-managed predecessor after migration."
+          -d "$legacy_install_root" ]]; then
+        notice "  -> Retained predecessor unchanged at $legacy_install_root (including any unmigrated custom files)."
     fi
 done
 notice "  OK RomRaider2 1.1.1 installed at $install_root"

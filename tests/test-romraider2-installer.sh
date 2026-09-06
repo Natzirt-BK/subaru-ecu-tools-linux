@@ -37,10 +37,21 @@ chmod +x "$source_root/bin/RomRaider2"
 
 archive_sha=bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb
 
-mkdir -p "$legacy_root/config/user" "$legacy_root/logs"
+mkdir -p "$legacy_root/config/user/definitions/logger" \
+    "$legacy_root/config/user/profiles" "$legacy_root/config/user/recovery" \
+    "$legacy_root/definitions" "$legacy_root/profiles" "$legacy_root/logs" \
+    "$legacy_root/lib/app" "$legacy_root/bin"
 touch "$legacy_root/.installed-by-subaru-ecu-tools"
 printf '<settings migrated="true"/>\n' >"$legacy_root/config/user/settings.xml"
 printf 'legacy log\n' >"$legacy_root/logs/preserved.csv"
+for user_file in config/user/definitions/logger/logger.xml \
+        config/user/profiles/profile_backup.xml config/user/recovery/synthetic.workspace \
+        config/user/custom-preferences.txt definitions/custom.xml profiles/custom.xml; do
+    printf 'synthetic user content: %s\n' "$user_file" >"$legacy_root/$user_file"
+done
+printf 'unknown custom file\n' >"$legacy_root/personal-notes.txt"
+printf 'obsolete executable\n' >"$legacy_root/bin/RomRaider2"
+printf 'obsolete jar\n' >"$legacy_root/lib/app/RomRaider2.jar"
 
 ROMRAIDER2_INSTALL_ROOT="$install_root" \
 ROMRAIDER2_LEGACY_INSTALL_ROOT="$legacy_root" \
@@ -52,10 +63,19 @@ test -x "$install_root/bin/RomRaider2"
 test -f "$install_root/lib/runtime/release"
 test -f "$install_root/lib/app/RomRaider2.jar"
 test -f "$install_root/config/user/settings.xml"
-test ! -e "$install_root/definitions"
+for user_file in config/user/definitions/logger/logger.xml \
+        config/user/profiles/profile_backup.xml config/user/recovery/synthetic.workspace \
+        config/user/custom-preferences.txt definitions/custom.xml profiles/custom.xml; do
+    cmp "$legacy_root/$user_file" "$install_root/$user_file"
+done
+cmp "$legacy_root/config/user/settings.xml" "$install_root/config/user/settings.xml"
+cmp "$source_root/bin/RomRaider2" "$install_root/bin/RomRaider2"
+cmp "$source_root/lib/app/RomRaider2.jar" "$install_root/lib/app/RomRaider2.jar"
+test -f "$legacy_root/personal-notes.txt"
+grep -F 'Retained predecessor unchanged' "$test_root/install.log" >/dev/null
 grep -F 'migrated="true"' "$install_root/config/user/settings.xml" >/dev/null
 test -f "$install_root/logs/preserved.csv"
-test ! -e "$legacy_root"
+test -d "$legacy_root"
 test -f "$install_root/.installed-by-subaru-ecu-tools"
 grep -Fx "$archive_sha" "$install_root/.release-sha256" >/dev/null
 grep -F 'RomRaider2 1.1.1 installed' "$test_root/install.log" >/dev/null
@@ -74,18 +94,90 @@ printf '%s\n' \
     '<profile path="definitions/Foz/Profiles/aem-uego-9600.xml"/>' \
     '</logger></settings>' >"$install_root/config/user/settings.xml"
 updated_sha=dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd
+# Current installation wins; do not resurrect files from the retained legacy copy.
+printf 'stale file\n' >"$legacy_root/profiles/legacy-only.xml"
+printf 'current profile\n' >"$install_root/profiles/custom.xml"
+printf 'current unknown custom file\n' >"$install_root/personal-notes.txt"
 ROMRAIDER2_INSTALL_ROOT="$install_root" \
+ROMRAIDER2_LEGACY_INSTALL_ROOT="$legacy_root" \
 ROMRAIDER2_SOURCE_ROOT="$source_root" \
 ROMRAIDER2_SHA256="$updated_sha" \
     "$repo_root/linux/install-romraider2" >"$test_root/update.log"
 grep -F 'preserved="true"' "$install_root/config/user/settings.xml" >/dev/null
-grep -F '<profile path=""/>' \
+grep -F '<profile path="definitions/Foz/Profiles/aem-uego-9600.xml"/>' \
     "$install_root/config/user/settings.xml" >/dev/null
-grep -F 'Cleared references to retired bundled vehicle content' \
-    "$test_root/update.log" >/dev/null
+test ! -e "$install_root/profiles/legacy-only.xml"
+grep -Fx 'current profile' "$install_root/profiles/custom.xml" >/dev/null
+test -f "$install_root/config/user/definitions/logger/logger.xml"
+test -f "$install_root/config/user/recovery/synthetic.workspace"
+for backup_root in "$test_root/data"/romraider2-ecu-studio.backup-*; do
+    cmp "$backup_root/config/user/settings.xml" "$install_root/config/user/settings.xml"
+    cmp "$backup_root/profiles/custom.xml" "$install_root/profiles/custom.xml"
+    grep -Fx 'current unknown custom file' "$backup_root/personal-notes.txt" >/dev/null
+done
+cmp "$source_root/bin/RomRaider2" "$install_root/bin/RomRaider2"
 test -f "$install_root/logs/preserved.csv"
 grep -Fx "$updated_sha" "$install_root/.release-sha256" >/dev/null
 test "$(find "$test_root/data" -maxdepth 1 -name 'romraider2-ecu-studio.backup-*' | wc -l)" -eq 1
+
+# A migration copy failure must not disturb the active installation or old copy.
+mkdir -p "$test_root/fault-bin"
+RR2_TEST_REAL_CP=$(command -v cp)
+RR2_TEST_REAL_MV=$(command -v mv)
+export RR2_TEST_REAL_CP RR2_TEST_REAL_MV
+cat >"$test_root/fault-bin/cp" <<'EOF'
+#!/bin/sh
+case "$*" in *config/user/.*) echo 'Injected migration failure' >&2; exit 71 ;; esac
+exec "$RR2_TEST_REAL_CP" "$@"
+EOF
+chmod +x "$test_root/fault-bin/cp"
+if PATH="$test_root/fault-bin:$PATH" \
+        ROMRAIDER2_INSTALL_ROOT="$install_root" \
+        ROMRAIDER2_LEGACY_INSTALL_ROOT="$legacy_root" \
+        ROMRAIDER2_SOURCE_ROOT="$source_root" ROMRAIDER2_SHA256="$archive_sha" \
+        "$repo_root/linux/install-romraider2" >"$test_root/copy-failure.log" 2>&1; then
+    echo 'Migration copy failure unexpectedly succeeded.' >&2; exit 1
+fi
+grep -Fx "$updated_sha" "$install_root/.release-sha256" >/dev/null
+test -f "$install_root/config/user/definitions/logger/logger.xml"
+test -f "$legacy_root/personal-notes.txt"
+test "$(find "$test_root/data" -maxdepth 1 -name 'romraider2-ecu-studio.backup-*' | wc -l)" -eq 1
+# Disable the copy fault; now fail only final activation, after backup creation.
+chmod -x "$test_root/fault-bin/cp"
+cat >"$test_root/fault-bin/mv" <<'EOF'
+#!/bin/sh
+case "$*" in */.romraider2-install.*/RomRaider2_ECU_Studio_*)
+    echo 'Injected activation failure' >&2; exit 72 ;;
+esac
+exec "$RR2_TEST_REAL_MV" "$@"
+EOF
+chmod +x "$test_root/fault-bin/mv"
+if PATH="$test_root/fault-bin:$PATH" \
+        ROMRAIDER2_INSTALL_ROOT="$install_root" \
+        ROMRAIDER2_LEGACY_INSTALL_ROOT="$legacy_root" \
+        ROMRAIDER2_SOURCE_ROOT="$source_root" ROMRAIDER2_SHA256="$archive_sha" \
+        "$repo_root/linux/install-romraider2" >"$test_root/move-failure.log" 2>&1; then
+    echo 'Activation failure unexpectedly succeeded.' >&2; exit 1
+fi
+grep -F 'Restored the previous installation' "$test_root/move-failure.log" >/dev/null
+grep -Fx "$updated_sha" "$install_root/.release-sha256" >/dev/null
+test -f "$install_root/config/user/definitions/logger/logger.xml"
+test "$(find "$test_root/data" -maxdepth 1 -name 'romraider2-ecu-studio.backup-*' | wc -l)" -eq 1
+test "$(find "$test_root/data" -maxdepth 1 -name '.romraider2-install.*' | wc -l)" -eq 0
+
+# Reject symlinked data roots without writing through them or removing the source.
+mkdir -p "$test_root/linked-legacy" "$test_root/external-data"
+printf 'outside sentinel\n' >"$test_root/external-data/sentinel"
+ln -s "$test_root/external-data" "$test_root/linked-legacy/definitions"
+if ROMRAIDER2_INSTALL_ROOT="$test_root/symlink case/new install" \
+        ROMRAIDER2_LEGACY_INSTALL_ROOT="$test_root/linked-legacy" \
+        ROMRAIDER2_SOURCE_ROOT="$source_root" ROMRAIDER2_SHA256="$archive_sha" \
+        "$repo_root/linux/install-romraider2" >"$test_root/symlink-failure.log" 2>&1; then
+    echo 'Symlinked migration root unexpectedly succeeded.' >&2; exit 1
+fi
+test -L "$test_root/linked-legacy/definitions"
+grep -Fx 'outside sentinel' "$test_root/external-data/sentinel" >/dev/null
+test ! -e "$test_root/symlink case/new install"
 
 mkdir -p "$test_root/home" "$test_root/sysfs" "$test_root/dev"
 HOME="$test_root/home" \

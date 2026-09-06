@@ -65,6 +65,28 @@ curl -fsSL https://raw.githubusercontent.com/Natzirt-BK/subaru-ecu-tools-linux/m
 
 ## Linux software stack
 
+### RomRaider2 update preservation
+
+RomRaider2 updates migrate the complete `config/user` tree (including managed
+definitions, profiles and recovery), plus top-level `definitions`, `profiles`,
+`logs`, `roms` and `repositories`. Existing settings are retained byte-for-byte;
+new application binaries, drivers and defaults are not replaced with old ones.
+
+The current installation is backed up beside itself before activation. If
+activation fails, the installer attempts to restore it automatically and reports
+the backup location if restoration also fails. Legacy installations are retained
+unchanged, including custom files outside the migrated paths. They are not
+deleted automatically, so absolute references into them continue to work.
+Verify your setup and backups before manually removing any predecessor.
+
+An existing current installation takes priority over legacy copies; older files
+are not merged back into it. Symlinked migration roots/settings require manual
+migration and stop the update without removing the original. Nested data links
+are copied as links, not followed. These repairs cannot recreate files already
+deleted by an older installer without another backup.
+
+### Included components
+
 The recommended installation includes:
 
 - Tactrix EcuFlash 1.44.4870.
