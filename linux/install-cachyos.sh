@@ -439,7 +439,7 @@ usage() {
   --install-udev   Install the OpenPort 2.0 udev rule with sudo
   --install-ecuflash  Download and open Tactrix's official EcuFlash installer
   --install-romraider  Install RomRaider DimeMod with a bundled 32-bit JRE
-  --install-romraider2   Install RomRaider2 1.1.1
+  --install-romraider2   Install RomRaider2 1.1.2
   --install-definitions SOURCE  Install RomRaider definitions (official, stable, beta, alpha)
   --definition-units UNITS     metric, standard, or imperial (default: metric)
   --definition-language LANG   en or de (default: en)
@@ -1010,7 +1010,7 @@ install_romraider2_only() {
         update-desktop-database "$applications_dir" >/dev/null 2>&1 || true
     ok "RomRaider2 launchers and application-menu entries installed."
 
-    section "Installing RomRaider2 1.1.1"
+    section "Installing RomRaider2 1.1.2"
     step "Verifying the pinned RomRaider2 application image."
     ROMRAIDER2_QUIET=1 "$bin_dir/install-romraider2"
     ok "RomRaider2 installed without requiring the unrelated Wine/OpenPort toolchain."
@@ -1646,7 +1646,7 @@ if $install_definitions; then
 fi
 
 if $install_romraider2; then
-    section "Installing RomRaider2 1.1.1"
+    section "Installing RomRaider2 1.1.2"
     step "Verifying the pinned RomRaider2 application image."
     ROMRAIDER2_QUIET=1 "$bin_dir/install-romraider2"
     ok "RomRaider2 installed separately from DimeMod."
