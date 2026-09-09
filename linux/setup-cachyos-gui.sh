@@ -167,7 +167,7 @@ draw_menu() {
     menu_line '[3] SYSTEM CHECK' "$cyan$bold"
     menu_line '    Check EcuFlash, J2534, launchers + OpenPort USB.'
     menu_line '[4] UNINSTALL                    [Q] EXIT' "$cyan$bold"
-    menu_line '[5] RomRaider2 1.1.5' "$purple$bold"
+    menu_line '[5] RomRaider2 1.1.8' "$purple$bold"
     menu_line '    Modern RomRaider update.'
     menu_line '    For Subaru and Mitsubishi Lancer Evolution.'
     menu_line '    Includes new editor, logger + analysis features.'
@@ -229,7 +229,7 @@ case "$choice" in
         ;;
     5)
         printf '  Release candidate; validated tools remain installed through vehicle qualification.\n\n'
-        confirm 'Install or update RomRaider2 1.1.5?' || exit 0
+        confirm 'Install or update RomRaider2 1.1.8?' || exit 0
         resume_installer_music_keys
         exec "$installer" --install-romraider2
         ;;
