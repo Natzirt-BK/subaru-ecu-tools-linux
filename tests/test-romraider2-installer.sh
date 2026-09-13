@@ -4,7 +4,7 @@ set -eu
 repo_root=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
 test_root=$(mktemp -d)
 trap 'rm -rf -- "$test_root"' EXIT HUP INT TERM
-archive_root=RomRaider2_ECU_Studio_1.1.9_Linux_x64
+archive_root=RomRaider2_ECU_Studio_1.1.10_Linux_x64
 source_root=$test_root/source/$archive_root
 install_root=$test_root/data/romraider2-ecu-studio
 legacy_root=$test_root/data/bergerraider-ecu-studio
@@ -22,7 +22,7 @@ touch \
     "$source_root/lib/runtime/release" \
     "$source_root/lib/app/RomRaider2.jar" \
     "$source_root/lib/app/lib/linux/64/j2534.so"
-printf 'RomRaider2 ECU Studio 1.1.9\n' \
+printf 'RomRaider2 ECU Studio 1.1.10\n' \
     >"$source_root/VERSION.txt"
 printf '%s\n' \
     '<settings><files><def_dir path="definitions"/></files><logger>' \
@@ -78,7 +78,7 @@ test -f "$install_root/logs/preserved.csv"
 test -d "$legacy_root"
 test -f "$install_root/.installed-by-subaru-ecu-tools"
 grep -Fx "$archive_sha" "$install_root/.release-sha256" >/dev/null
-grep -F 'RomRaider2 1.1.9 installed' "$test_root/install.log" >/dev/null
+grep -F 'RomRaider2 1.1.10 installed' "$test_root/install.log" >/dev/null
 
 ROMRAIDER2_INSTALL_ROOT="$install_root" \
 ROMRAIDER2_SOURCE_ROOT="$source_root" \
@@ -217,15 +217,15 @@ if grep -Fq 'Checking dependencies' "$test_root/full-install.log"; then
 fi
 grep -F '[ RUN  ] Verifying the pinned RomRaider2 application image.' \
     "$test_root/full-install.log" >/dev/null
-if grep -q '^  OK RomRaider2 1.1.9' \
+if grep -q '^  OK RomRaider2 1.1.10' \
         "$test_root/full-install.log"; then
     echo 'Nested RomRaider2 installer output escaped the setup console.' >&2
     exit 1
 fi
 
-grep -F 'romraider2-1.1.9' \
+grep -F 'romraider2-1.1.10' \
     "$repo_root/linux/install-romraider2" >/dev/null
-grep -F '00189a0f241c70c9999666ebe2e534bf1d578fa37c9bba58b228164cf4e0f1e2' \
+grep -F '253167764d1fa44ab85c8abb740444fdb3fb44ea265f70ae7e9778a26bff98b4' \
     "$repo_root/linux/install-romraider2" >/dev/null
 
 echo 'RomRaider2 installer tests passed.'
