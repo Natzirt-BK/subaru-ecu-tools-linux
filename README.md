@@ -1,10 +1,9 @@
 # Ecu Tools by NatZirt
 
-Subaru and Mitsubishi Lancer Evolution ECU editing,
-logging, and diagnostic software to Linux through one supported setup. It
+ECU editing, logging, and diagnostic software for Linux through one supported setup. It
 installs the applications, compatibility runtime, OpenPort 2.0 support,
 definitions, USB permissions, and desktop launchers that users would otherwise
-have to assemble manually.
+have to assemble manually unnecessarily.
 
 The project also distributes **[RomRaider2](https://github.com/Natzirt-BK/RomRaider2)**,
 a much-needed modernization of RomRaider that preserves useful work from the
