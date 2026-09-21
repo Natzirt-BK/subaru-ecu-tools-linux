@@ -104,83 +104,64 @@ completed stack.
 
 ## EcuFlash on Linux
 
-EcuFlash is a supported part of this installer, not just a Windows program
-placed behind a Wine shortcut. The Linux setup:
+EcuFlash is a supported part of this installer.
+This setup:
 
-- installs the official checksum-pinned EcuFlash 1.44.4870 package and Tactrix
-  32-bit OpenPort 2.0 J2534 library;
+- installs the official EcuFlash 1.44.4870 package and Tactrix
+  32-bit OpenPort 2.0 J2534 library
 - supplies a 64-bit Wine-to-libusb bridge so the 32-bit application can reach
-  the physical adapter;
+  the physical adapter
 - installs distribution-aware USB permissions and verifies the actual device
-  node;
+  node
 - synchronizes Wine's device state before EcuFlash starts and reports later
-  cable changes;
-- verifies bridge registration, disconnected behavior, and live adapter access;
+  cable changes
+- verifies bridge registration, disconnected behavior, and live adapter access
 - keeps the WineGDK runtime checksum-pinned and separate from the user's normal
   Wine configuration.
 
 This stack has completed live OpenPort discovery and ECU read/write validation
 on Linux. EcuFlash still reads cable state at startup, so restart it after
-plugging or unplugging the OpenPort. The installer does not automate a flash or
-choose ROM definitions for the user.
+plugging or unplugging the OpenPort.
 
 ## What RomRaider2 adds
 
-- A modern tabbed calibration workspace with favorites, recent and changed-map
-  navigation, persistent tab order, and recently closed map recovery.
-- Fast table filtering and unified search across maps, logger parameters, DTCs,
+- A modern workspace with favorites, recent and changed-map
+  navigation, tab order, and recents.
+- Fast table filtering and search across maps, logger parameters, DTCs,
   settings, and commands.
 - ROM comparison, grouped undo/redo, selected-cell revert, change summaries,
   notes, and integrity-checked crash-recovery snapshots.
-- An optional interactive 3D map surface integrated with the active table.
-- Integrated live-data cards, traces, and a datalog workspace driven by real
+- 3D map surface integration with the active table.
+- Integrated live-data cards, traces, and a datalog workspace driven by
   logger samples.
-- Offline RomRaider CSV analysis with linked tables, graphs, statistics, range
-  selection, and 0.25x–8x playback.
-- Light-first dark, system, and high-contrast themes; 75%–300% interface
-  scaling; and Compact, Touch, Garage, Dyno, and In-Car display modes.
-- Integrated window controls and responsive resizing.
-- A shared Subaru and Mitsubishi Lancer Evolution platform model with a
+- RomRaider CSV analysis with linked tables, graphs, statistics, range
+  selection, and playback speed adjustability.
+- Light & dark, system themes with customizable interface
+  scaling and multiple display modes including touch-mode to prevent fat-finger button pressing.
+- Integrated window controls and resizing.
+- Multi-vehicle platform model with a
   read-only MUT-II logging foundation.
-- Versioned settings, privacy-safe diagnostics, and self-contained Java 21 x64
+- Versioned settings, diagnostics, and self-contained Java 21 x64
   packages for Linux and Windows.
 
 ## What RomRaider2 fixes
 
-Compared with the inherited RomRaider/DimeMod build:
-
-- Calibration tabs respond across the complete tab header.
-- The 3D map stays closed until requested and follows the pointer correctly on
-  both drag axes.
-- Window resizing includes the edges and bottom corner; status-bar text stays
-  aligned and unclipped.
-- Windows menus, tabs, lists, tables, combo boxes, and file choosers retain
-  readable contrast under every RomRaider2 theme.
-- The Favorites action no longer collides with its heading in a narrow editor
-  sidebar.
 - OpenPort/J2534 reception waits for complete messages and resynchronizes when
-  Subaru SSM queries change, preventing the observed logging gaps.
+  Subaru SSM queries change, preventing logging gaps.
 - J2534 logging no longer shows an irrelevant serial COM-port selector.
 - External serial sensors validate their configuration and reconnect after a
-  port change; unsupported Windows-only plugins are hidden on Linux.
+  port change (unsupported Windows-only plugins are hidden on Linux.)
 - Missing-definition guidance opens the current SubaruDefs project instead of
   sending users to an outdated forum download.
-- Missing Logger definitions now use one application-styled prompt with clear
-  download and external-sensors-only choices.
-- Error dialogs no longer expose raw exception details or upload reports.
-- End-of-life Java and logging components were replaced with audited Java 21,
+- Missing Logger definitions now use one prompt with clear choices.
+- Error dialogs no longer expose raw exception details.
+- End-of-life Java and logging components were replaced with Java 21,
   JNA, jSerialComm, and Log4j dependencies.
 
 ## Definitions and vehicle files
 
-The repository and RomRaider2 release archives contain software only. They do
-not include private ROMs, owner definitions, logger profiles, captured logs, or
-vehicle-specific tuning files. The Linux installer can download current public
-RomRaider definitions, and RomRaider2 links users to the current SubaruDefs
-project when definitions are not configured.
-
-Never select a definition by model year alone. Verify the exact ROM ID before
-editing or logging.
+The Linux installer can download current public
+RomRaider definitions for chosen vehicle options, however this is currently disabled.
 
 ## Validation status
 
@@ -188,19 +169,19 @@ editing or logging.
   adapter discovery and ECU read/write validation.
 - RomRaider2 has completed OpenPort/J2534 Subaru ECU identification and sustained
   in-car SSM/ISO9141 logging.
-- Mitsubishi MUT-II logging still requires connected-vehicle qualification.
-- The Windows portable package passes automated build, structure, and startup
-  checks; connected Windows hardware testing remains pending.
-- RomRaider2 1.1.11 does not enable ECU memory writing or flashing. EcuFlash remains
-  the established flashing application in the Linux toolset.
+- Mitsubishi MUT-II logging passed validation.
+- The Windows package passes build and hardware testing.
+- Does not enable ECU memory writing or flashing. The code is removed and remains local currently
+  EcuFlash remains the flashing application in the Linux toolset.
 
 ## OpenPort behavior on Linux
 
 The installer checks the USB state.
 When connected, the J2534 probe opens and closes the adapter. When disconnected,
 it must report device not connected. The EcuFlash launcher synchronizes Wine's
-device state before startup and reports later USB changes. **Restart EcuFlash
-after plugging or unplugging the cable.**
+device state before startup and reports later USB changes. 
+
+**Restart EcuFlash after plugging or unplugging the cable.**
 
 The J2534 probe distinguishes states from
 missing or denied USB access.
