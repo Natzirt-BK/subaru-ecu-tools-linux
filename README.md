@@ -5,7 +5,7 @@ installs the applications, compatibility runtime, OpenPort 2.0 support,
 definitions, USB permissions, and desktop launchers that users would otherwise
 have to assemble manually unnecessarily.
 
-The project also distributes **[RomRaider2](https://github.com/Natzirt-BK/RomRaider2)**,
+The project also distributes **[RomRaider2](https://github.com/Natzirt-BK/RomRaider2-Releases/releases)**,
 a much-needed modernization of RomRaider that preserves useful work from the
 DimeMod fork while adding a new interface, current runtime, safer diagnostics,
 improved logging, and Mitsubishi Lancer Evolution support.
@@ -16,8 +16,12 @@ RomRaider project.
 
 ## Downloads and installation
 
+The installer currently pins **RomRaider2 1.1.12 RC1**. Later development builds
+are not installed by these commands. Download packages only from the public
+release repository and verify the accompanying SHA-256 checksums.
+
 Windows 10/11 x64 users can download the self-contained RomRaider2 portable ZIP
-from the [current release page](https://github.com/Natzirt-BK/RomRaider2/releases/tag/romraider2-1.1.12).
+from the [public 1.1.12 RC1 release](https://github.com/Natzirt-BK/RomRaider2-Releases/releases/tag/romraider2-1.1.12).
 Java 21 is included; extract the ZIP and launch `RomRaider2.exe` or
 `RomRaider2 Logger.exe`.
 
@@ -169,9 +173,10 @@ RomRaider definitions for chosen vehicle options, however this is currently disa
 - RomRaider2 has completed OpenPort/J2534 Subaru ECU identification and sustained
   in-car SSM/ISO9141 logging.
 - Mitsubishi MUT-II logging passed validation.
-- The Windows package passes build and hardware testing.
-- Does not enable ECU memory writing or flashing. The code is removed and remains local currently
-  EcuFlash remains the flashing application in the Linux toolset.
+- The published Windows 1.1.12 package has prior qualification evidence; each
+  newer candidate needs its own build and hardware checks before release.
+- The RomRaider2 installer does not enable production ECU flashing or live tuning.
+  EcuFlash remains the separate flashing application in the Linux toolset.
 
 ## OpenPort behavior on Linux
 
@@ -205,5 +210,5 @@ definition, maintain a recovery path, and never interrupt a flash.
 
 Advanced commands and implementation details are in the
 [technical reference](LINUX_ECU_TOOLS.md). The installer project is available
-under the [MIT License](LICENSE); bundled and downloaded applications retain
+under the [BSD 3-Clause License](LICENSE); bundled and downloaded applications retain
 their own licenses and attribution.
