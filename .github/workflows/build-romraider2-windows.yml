@@ -1,16 +1,11 @@
-name: Build RomRaider2 Windows x64
+name: Historical RomRaider2 1.1.0 Windows verification
 
 on:
   workflow_dispatch:
-    inputs:
-      publish_release:
-        description: Publish the verified ZIP to the RC1 GitHub release
-        required: true
-        type: boolean
-        default: true
 
+# Historical verification only. Do not publish or replace obsolete release assets.
 permissions:
-  contents: write
+  contents: read
 
 env:
   SOURCE_ARCHIVE: RomRaider2_ECU_Studio_1.1.0_Source.tar.gz
@@ -106,13 +101,3 @@ jobs:
           name: RomRaider2-Windows-x64
           path: dist/*
           if-no-files-found: error
-      - name: Publish RC1 release assets
-        if: ${{ inputs.publish_release }}
-        shell: pwsh
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          gh release upload romraider2-1.1.0-rc1 `
-            dist/RomRaider2_ECU_Studio_1.1.0_Windows_x64.zip `
-            dist/RomRaider2_ECU_Studio_1.1.0_Windows_x64.zip.sha256 `
-            --clobber --repo $env:GITHUB_REPOSITORY
