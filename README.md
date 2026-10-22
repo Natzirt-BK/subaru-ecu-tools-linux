@@ -5,10 +5,10 @@ installs the applications, compatibility runtime, OpenPort 2.0 support,
 definitions, USB permissions, and desktop launchers that users would otherwise
 have to assemble manually unnecessarily.
 
-The project also distributes **[RomRaider2](https://github.com/Natzirt-BK/RomRaider2-Releases/releases)**,
-a much-needed modernization of RomRaider that preserves useful work from the
-DimeMod fork while adding a new interface, current runtime, safer diagnostics,
-improved logging, and Mitsubishi Lancer Evolution support.
+The toolset can also integrate **RomRaider2** when an explicitly verified
+package is available. RomRaider2 modernizes RomRaider while preserving useful
+work from the DimeMod fork and adding a new interface, current runtime, safer
+diagnostics, improved logging, and Mitsubishi Lancer Evolution support.
 
 Maintained by **NatZirt**. This is an independent community
 project and is not affiliated with Tactrix, Subaru, Mitsubishi, or the official
@@ -16,14 +16,16 @@ RomRaider project.
 
 ## Downloads and installation
 
-The installer currently pins **RomRaider2 1.1.12 RC1**. Later development builds
-are not installed by these commands. Download packages only from the public
-release repository and verify the accompanying SHA-256 checksums.
+The public installer pins **RomRaider2 1.1.12 RC1** to the exact Linux package
+SHA-256 `fb97984aa10c4f0c7850388127edd6b5bb4add01ccd5883356c964d07b0f2006`.
+Later development and qualification-only builds are not selected automatically.
 
-Windows 10/11 x64 users can download the self-contained RomRaider2 portable ZIP
-from the [public 1.1.12 RC1 release](https://github.com/Natzirt-BK/RomRaider2-Releases/releases/tag/romraider2-1.1.12).
-Java 21 is included; extract the ZIP and launch `RomRaider2.exe` or
-`RomRaider2 Logger.exe`.
+There is currently **no public RomRaider2 package URL configured** for this
+repository. The RomRaider2 installer therefore fails closed unless that exact
+verified archive is already present or the operator explicitly supplies a
+trusted package URL. The public EcuFlash/RomRaider toolset remains available;
+Windows RomRaider2 download instructions will return when a public package
+source is available.
 
 On CachyOS or Arch Linux, paste this command into a terminal:
 
@@ -37,6 +39,25 @@ On Debian 13 Stable x64, use:
 curl -fsSL https://raw.githubusercontent.com/Natzirt-BK/subaru-ecu-tools-linux/master/bootstrap-debian.sh | bash
 ```
 
+Those two convenience commands intentionally track the current `master` branch.
+For an immutable, reviewable source baseline, pin the checkout instead of
+executing moving branch content:
+
+```bash
+ECU_TOOLS_REF=40d08a317d64d4d3d52b3b557dfe907cb597f194
+git clone https://github.com/Natzirt-BK/subaru-ecu-tools-linux.git ~/.local/src/subaru-ecu-tools-linux-pinned
+git -C ~/.local/src/subaru-ecu-tools-linux-pinned checkout --detach "$ECU_TOOLS_REF"
+~/.local/src/subaru-ecu-tools-linux-pinned/linux/setup-cachyos-gui.sh
+# Debian 13: use linux/setup-debian-gui.sh instead.
+```
+
+The supported release host architecture is **x86_64/amd64**. CachyOS/Arch is
+the Arch-family path; Debian 13 Stable amd64 is the Debian qualification
+baseline. Debian-family detection exists for compatible derivatives, but that
+does not make every derivative a qualified host. CI also exercises shell and
+installer regressions on Ubuntu plus the bridge/test suite in a Debian 13
+container. These are software/package checks, not ECU or adapter qualification.
+
 The Setup menu provides:
 
 1. **Install / repair** — EcuFlash, the validated Linux OpenPort stack,
@@ -46,7 +67,8 @@ The Setup menu provides:
 3. **System check** — verify applications, dependencies, J2534, and OpenPort USB
    access without installing anything.
 4. **Uninstall** — remove installer-managed software.
-5. **RomRaider2 1.1.12** — install or update RomRaider2 separately.
+5. **RomRaider2 1.1.12** — install the separately verified package when its
+   exact archive is available.
 
 Installer music starts with the setup menu and continues across install runs.
 Press **M** to mute it. Completion screens use **B** to return to the main menu,
@@ -54,17 +76,24 @@ and the menu redraw restores the same terminal colors and formatting.
 Music stops when setup exits or its terminal closes, including while an
 installer prompt has temporarily taken over keyboard input.
 
-To install only RomRaider2 on CachyOS or Arch Linux:
+To install only RomRaider2 after you have obtained the exact verified 1.1.12
+Linux archive, point the installer at that local file. On CachyOS/Arch:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/Natzirt-BK/subaru-ecu-tools-linux/master/bootstrap-cachyos.sh | bash -s -- --install-romraider2
+ROMRAIDER2_ARCHIVE=/path/to/RomRaider2_ECU_Studio_1.1.12_Linux_x64.zip \
+  ~/.local/src/subaru-ecu-tools-linux/linux/install-cachyos.sh --install-romraider2
 ```
 
 On Debian 13 Stable x64:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/Natzirt-BK/subaru-ecu-tools-linux/master/bootstrap-debian.sh | bash -s -- --install-romraider2
+ROMRAIDER2_ARCHIVE=/path/to/RomRaider2_ECU_Studio_1.1.12_Linux_x64.zip \
+  ~/.local/src/subaru-ecu-tools-linux/linux/install-debian.sh --install-romraider2
 ```
+
+The installer verifies the pinned SHA-256 before activation. Advanced operators
+may explicitly provide `ROMRAIDER2_URL` for the same package; the default path
+never falls back to a private or development source.
 
 ## Linux software stack
 
@@ -173,8 +202,10 @@ RomRaider definitions for chosen vehicle options, however this is currently disa
 - RomRaider2 has completed OpenPort/J2534 Subaru ECU identification and sustained
   in-car SSM/ISO9141 logging.
 - Mitsubishi MUT-II logging passed validation.
-- The published Windows 1.1.12 package has prior qualification evidence; each
-  newer candidate needs its own build and hardware checks before release.
+- The accepted RomRaider2 1.1.12 package identities retain prior qualification
+  evidence, but this public repository currently has no RR2 package source.
+  Every newer candidate still needs its own build and hardware checks before
+  release.
 - The RomRaider2 installer does not enable production ECU flashing or live tuning.
   EcuFlash remains the separate flashing application in the Linux toolset.
 

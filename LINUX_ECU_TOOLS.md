@@ -21,6 +21,18 @@ less /tmp/bootstrap-debian.sh
 bash /tmp/bootstrap-debian.sh
 ```
 
+The `master` URLs above are the convenient moving path. For a reproducible
+reviewed source baseline, use an immutable checkout instead:
+
+```bash
+ECU_TOOLS_REF=40d08a317d64d4d3d52b3b557dfe907cb597f194
+git clone https://github.com/Natzirt-BK/subaru-ecu-tools-linux.git /tmp/subaru-ecu-tools-linux
+
+git -C /tmp/subaru-ecu-tools-linux checkout --detach "$ECU_TOOLS_REF"
+/tmp/subaru-ecu-tools-linux/linux/setup-cachyos-gui.sh
+# Debian 13: use linux/setup-debian-gui.sh instead.
+```
+
 Useful direct commands after checkout:
 
 ```bash
@@ -46,7 +58,7 @@ RomRaider2 flags. The bootstrap checkout lives at
 | Project data and Wine runtime | `~/.local/share/subaru-ecu-tools-linux/` |
 | EcuFlash Wine prefix | `~/.local/share/ecuflash-proton/` |
 | RomRaider DimeMod | `~/.local/share/romraider-dm20/` |
-| RomRaider2 1.1 RC | `~/.local/share/romraider2-ecu-studio/` |
+| RomRaider2 1.1.12 RC1 | `~/.local/share/romraider2-ecu-studio/` |
 | Definitions | `~/.local/share/subaru-evo-ecu-definitions/` |
 | Setup logs | `~/.local/state/subaru-ecu-tools-linux/` |
 | Download cache | `~/.cache/subaru-ecu-tools-linux/` |
@@ -99,20 +111,28 @@ Community stable, beta, alpha, alternative units, and custom XML imports remain
 available through advanced installer flags. Experimental definitions can contain
 incorrect addresses; verify them independently.
 
-## RomRaider2 1.1 release candidate
+## RomRaider2 1.1.12 release candidate
 
-RomRaider2 is a separate Subaru and Mitsubishi Lancer Evolution release
-candidate.
+RomRaider2 1.1.12 RC1 is a separate Subaru and Mitsubishi Lancer Evolution
+release candidate. Its accepted Linux package identity is
+`fb97984aa10c4f0c7850388127edd6b5bb4add01ccd5883356c964d07b0f2006`.
 It includes the shared platform selector, independent DimeMod state, current
 upstream editor fixes, and a read-only MUT-II logging foundation. Definitions
-and vehicle files are intentionally not bundled. Install it directly with:
+and vehicle files are intentionally not bundled.
+
+No public RomRaider2 package URL is currently configured. If the exact verified
+archive is already available, install it with:
 
 ```bash
-./linux/install-cachyos.sh --install-romraider2
+ROMRAIDER2_ARCHIVE=/path/to/RomRaider2_ECU_Studio_1.1.12_Linux_x64.zip \
+  ./linux/install-cachyos.sh --install-romraider2
 ```
 
-It uses its own application directory and settings file and does not replace
-RomRaider DimeMod. Realtime ECU writes are not enabled.
+The default installer refuses an unavailable/private source before attempting a
+network request. `ROMRAIDER2_URL` is an explicit advanced override for a trusted
+URL serving that exact package. RomRaider2 uses its own application directory
+and settings file and does not replace RomRaider DimeMod. Realtime ECU writes
+are not enabled.
 
 ## Diagnostics
 

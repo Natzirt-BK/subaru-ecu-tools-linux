@@ -10,7 +10,8 @@
   terminal disconnect, or loss of the owning setup process.
 - `install-cachyos.sh` — installation, repair, checks, and removal engine
 - `update-cachyos.sh` — refreshes managed files and validates EcuFlash/OpenPort
-- `install-romraider2` — checksum-pinned RomRaider2 1.1.12 Java 21 installer
+- `install-romraider2` — SHA-256-pinned RomRaider2 1.1.12 Java 21 installer;
+  requires the verified archive or an explicitly trusted package URL
 - `launch-romraider2` — isolated RomRaider2 Editor/Logger launcher
 - `launch-*` — installed application launchers
 - `sync-openport-device-state` — mirrors physical USB presence into Wine

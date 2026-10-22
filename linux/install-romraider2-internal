@@ -1,0 +1,51 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+repo=Natzirt-BK/RomRaider2
+tag=internal-linux-f49ac492-20261022
+version=1.1.13
+source_sha=f49ac492befbbc2cbe517c765662a2958ffd0398
+package=RomRaider2_ECU_Studio_1.1.13_Linux_x64.zip
+expected_sha256=48ba597511ee9766365b6c91c166abe39f1d5997f336414b85c0adf55fb06ea9
+script_dir=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+
+command -v gh >/dev/null 2>&1 || {
+    echo 'GitHub CLI (gh) is required for the internal RR2 channel.' >&2
+    exit 2
+}
+gh auth status -h github.com >/dev/null 2>&1 || {
+    echo 'Authenticate gh with access to the private RR2 repository first.' >&2
+    exit 2
+}
+
+work=$(mktemp -d)
+cleanup() {
+    rm -rf -- "$work"
+}
+trap cleanup EXIT HUP INT TERM
+
+echo "Fetching internal RomRaider2 $version from private RR2 release $tag"
+gh release download "$tag" -R "$repo" \
+    --pattern "$package" \
+    --pattern "$package.sha256" \
+    --dir "$work"
+
+sidecar_sha=$(awk 'NR == 1 { print $1 }' "$work/$package.sha256")
+[[ "$sidecar_sha" =~ ^[0-9A-Fa-f]{64}$ ]] || {
+    echo 'Internal RR2 checksum sidecar is malformed.' >&2
+    exit 1
+}
+sidecar_sha=${sidecar_sha,,}
+[[ "$sidecar_sha" == "$expected_sha256" ]] || {
+    echo 'Internal RR2 checksum sidecar does not match the pinned build identity.' >&2
+    exit 1
+}
+printf '%s  %s\n' "$expected_sha256" "$work/$package" | sha256sum -c - >/dev/null
+
+echo "Verified private package: $package"
+echo "Source commit: $source_sha"
+ROMRAIDER2_VERSION="$version" \
+ROMRAIDER2_ARCHIVE="$work/$package" \
+ROMRAIDER2_SHA256="$expected_sha256" \
+ROMRAIDER2_URL= \
+    "$script_dir/install-cachyos.sh" --install-romraider2
