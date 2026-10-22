@@ -223,9 +223,75 @@ if grep -q '^  OK RomRaider2 1.1.12' \
     exit 1
 fi
 
-grep -F 'romraider2-1.1.12' \
+grep -F 'RomRaider2_ECU_Studio_1.1.12_Linux_x64.zip' \
     "$repo_root/linux/install-romraider2" >/dev/null
 grep -F 'fb97984aa10c4f0c7850388127edd6b5bb4add01ccd5883356c964d07b0f2006' \
     "$repo_root/linux/install-romraider2" >/dev/null
+
+# A clean public install must fail closed instead of following a private or
+# development release source when the verified archive is not already present.
+mkdir -p "$test_root/no-source-bin"
+cat >"$test_root/no-source-bin/curl" <<'EOF'
+#!/bin/sh
+echo 'unexpected curl invocation' >&2
+exit 99
+EOF
+chmod +x "$test_root/no-source-bin/curl"
+if PATH="$test_root/no-source-bin:$PATH" \
+        HOME="$test_root/no-source-home" \
+        XDG_CACHE_HOME="$test_root/no-source-cache" \
+        XDG_DATA_HOME="$test_root/no-source-data" \
+        ROMRAIDER2_ARCHIVE="$test_root/missing-rr2.zip" \
+        "$repo_root/linux/install-romraider2" \
+        >"$test_root/no-source.log" 2>&1; then
+    echo 'RomRaider2 install unexpectedly accepted an unavailable default source.' >&2
+    exit 1
+fi
+grep -F 'no public' "$test_root/no-source.log" >/dev/null
+grep -F 'No private or development release will be used automatically.' \
+    "$test_root/no-source.log" >/dev/null
+if grep -Fq 'unexpected curl invocation' "$test_root/no-source.log"; then
+    echo 'RomRaider2 installer attempted a network download without an explicit source.' >&2
+    exit 1
+fi
+
+# An explicitly supplied trusted URL remains supported, but the downloaded bytes
+# must match the caller-selected SHA before they replace the cached archive.
+download_fixture="$test_root/RomRaider2_ECU_Studio_1.1.12_Linux_x64.zip"
+python3 - "$source_root" "$download_fixture" <<'PY'
+import pathlib
+import sys
+import zipfile
+
+source = pathlib.Path(sys.argv[1])
+out = pathlib.Path(sys.argv[2])
+with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as zf:
+    for path in sorted(source.rglob("*")):
+        if path.is_file():
+            zf.write(path, pathlib.Path(source.name) / path.relative_to(source))
+PY
+download_sha=$(sha256sum "$download_fixture" | awk '{print $1}')
+cat >"$test_root/no-source-bin/curl" <<'EOF'
+#!/bin/sh
+out=
+while [ "$#" -gt 0 ]; do
+    case "$1" in
+        --output) out=$2; shift 2 ;;
+        *) shift ;;
+    esac
+done
+cp -- "$RR2_TEST_DOWNLOAD_FIXTURE" "$out"
+EOF
+chmod +x "$test_root/no-source-bin/curl"
+RR2_TEST_DOWNLOAD_FIXTURE="$download_fixture" \
+PATH="$test_root/no-source-bin:$PATH" \
+HOME="$test_root/url-home" \
+XDG_CACHE_HOME="$test_root/url-cache" \
+XDG_DATA_HOME="$test_root/url-data" \
+ROMRAIDER2_URL='https://example.invalid/verified-rr2.zip' \
+ROMRAIDER2_SHA256="$download_sha" \
+    "$repo_root/linux/install-romraider2" >"$test_root/url-install.log"
+grep -Fx "$download_sha" \
+    "$test_root/url-data/romraider2-ecu-studio/.release-sha256" >/dev/null
 
 echo 'RomRaider2 installer tests passed.'
