@@ -4,10 +4,26 @@ set -euo pipefail
 data_root=${XDG_DATA_HOME:-$HOME/.local/share}
 cache_root=${XDG_CACHE_HOME:-$HOME/.cache}/subaru-ecu-tools-linux
 install_root=${ROMRAIDER2_INSTALL_ROOT:-$data_root/romraider2-ecu-studio}
-archive=${ROMRAIDER2_ARCHIVE:-$cache_root/RomRaider2_ECU_Studio_1.1.12_Linux_x64.zip}
-archive_root=RomRaider2_ECU_Studio_1.1.12_Linux_x64
-release_url=${ROMRAIDER2_URL:-https://github.com/Natzirt-BK/RomRaider2-Releases/releases/download/romraider2-1.1.12/RomRaider2_ECU_Studio_1.1.12_Linux_x64.zip}
-release_sha256=${ROMRAIDER2_SHA256:-fb97984aa10c4f0c7850388127edd6b5bb4add01ccd5883356c964d07b0f2006}
+version=${ROMRAIDER2_VERSION:-1.1.12}
+archive=${ROMRAIDER2_ARCHIVE:-$cache_root/RomRaider2_ECU_Studio_${version}_Linux_x64.zip}
+archive_root=RomRaider2_ECU_Studio_${version}_Linux_x64
+release_url=${ROMRAIDER2_URL:-}
+# Exact package identity retained from the accepted 1.1.12 RC1 release metadata.
+# Other versions must provide their exact digest explicitly.
+release_sha256=${ROMRAIDER2_SHA256:-}
+if [[ -z "$release_sha256" ]]; then
+    if [[ "$version" == 1.1.12 ]]; then
+        release_sha256=fb97984aa10c4f0c7850388127edd6b5bb4add01ccd5883356c964d07b0f2006
+    else
+        echo "ROMRAIDER2_SHA256 is required for RomRaider2 $version." >&2
+        exit 2
+    fi
+fi
+[[ "$release_sha256" =~ ^[0-9A-Fa-f]{64}$ ]] || {
+    echo 'ROMRAIDER2_SHA256 must be exactly 64 hexadecimal characters.' >&2
+    exit 2
+}
+release_sha256=${release_sha256,,}
 source_root=${ROMRAIDER2_SOURCE_ROOT:-}
 quiet=${ROMRAIDER2_QUIET:-0}
 if [[ -n "${ROMRAIDER2_LEGACY_INSTALL_ROOT:-}" ]]; then
@@ -41,7 +57,7 @@ modern_install() {
        -f "$root/config/settings.default.xml" && \
        -f "$root/VERSION.txt" && \
        -f "$root/customize/j2534Libraries.properties" ]] && \
-        grep -Fxq 'RomRaider2 ECU Studio 1.1.12' \
+        grep -Fxq "RomRaider2 ECU Studio $version" \
             "$root/VERSION.txt" && \
         grep -Fq 'romraider2.settings.dir=$APPDIR/../../config/user' \
             "$root/lib/app/RomRaider2.cfg" && \
@@ -55,7 +71,7 @@ if modern_install "$install_root" && \
    [[ -f "$install_root/.installed-by-subaru-ecu-tools" ]] && \
    [[ -f "$install_root/.release-sha256" ]] && \
    grep -Fxq "$release_sha256" "$install_root/.release-sha256"; then
-    notice "  OK RomRaider2 1.1.12 is already current."
+    notice "  OK RomRaider2 $version is already current."
     exit 0
 fi
 
@@ -90,13 +106,35 @@ if [[ -n "$source_root" ]]; then
 else
     if [[ ! -f "$archive" ]] || \
        ! printf '%s  %s\n' "$release_sha256" "$archive" | sha256sum -c - >/dev/null 2>&1; then
-        notice "  -> Downloading RomRaider2 1.1.12"
-        if [[ "$quiet" == 1 ]]; then
-            curl --fail --location --silent --show-error \
-                --output "$archive" "$release_url"
-        else
-            curl --fail --location --progress-bar --output "$archive" "$release_url"
+        if [[ -z "$release_url" ]]; then
+            cat >&2 <<EOF
+RomRaider2 $version is pinned to SHA-256 $release_sha256, but no public
+package URL is configured. No private or development release will be used
+automatically. Place the exact verified archive at:
+  $archive
+or set ROMRAIDER2_URL to a trusted URL for that exact package.
+EOF
+            exit 3
         fi
+        notice "  -> Downloading verified RomRaider2 $version package"
+        download_tmp=$(mktemp "$cache_root/.romraider2-download.XXXXXX")
+        if [[ "$quiet" == 1 ]]; then
+            curl_args=(--fail --location --silent --show-error)
+        else
+            curl_args=(--fail --location --progress-bar)
+        fi
+        if ! curl "${curl_args[@]}" --output "$download_tmp" "$release_url"; then
+            rm -f -- "$download_tmp"
+            echo 'RomRaider2 download failed; the existing installation is unchanged.' >&2
+            exit 3
+        fi
+        if ! printf '%s  %s\n' "$release_sha256" "$download_tmp" | \
+                sha256sum -c - >/dev/null 2>&1; then
+            rm -f -- "$download_tmp"
+            echo 'RomRaider2 download did not match the pinned SHA-256; refusing it.' >&2
+            exit 1
+        fi
+        mv -- "$download_tmp" "$archive"
     fi
     printf '%s  %s\n' "$release_sha256" "$archive" | sha256sum -c - >/dev/null
     unzip -q "$archive" -d "$stage"
@@ -183,4 +221,4 @@ for legacy_install_root in "${legacy_install_roots[@]}"; do
         notice "  -> Retained predecessor unchanged at $legacy_install_root (including any unmigrated custom files)."
     fi
 done
-notice "  OK RomRaider2 1.1.12 installed at $install_root"
+notice "  OK RomRaider2 $version installed at $install_root"
