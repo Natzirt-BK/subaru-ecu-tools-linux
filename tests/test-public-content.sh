@@ -38,7 +38,7 @@ for public_file in \
         exit 1
     fi
 done
-grep -F '527418890d35936d5d0f10ff18af9067700d6a78' "$repo_root/README.md" >/dev/null
+grep -F '94cc1e89f5f3698c174d8aee9583c5fb766166f6' "$repo_root/README.md" >/dev/null
 grep -F 'no public RomRaider2 package URL configured' "$repo_root/README.md" >/dev/null
 
 echo 'Public-content and branding tests passed.'
