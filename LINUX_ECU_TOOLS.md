@@ -25,7 +25,7 @@ The `master` URLs above are the convenient moving path. For a reproducible
 reviewed source baseline, use an immutable checkout instead:
 
 ```bash
-ECU_TOOLS_REF=527418890d35936d5d0f10ff18af9067700d6a78
+ECU_TOOLS_REF=94cc1e89f5f3698c174d8aee9583c5fb766166f6
 git clone https://github.com/Natzirt-BK/subaru-ecu-tools-linux.git /tmp/subaru-ecu-tools-linux
 
 git -C /tmp/subaru-ecu-tools-linux checkout --detach "$ECU_TOOLS_REF"

@@ -44,7 +44,7 @@ For an immutable, reviewable source baseline, pin the checkout instead of
 executing moving branch content:
 
 ```bash
-ECU_TOOLS_REF=527418890d35936d5d0f10ff18af9067700d6a78
+ECU_TOOLS_REF=94cc1e89f5f3698c174d8aee9583c5fb766166f6
 git clone https://github.com/Natzirt-BK/subaru-ecu-tools-linux.git ~/.local/src/subaru-ecu-tools-linux-pinned
 git -C ~/.local/src/subaru-ecu-tools-linux-pinned checkout --detach "$ECU_TOOLS_REF"
 ~/.local/src/subaru-ecu-tools-linux-pinned/linux/setup-cachyos-gui.sh
